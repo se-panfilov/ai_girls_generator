@@ -56,7 +56,10 @@ Keep each rule in one of three documents. Do not copy a rule into another docume
 
 npm 11 and later (Node.js 26 ships npm 11) do not run dependency install scripts by default.
 List each necessary install script in the `allowScripts` field of `package.json`, with a pinned version.
-**Verified** for `electron@44.10.0` in the gate test bench (outside this repository).
+Use `npm ci --ignore-scripts` for the repository. A package that needs an install script needs a human review (see [Enforced rules](ENFORCED_RULES.md#pull-request-rules)).
+Electron 40 and later have no install script. The `electron` package downloads its binary on the first `require('electron')`.
+**Verified** in the gate test bench (outside this repository): `electron@44.10.0` installs a complete binary on Node.js 26.12.1 and 22.23.4.
+`electron@38.4.0` leaves an incomplete binary on Node.js 26.12.1 (0 of 3 tries), but not on Node.js 22.23.4 (3 of 3 tries).
 
 ## Exceptions in force
 
