@@ -157,6 +157,29 @@ test('repository structure rejects lowercase rule files, dist, extra lockfiles, 
   assert.equal(problems.length, 10);
 });
 
+test('repository structure rejects agent host settings and override instruction files', () => {
+  assert.deepEqual(structureProblems(['.claude/agents/security-reviewer.md', '.claude/skills/demo/SKILL.md', '.github/copilot-instructions.md']), []);
+  const files = [
+    '.claude/settings.json',
+    '.claude/settings.local.json',
+    '.mcp.json',
+    '.gemini/settings.json',
+    '.codex/config.toml',
+    '.cursor/rules/demo.mdc',
+    '.vscode/tasks.json',
+    'AGENTS.override.md',
+    'packages/demo/AGENTS.override.md',
+    'CLAUDE.local.md',
+    '.cursorrules'
+  ];
+  const problems = structureProblems(files);
+  for (const file of files)
+    assert.ok(
+      problems.some((problem) => problem.startsWith(`${file}: agent host settings`)),
+      file
+    );
+});
+
 test('tracked text files outside vendored content are in English', () => {
   const files = {
     'docs/A.md': `Text ${cyrillicWord}.`,
@@ -229,6 +252,29 @@ test('workflows reject events that run with secrets for pull request or comment 
     assert.match(workflowRuleProblems('demo.yml', goodWorkflow.replace('  pull_request:\n', `  ${event}:\n`)).join('\n'), new RegExp(`the ${event} event is not permitted`));
   }
   assert.match(workflowRuleProblems('demo.yml', goodWorkflow.replace(/^on:\n/m, 'on: [push, workflow_run]\n')).join('\n'), /the workflow_run event is not permitted/);
+  // Other YAML forms of the same event: block list, quoted key, quoted `on`, and a flow list on two lines.
+  const forms = [
+    ['on:\n  - push\n  - pull_request_target\n', 'pull_request_target'],
+    ["on:\n  'workflow_run':\n    workflows: [Tests]\n", 'workflow_run'],
+    ['"on": [push, issue_comment]\n', 'issue_comment'],
+    ['on: [push,\n  discussion_comment]\n', 'discussion_comment']
+  ];
+  for (const [on, event] of forms) {
+    const text = goodWorkflow.replace(/^on:\n(\s+.*\n)+/m, on);
+    assert.match(workflowRuleProblems('demo.yml', text).join('\n'), new RegExp(`the ${event} event is not permitted`), on);
+  }
+});
+
+test('top-level workflow permissions are read-only', () => {
+  for (const permissions of ['permissions: write-all\n', 'permissions:\n  contents: write\n', 'permissions: { contents: write }\n']) {
+    const text = goodWorkflow.replace('permissions:\n  contents: read\n', permissions);
+    assert.match(workflowRuleProblems('demo.yml', text).join('\n'), /top-level permissions must be read-only/, permissions);
+  }
+  assert.deepEqual(workflowRuleProblems('demo.yml', goodWorkflow.replace('permissions:\n  contents: read\n', 'permissions: read-all\n')), []);
+  const jobWrite = goodWorkflow.replace(/(\n {4}runs-on: [^\n]+\n)/, '$1    permissions:\n      security-events: write\n');
+  assert.notEqual(jobWrite, goodWorkflow);
+  assert.deepEqual(workflowRuleProblems('demo.yml', jobWrite), []);
+  assert.match(workflowRuleProblems('demo.yml', goodWorkflow.replace(/(\n {4}runs-on: [^\n]+\n)/, '$1    permissions: write-all\n')).join('\n'), /write-all is not permitted/);
 });
 
 test('a third-party skill must match the provenance manifest and the tool allowlist', (t) => {

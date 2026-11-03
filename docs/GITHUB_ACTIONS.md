@@ -45,15 +45,15 @@ Tests use Node.js 26, the latest patch version. CI does not check the minimum en
 
 ## Security controls
 
-| Control              | Implementation                                                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Token permissions    | The default is `contents: read`. Only the CodeQL `analyze` job has `security-events: write`.                                   |
-| Checkout credentials | All jobs use `persist-credentials: false`.                                                                                     |
-| Actions              | Each action is pinned to a full commit SHA with the version in a comment.                                                      |
-| Trigger events       | No `pull_request_target`, `workflow_run`, `issue_comment`, or pull request review events. `npm run check:config` rejects them. |
-| Input handling       | Inputs go to scripts through environment variables, not through `${{ }}` in shell text.                                        |
-| Dependency scripts   | `npm ci` uses `--ignore-scripts`. No dependency cache is used.                                                                 |
-| Pipeline assets      | No workflow downloads model weights, calls a paid API, or uploads character assets.                                            |
+| Control              | Implementation                                                                                                                                                                     |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Token permissions    | The default is `contents: read`. Only the CodeQL `analyze` job has `security-events: write`. `npm run check:config` rejects write access in top-level permissions and `write-all`. |
+| Checkout credentials | All jobs use `persist-credentials: false`.                                                                                                                                         |
+| Actions              | Each action is pinned to a full commit SHA with the version in a comment.                                                                                                          |
+| Trigger events       | No `pull_request_target`, `workflow_run`, `issue_comment`, pull request review, or discussion events. `npm run check:config` rejects them.                                         |
+| Input handling       | Inputs go to scripts through environment variables, not through `${{ }}` in shell text.                                                                                            |
+| Dependency scripts   | `npm ci` uses `--ignore-scripts`, and `.npmrc` sets `ignore-scripts=true`. No dependency cache is used.                                                                            |
+| Pipeline assets      | No workflow downloads model weights, calls a paid API, or uploads character assets.                                                                                                |
 
 Limits:
 

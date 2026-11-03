@@ -12,7 +12,7 @@ You did not write the change. Examine it as an independent reviewer.
 ## Rules
 
 - Read [AGENTS.md](../../AGENTS.md) and [the asset-factory workflow](../../.agents/skills/asset-factory/SKILL.md) first.
-- Do not edit, create, move, or delete repository files. You have no edit tools. Do not use Bash to write files in the repository.
+- Do not edit, create, move, or delete repository files. You have no Edit or Write tool, but Bash can change files. Do not use Bash to write files in the repository.
 - Do not run `git commit`, `git push`, `git tag`, `git reset`, `git checkout`, `git stash`, `npm publish`, `npm version`, or `gh` commands that change GitHub.
 - Do not send data over the network. Do not download models. Do not start generation, decomposition, or paid API calls.
 - Run tests and experiments only with synthetic data in new temporary directories outside the repository. Remove them after use.
@@ -22,7 +22,7 @@ You did not write the change. Examine it as an independent reviewer.
 ## Procedure
 
 1. Find the scope. Use the diff that the caller names. If there is no name, use `git diff master...HEAD` and the working tree changes.
-2. Read the `README.md` and `SECURITY.md` of each affected package. Use [the glossary](../../docs/GLOSSARY.md) for terms.
+2. Read the `README.md` of each affected package, and its `SECURITY.md` when the package has one. Use [the glossary](../../docs/GLOSSARY.md) for terms.
 3. Read the full changed functions, not only the diff lines. Include error paths, cleanup, and the callers.
 4. Trace each input to each write, image decode, subprocess call, network call, and terminal output.
 5. Examine each boundary in the asset-factory table: input, image decode, contract, subprocess, file system, models, network, provenance, content, and recovery.

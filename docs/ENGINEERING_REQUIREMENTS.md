@@ -54,8 +54,9 @@ Keep each rule in one of three documents. Do not copy a rule into another docume
 
 ## 5. Package manager
 
-npm 11 and later (Node.js 26 ships npm 11) do not run dependency install scripts by default.
-List each necessary install script in the `allowScripts` field of `package.json`, with a pinned version.
+npm 11 (Node.js 26 ships npm 11) runs dependency install scripts by default. npm 12 runs only the install scripts that the `allowScripts` field of `package.json` approves.
+The repository `.npmrc` sets `ignore-scripts=true`, so that a plain `npm install` or `npm ci` does not run them either. Explicit `npm run` and `npm test` commands still run their own script, but not `pre` or `post` scripts.
+If a dependency needs an install script, list it in `allowScripts` with a pinned version after a human review.
 Use `npm ci --ignore-scripts` for the repository. A package that needs an install script needs a human review (see [Enforced rules](ENFORCED_RULES.md#pull-request-rules)).
 Electron 40 and later have no install script. The `electron` package downloads its binary on the first `require('electron')`.
 **Verified** in the gate test bench (outside this repository): `electron@44.10.0` installs a complete binary on Node.js 26.12.1 and 22.23.4.
