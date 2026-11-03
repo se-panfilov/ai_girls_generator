@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
-import { lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { devNull, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { readRegularFile } from './ci/files.mjs';
 
 const root = realpathSync.native(fileURLToPath(new URL('../', import.meta.url)));
 const gitNullConfig = process.platform === 'win32' ? 'nul' : devNull;
@@ -90,9 +92,15 @@ function main() {
       return;
     }
     if (result.status !== 1) throw new ScanFailure('Gitleaks did not complete the scan.');
-    const stat = lstatSync(report);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 64 * 1024 * 1024) throw new ScanFailure('The Gitleaks report is larger than the limit or has an unsupported type.');
-    const findings = JSON.parse(readFileSync(report, 'utf8'));
+    // Check and read the report through one file descriptor, so that the checked file is the file that is read.
+    let text;
+    try {
+      text = readRegularFile(report, 64 * 1024 * 1024);
+    } catch {
+      text = undefined;
+    }
+    if (text === undefined) throw new ScanFailure('The Gitleaks report is larger than the limit or has an unsupported type.');
+    const findings = JSON.parse(text);
     if (!Array.isArray(findings) || !findings.length) throw new ScanFailure('Gitleaks did not complete the scan or returned a report that is not valid.');
     const rules = [...new Set(findings.map((finding) => finding.RuleID).filter((rule) => typeof rule === 'string' && /^[a-z0-9-]+$/.test(rule)))];
     // Do not print excerpts, secrets, filenames, or raw scanner diagnostics.
