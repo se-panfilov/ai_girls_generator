@@ -1,6 +1,7 @@
 # Engineering requirements
 
 **Draft.** This document holds the rules for languages, command-line tools, runtime, portability, security, and build.
+Tools check part of these rules. See [Enforced rules](ENFORCED_RULES.md).
 It does not define asset formats. The [rig contract](RIG_CONTRACT.md) and the [package format](CHARACTER_PACKAGE.md) define them.
 The owner set the rules in sections 1–3. See [the known owner requirements](DECISIONS.md#known-owner-requirements).
 
