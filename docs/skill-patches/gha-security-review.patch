@@ -1,0 +1,40 @@
+--- a/.agents/skills/gha-security-review/SKILL.md
++++ b/.agents/skills/gha-security-review/SKILL.md
+@@ -1,7 +1,7 @@
+ ---
+ name: gha-security-review
+ description: 'GitHub Actions security review for workflow exploitation vulnerabilities. Use when asked to "review GitHub Actions", "audit workflows", "check CI security", "GHA security", "workflow security review", or review .github/workflows/ for pwn requests, expression injection, credential theft, and supply chain attacks. Exploitation-focused with concrete PoC scenarios.'
+-allowed-tools: Read Grep Glob Bash Task
++allowed-tools: Read Grep Glob Task
+ ---
+ 
+ <!--
+@@ -9,8 +9,28 @@
+ by StepSecurity (2025): https://www.stepsecurity.io/blog/hackerbot-claw-github-actions-exploitation
+ -->
+ 
++<!-- Adapted for AI Girls Generator from getsentry/skills at d12f250460ffd961f549dbebf7eeb0cf4afd4c2e. -->
++
+ # GitHub Actions Security Review
+ 
++## Project integration
++
++Read [AGENTS.md](../../../AGENTS.md), including its GitHub Actions section, before applying the upstream workflow below.
++This skill is read-only. Do not push, open pull requests, trigger workflows, or send payloads to test a finding. A PoC is a written sketch only.
++Bash is removed from `allowed-tools`. Commands then follow the normal permission rules of the host.
++The upstream threat model and the "do not flag" rules decide what is an exploitable finding.
++The project rules are stricter. Report a deviation from them in a separate "Policy deviations" section, even when no external attacker can exploit it:
++
++- An action that is not pinned to a full commit SHA with a version comment, including first-party `actions/*` and `github/*`.
++- A job token permission that the job does not need, or a checkout without `persist-credentials: false`.
++- An input `${{ }}` expression in `run` text, including `workflow_dispatch` inputs.
++- A publication token or secret in the repository or workflows.
++- A workflow that downloads model weights, calls a paid API, or uploads character assets without an explicit human decision.
++
++Write the report in English. A human decides how to handle each finding.
++
++## Upstream workflow
++
+ Find exploitable vulnerabilities in GitHub Actions workflows. Every finding MUST include a concrete exploitation scenario — if you can't build the attack, don't report it.
+ 
+ This skill encodes attack patterns from real GitHub Actions exploits — not generic CI/CD theory.

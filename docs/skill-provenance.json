@@ -1,0 +1,719 @@
+{
+  "version": 1,
+  "installer": {
+    "package": "skills",
+    "version": "1.7.4",
+    "integrity": "sha512-lHZJksE8UImNAr+LL6unqq7jERjdFw5EJasm17srycwL7rXHGdCmgu1L1ttLxUO9i3rdH+QQig+px0icHqLmRw=="
+  },
+  "skills": {
+    "agents-md": {
+      "source": "getsentry/skills",
+      "revision": "d12f250460ffd961f549dbebf7eeb0cf4afd4c2e",
+      "sourcePath": "skills/agents-md/SKILL.md",
+      "upstreamInstallerHash": "7ff79d6771cdf3db33606251eb15bbc5203b68a94b036ee471869842118ea02a",
+      "license": "Apache-2.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/agents-md.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "96e78a9ce85795b117c8929887bdb78f88bf23f7b85a31f0872cde4dff7e92cd"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "d470acf6d2d9fe2de609dd4840aa5ceac3a88b9b186fead0936f48adee21dfef"
+        },
+        {
+          "path": "SOURCES.md",
+          "sha256": "14ac842801b7bc938dfbb9efee072fc4e9ab43b456e40f3235fee503544a0721"
+        },
+        {
+          "path": "SPEC.md",
+          "sha256": "4f8cff992ca96fa4d369227051cd3f5aa8b34974c81bf814aa3a1cf18541e74a"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "69dcff74f623b1c8f91862082f88d8f5e1f8df2dd78a75455494ed8e3a2a6707"
+        }
+      ]
+    },
+    "code-simplifier": {
+      "source": "getsentry/skills",
+      "revision": "d12f250460ffd961f549dbebf7eeb0cf4afd4c2e",
+      "sourcePath": "skills/code-simplifier/SKILL.md",
+      "upstreamInstallerHash": "ff9cb10181e31daf1f1644754c491601a7849dff4b4536a1d0ec4f97f680348e",
+      "license": "Apache-2.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/code-simplifier.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "96e78a9ce85795b117c8929887bdb78f88bf23f7b85a31f0872cde4dff7e92cd"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "bd94b295cabf02ae16bf62270583286ce6bc836666a4afef9d19aea5ea3220c8"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "e57e012b467092ccf7486b9a8fa055f4fd6c4cb76a39a84712796e7f054eb2a0"
+        }
+      ]
+    },
+    "differential-review": {
+      "source": "trailofbits/skills",
+      "revision": "2be6433b39e009cd2b6fd3be1895f6b1faa5af9a",
+      "sourcePath": "plugins/differential-review/skills/differential-review/SKILL.md",
+      "upstreamInstallerHash": "3c330b7d8e2a7a6bba9ff9c7f9971d3b6c17fef84b9382efdd325abdd481371c",
+      "license": "CC-BY-SA-4.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/differential-review.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "ca9a2e2951ccced0887f614e60f86fe2e6627416d0d2b5cedc67cab94c6d9a5b"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "88504687024d53e7d874417082325d25e8e14ef55d4d16b18096906ee74265bd"
+        },
+        {
+          "path": "adversarial.md",
+          "sha256": "3cb823f38c6e551cbcf5f72325d2bb219dacdad774072519c31d50d92db19800"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "0279d56f88dc1a04d4b1941a25fa7672912a3ceb0557b13c38d069908b30ae61"
+        },
+        {
+          "path": "assets/trail-of-bits-mark.svg",
+          "sha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05"
+        },
+        {
+          "path": "methodology.md",
+          "sha256": "16b335d24cf2145e3dc4a37f50056550d29db2efa20e6df78fec95ec1e6fb0b4"
+        },
+        {
+          "path": "patterns.md",
+          "sha256": "52abb18abbc73502a3d3b2f36a7a035adc1db40fd812d1d5424cf065036a06e9"
+        },
+        {
+          "path": "reporting.md",
+          "sha256": "0016876dc6f158e926448bff1b6f634796757c7afe09dff177cfe30250724fc4"
+        }
+      ]
+    },
+    "doc-coauthoring": {
+      "source": "anthropics/skills",
+      "revision": "ca45fc496a3436251f191354091d557da31c15b5",
+      "sourcePath": "skills/doc-coauthoring/SKILL.md",
+      "upstreamInstallerHash": "b964e4c3ffe13f66f76dd7919073e60c7aec622cd8a8363bb36323188100cf8e",
+      "license": "Apache-2.0",
+      "changedUpstreamFiles": [],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": null,
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "2e47d78846faeea4a56e9809c52700087a15a2155a3f293a3efbaded81398ef4"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "12306e6eebf7d8d4b80b4018dd0b54e6e3dee34a729366b644936d6388666372"
+        }
+      ]
+    },
+    "find-bugs": {
+      "source": "getsentry/skills",
+      "revision": "d12f250460ffd961f549dbebf7eeb0cf4afd4c2e",
+      "sourcePath": "skills/find-bugs/SKILL.md",
+      "upstreamInstallerHash": "7bf00be700d1d205b747126aa96d3587bbc2855cd09897614676e179eebe35ed",
+      "license": "Apache-2.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/find-bugs.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "96e78a9ce85795b117c8929887bdb78f88bf23f7b85a31f0872cde4dff7e92cd"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "c84fbcba30da3b904394c7ba75bd47892088a67e49b82906ed7a2ad827caf73e"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "2cffedbd30ff956a82aac56ffac46c3f0c8faa2c375536f8640db53d086a9f31"
+        }
+      ]
+    },
+    "fp-check": {
+      "source": "trailofbits/skills",
+      "revision": "2be6433b39e009cd2b6fd3be1895f6b1faa5af9a",
+      "sourcePath": "plugins/fp-check/skills/fp-check/SKILL.md",
+      "upstreamInstallerHash": "b84703ecb023c8bfc77f08d79b932a5f4baf0a3d716550117dcbd7b0e48c81a6",
+      "license": "CC-BY-SA-4.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/fp-check.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "bced77699a313448e7a079441ac621a84294986b17eb2a5cb4e20e4d1021b743"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "d4475cbf2b5edd9edf784983c92bfb5505e4e4f8ff0cde3c569d30cae8fa0223"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "7c0420b00c25c4d1ab70497fbacd47e6687d9310d1ede4d11c285d3a0c7fc309"
+        },
+        {
+          "path": "assets/trail-of-bits-mark.svg",
+          "sha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05"
+        },
+        {
+          "path": "references/bug-class-verification.md",
+          "sha256": "b687b0fddb945354175b653a86653087110717ffe21f0bb6b8ce95535643fdde"
+        },
+        {
+          "path": "references/deep-verification.md",
+          "sha256": "653ee21c3ab73f8ca6aa0a7c8e51a9195c90bcfa76533cb966c41d16baa52ffa"
+        },
+        {
+          "path": "references/evidence-templates.md",
+          "sha256": "340346b9c6b3b43aa7edc71ff09351c910bc8aefec62647d2284bdf637a59e3d"
+        },
+        {
+          "path": "references/false-positive-patterns.md",
+          "sha256": "868c4e3f794c95a11c177ff4999c30eb71ebafcbc0e30ab826761b0d17b17a7e"
+        },
+        {
+          "path": "references/gate-reviews.md",
+          "sha256": "de4fd3680496b6f622b25dd5d8459eee1fe95e2cf61aa533c5ff86c548d6acc9"
+        },
+        {
+          "path": "references/standard-verification.md",
+          "sha256": "09032334d472b0fd796fc13f6d95cf6f0ae98cce34f1aa8dbd0c3fdce2854710"
+        }
+      ]
+    },
+    "gha-security-review": {
+      "source": "getsentry/skills",
+      "revision": "d12f250460ffd961f549dbebf7eeb0cf4afd4c2e",
+      "sourcePath": "skills/gha-security-review/SKILL.md",
+      "upstreamInstallerHash": "7569699e788bf657f49f8d2fe217ffb6aa7d267d2de60d5c597013a178f57aa2",
+      "license": "Apache-2.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/gha-security-review.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "96e78a9ce85795b117c8929887bdb78f88bf23f7b85a31f0872cde4dff7e92cd"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "246ee3543794181c359d2b49c3ef365de2200627d2c08ca3c432cc7c625740b6"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "45016ab4716b529842bb671f03a1db56ab4dcc1f58bceaf6b7c7883ff9ebca89"
+        },
+        {
+          "path": "references/ai-prompt-injection-via-ci.md",
+          "sha256": "9177d24968ac5b8d719b9f6748f91751d5e157ae0afa4d41cd0bb760356f23a2"
+        },
+        {
+          "path": "references/comment-triggered-commands.md",
+          "sha256": "243526302999b7cbcbff4bbdd01c7d16377b1c60a86ee8877326c2b2b040a0b3"
+        },
+        {
+          "path": "references/credential-escalation.md",
+          "sha256": "7febad6c0e4073dabfb338ee4646c2dd484251ad7d18b500ea83ad6fd9ac1a1d"
+        },
+        {
+          "path": "references/expression-injection.md",
+          "sha256": "f701049355e4758207f77efc53c8e4a42f377eaa15240a2c867446154041d4f0"
+        },
+        {
+          "path": "references/permissions-and-secrets.md",
+          "sha256": "6b6837c5f37ff85cf18c1f611f882202ce0ce41cb006b55dd49c4da52f976779"
+        },
+        {
+          "path": "references/pwn-request.md",
+          "sha256": "6dd84c91ce77d57883059edf95c2f1c64ea1ec39551c5c8208e0cadb9c3ca673"
+        },
+        {
+          "path": "references/real-world-attacks.md",
+          "sha256": "761260977a220264a1ee30e0b961618495723c2e6cc4e91893b7d9d4a9408718"
+        },
+        {
+          "path": "references/runner-infrastructure.md",
+          "sha256": "cb427fa29c34c10aef18766441e0be8e0123632bb87c307bdb8d1c40b47fc81e"
+        },
+        {
+          "path": "references/supply-chain.md",
+          "sha256": "1f80df872a1be8f70ccf1be0bb25b2e24ee1ec2ac6a9f3d7a53800cb361bfa86"
+        }
+      ]
+    },
+    "grilling": {
+      "source": "mattpocock/skills",
+      "revision": "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa",
+      "sourcePath": "skills/productivity/grilling/SKILL.md",
+      "upstreamInstallerHash": "e40cc1d348f6d935e28f1e24474302d7368f0a400429271a43b35fe154891dc5",
+      "license": "MIT",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/grilling.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "135f852dbf531758828f3ab46aaa8b71ca0055a9aafbdac9039773ca0b90e789"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "c8b635f507f319f7aed597d3075f3013bc2c897d88c6bbcdac2f5bd8b56a107f"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "1411d7df7d99b7e621a1ff8283c8133cc2464be63d064e52d8ce169c6800ee9b"
+        }
+      ]
+    },
+    "property-based-testing": {
+      "source": "trailofbits/skills",
+      "revision": "2be6433b39e009cd2b6fd3be1895f6b1faa5af9a",
+      "sourcePath": "plugins/property-based-testing/skills/property-based-testing/SKILL.md",
+      "upstreamInstallerHash": "c754807c7113dfb2e8c2de64e19a6612f87282b621da8b1e50e2a7137d8bbe8c",
+      "license": "CC-BY-SA-4.0",
+      "changedUpstreamFiles": [],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": null,
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "path": "README.md",
+          "sha256": "ffbe30eec09cc64fb1eae836b07ca1d82939bda3f1e6f0dceadcdd78793a3112"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "9448cacb65c6237a7c22dc59602667177ecae405524079ae9ff92240590b995a"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "78e742ac0bc0ca8abc76d5997f0cf7e6db96ee3d299d0ccc37ed708baf99831a"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "51d635deefa254d8cdf6dc56450851b6ec9545cd37f88a4eb4035cf3f2262fff"
+        },
+        {
+          "path": "assets/trail-of-bits-mark.svg",
+          "sha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05"
+        },
+        {
+          "path": "references/generating.md",
+          "sha256": "c0e72dfc89babe3c32de718b81b94044362c85e776d7475e950dfeaab78bb58e"
+        },
+        {
+          "path": "references/interpreting-failures.md",
+          "sha256": "dbae7db8773712ba03268a3d56ea5aa6720af0650a5189580bfd88aa2edc3f9a"
+        },
+        {
+          "path": "references/libraries.md",
+          "sha256": "f7218acf8e668130ef3048983472579d04e12030c5401926f666363e5f69c686"
+        },
+        {
+          "path": "references/refactoring.md",
+          "sha256": "6eb5c206f575704791f089608bb06e41d6eed91b9d3c7fb27912f969aed07a18"
+        },
+        {
+          "path": "references/reviewing.md",
+          "sha256": "110b08118a1e7b1a2566def6e9d2a0bf43fc2deefce857d2ce3b4382b07bc774"
+        }
+      ]
+    },
+    "second-opinion": {
+      "source": "trailofbits/skills",
+      "revision": "2be6433b39e009cd2b6fd3be1895f6b1faa5af9a",
+      "sourcePath": "plugins/second-opinion/skills/second-opinion/SKILL.md",
+      "upstreamInstallerHash": "b2507ce5463c23fd19bdc031f2ba1dcd6049a2b48ac2d183155f6f28dd3b11c8",
+      "license": "CC-BY-SA-4.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/second-opinion.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "a8f3f49ef4e57fc2c7ffeb7a5fc8a073159c2103d6ee94cbe10cfe2581ca8071"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "a6e1c02f5633802283e770ae9eca19d12a1e0af8306c621f87024bf472e06caf"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "bd8024c2ea5a143339c5c6e4043917fb083094a3eecc55f55d9a71844ed49a45"
+        },
+        {
+          "path": "assets/trail-of-bits-mark.svg",
+          "sha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05"
+        },
+        {
+          "path": "references/antigravity-invocation.md",
+          "sha256": "9a81a8c97bb780fbc2a098757c55b0b983e8e0e6e5582116157bdf8b0f59c6e2"
+        },
+        {
+          "path": "references/codex-invocation.md",
+          "sha256": "f0d1b537e143c933fdcd6ec0d10811944b28a14747fc59c15080f898b57c42e6"
+        },
+        {
+          "path": "references/codex-review-schema.json",
+          "sha256": "4f5414f169b0027082cff6727ce7fdde47349d21b135904850492e182a67157f"
+        },
+        {
+          "path": "references/gemini-invocation.md",
+          "sha256": "9638458e834b4f32fe863a4a03ee52a878c52731b8f0664c34054ecee31cdc07"
+        },
+        {
+          "path": "references/review-input.md",
+          "sha256": "150bfb6056f14af0b4f71d285347670b7f686397a1409c63a30c946df8b5eb8d"
+        }
+      ]
+    },
+    "sharp-edges": {
+      "source": "trailofbits/skills",
+      "revision": "2be6433b39e009cd2b6fd3be1895f6b1faa5af9a",
+      "sourcePath": "plugins/sharp-edges/skills/sharp-edges/SKILL.md",
+      "upstreamInstallerHash": "63318ab9403b975a63fc0310540a14b632079f63f61414b711305860337a54b6",
+      "license": "CC-BY-SA-4.0",
+      "changedUpstreamFiles": [],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": null,
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "3b69a709c2f8f0cfcf57d40a3186e166f307865cc8ed924be4098e549a121e9c"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "bf87deebb92b7105bc039c38079b404b2ac8c7a083e5ac7f599843b0628d853d"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "d18c31ffb600df69db714161add9a1fe1dca38011b52a0c8926d4d4d3fb1ea4f"
+        },
+        {
+          "path": "assets/trail-of-bits-mark.svg",
+          "sha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05"
+        },
+        {
+          "path": "references/auth-patterns.md",
+          "sha256": "1fbf526ca1db7204f9ebb1bf4eb3c48c544676623d23e5d28e01f6f63c355be2"
+        },
+        {
+          "path": "references/case-studies.md",
+          "sha256": "2e81a320728b4597bf84c490176d5bf212f1e6ba6f87aafba61ad1734de35332"
+        },
+        {
+          "path": "references/config-patterns.md",
+          "sha256": "1d99f2716f7bef18efe71015ce0c56e0f4961c042faa503d796d6d4d1626fdc6"
+        },
+        {
+          "path": "references/crypto-apis.md",
+          "sha256": "8baddc83a1f964d6d8b15678d60a37c93029c18dc162bd7c00895e585ff1a825"
+        },
+        {
+          "path": "references/lang-c.md",
+          "sha256": "d077d711c73749c924eae81c06018b14bbf1ec9b93d71723c472b43df5d7d5ae"
+        },
+        {
+          "path": "references/lang-csharp.md",
+          "sha256": "8fa9e93d36c0e1397b7ca81307163370fc43cf700215b7c6d7aa1b09fdb91fb4"
+        },
+        {
+          "path": "references/lang-go.md",
+          "sha256": "839c0e7b4e3fa2f3b37c651e926aa59d69d20bfef5e67f569eedacf11354844d"
+        },
+        {
+          "path": "references/lang-java.md",
+          "sha256": "3b93b6049f7e0e356a1ffebc0b4642f3cef315d90be45b63e15c8c4814f9ebeb"
+        },
+        {
+          "path": "references/lang-javascript.md",
+          "sha256": "cf72f55d31318666942a8d1d64340befc3c4e7223afc2ca196e6a776ffa4c895"
+        },
+        {
+          "path": "references/lang-kotlin.md",
+          "sha256": "c891148c10a4941c3396416a10ac64512eb3a9e13ea5eeaec3902da4b51501dd"
+        },
+        {
+          "path": "references/lang-php.md",
+          "sha256": "7960d9773874cf06c5b470a5ca3ab406d896e66b71e713d809bc1ecfcab63485"
+        },
+        {
+          "path": "references/lang-python.md",
+          "sha256": "36543becc25b4e3f41eaedcab62e9b204657e6742b8ac95e405bcd040d33bf03"
+        },
+        {
+          "path": "references/lang-ruby.md",
+          "sha256": "d9ba749caaccb8a3bb39e2199b2062c0957cf48739218ba8022d49be5cba2088"
+        },
+        {
+          "path": "references/lang-rust.md",
+          "sha256": "3d14993ea70b2b2df3fc0f388cbd1631470895c27ccbd9d764296d1da8f5b6ee"
+        },
+        {
+          "path": "references/lang-swift.md",
+          "sha256": "a64ab8692db0f3e43526088c63c7fdcb7354d1b24e6fe7ca759aea3260890e04"
+        },
+        {
+          "path": "references/language-specific.md",
+          "sha256": "4522b4a37cfd7d3aa689209dfd4569f3b39074bd1f5987a36a6e819f501141b6"
+        }
+      ]
+    },
+    "skill-scanner": {
+      "source": "getsentry/skills",
+      "revision": "d12f250460ffd961f549dbebf7eeb0cf4afd4c2e",
+      "sourcePath": "skills/skill-scanner/SKILL.md",
+      "upstreamInstallerHash": "9ec22514620fedc4e9f2d9b886551a1d4f8383dd272c210d85526a71b7b84adb",
+      "license": "Apache-2.0",
+      "changedUpstreamFiles": [
+        "SKILL.md",
+        "scripts/scan_skill.py"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/skill-scanner.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "96e78a9ce85795b117c8929887bdb78f88bf23f7b85a31f0872cde4dff7e92cd"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "2d4f27d0358ba41bf95ace5d043092965f0a9c9bd0b98bebbfef04ddd08ac4c7"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "87e61f8ad36dc303dfffca979287fb632fd0b71dc2d85b53d6e4370cb035845d"
+        },
+        {
+          "path": "references/dangerous-code-patterns.md",
+          "sha256": "9fe3e09ccc9f472271472b3dc8b20337b84e3161f949565102342b056e39a677"
+        },
+        {
+          "path": "references/permission-analysis.md",
+          "sha256": "ed6c1ca37b31313869fa418f7fddf5df9f8213c2dac3d97a9f5a7eadc02833b3"
+        },
+        {
+          "path": "references/prompt-injection-patterns.md",
+          "sha256": "237e41599d0d4d2d2af99683f77ad3ef6e504dff190b0ff58bbd310f11182228"
+        },
+        {
+          "path": "scripts/scan_skill.py",
+          "sha256": "611bfcd70e43a6a1425131d0e98a66ba06a84d1d6eb61f46ed7fc2f498c3a06b"
+        }
+      ]
+    },
+    "supply-chain-risk-auditor": {
+      "source": "trailofbits/skills",
+      "revision": "2be6433b39e009cd2b6fd3be1895f6b1faa5af9a",
+      "sourcePath": "plugins/supply-chain-risk-auditor/skills/supply-chain-risk-auditor/SKILL.md",
+      "upstreamInstallerHash": "1c8dc1f5f5e4321e26fe0d9f3eb123b915efe924f192716e7fe4781a66a4500f",
+      "license": "CC-BY-SA-4.0",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/supply-chain-risk-auditor.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "a8ddff201c1e8d95d93d2c39da1051c311eed9998703757e2b3f6aa8c33afaa3"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "cd9d20611901459ced75250c0a3cbf16ef388da940dddc53eee96a864640a243"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "7d79ce0a77aaa1e2c72939b02b285b13a84d9da85ffb965a9d1489c358cd27ab"
+        },
+        {
+          "path": "assets/trail-of-bits-mark.svg",
+          "sha256": "4bf74c789b38dcf6ad762c136b6832363d27ae19fbaa9a18ec18d66ecce6ca05"
+        },
+        {
+          "path": "scripts/collect.py",
+          "sha256": "fd75cffad628980a6da521b5d3a40fb5dd16c5bb9ad63a25245e5208d08abff7"
+        },
+        {
+          "path": "scripts/model.py",
+          "sha256": "78a20954b76e81216991b57453ceddbdb867035a0d6993b98cfa05a7f8d008d3"
+        },
+        {
+          "path": "scripts/pyproject.toml",
+          "sha256": "a79ec30039ce3bc90544b9d833f7edc128232821575736f659d2b2ca0a601f3b"
+        },
+        {
+          "path": "scripts/render.py",
+          "sha256": "9d6091645c8a8edf5c50d24bd70ff881efa30b920d93b46ea1775ee2dd328bc7"
+        },
+        {
+          "path": "scripts/sources.py",
+          "sha256": "4eb66952dca285b4790d1193b39f240e8015025ee054a215f4c696cbba2478e2"
+        },
+        {
+          "path": "scripts/test_collect.py",
+          "sha256": "ea4f25bdab0add75d500b22ba5eb9f993d3695d974cd3f92b418f5cff07e00da"
+        },
+        {
+          "path": "scripts/test_model.py",
+          "sha256": "92059fe937c50f1502d71df2ddc4f123e8e2647fc0f4f7b270727ef9a2004f5c"
+        },
+        {
+          "path": "scripts/test_render.py",
+          "sha256": "319970fd010d6bf5fbf79b595e8fc918c5e74645b718f495f2479aef3ea8cc16"
+        },
+        {
+          "path": "scripts/test_sources.py",
+          "sha256": "5c0a993d747e3ed29972272a18a14dd46b6f897bdfff7e147d0a9e9b4b4b6511"
+        },
+        {
+          "path": "scripts/uv.lock",
+          "sha256": "99598cc397a42c945abbc9d839d1c61f1852f414660ce41e2e68bd9cdf664100"
+        }
+      ]
+    },
+    "writing-for-agents": {
+      "source": "mattpocock/skills",
+      "revision": "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa",
+      "sourcePath": "skills/productivity/writing-for-agents/SKILL.md",
+      "upstreamInstallerHash": "95da47fc97af998e85b7d7e6d57b3ac76727c1e290cfe9ea09005aacb826959f",
+      "license": "MIT",
+      "changedUpstreamFiles": [
+        "SKILL.md"
+      ],
+      "addedFiles": [
+        "LICENSE",
+        "UPSTREAM.md"
+      ],
+      "patch": "skill-patches/writing-for-agents.patch",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5"
+        },
+        {
+          "path": "SKILL-MECHANICS.md",
+          "sha256": "c768e6307c7c10728c401c213f2c4ba71c542127eeb7ad2956aabd15a0fa0059"
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "e324e34b55603d0e0cbcffb01bb900a751e60ec2786292c1bb9352f0d8581179"
+        },
+        {
+          "path": "UPSTREAM.md",
+          "sha256": "752fbf305a24c1d9dff2d5aa0ec84ff24b9fe9d2d6e081069ef6fe9ea2493839"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "eacb24b2a618cfb81dacb0416f4fdd75ddf3a8060f8ddb99aae1b1e301907e4b"
+        }
+      ]
+    }
+  }
+}

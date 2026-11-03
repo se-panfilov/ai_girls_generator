@@ -1,0 +1,188 @@
+--- a/.agents/skills/code-simplifier/SKILL.md
++++ b/.agents/skills/code-simplifier/SKILL.md
+@@ -1,119 +1,76 @@
+ ---
+ name: code-simplifier
+-description: Simplifies and refines code for clarity, consistency, and maintainability while preserving all functionality. Use when asked to "simplify code", "clean up code", "refactor for clarity", "improve readability", or review recently modified code for elegance. Focuses on project-specific best practices.
++description: Simplify asset pipeline code for readability while preserving behavior, determinism, and security. Use for requested refactoring or cleanup of recently changed code.
++license: Apache-2.0
++metadata:
++  upstream-source: getsentry/skills
++  upstream-revision: d12f250460ffd961f549dbebf7eeb0cf4afd4c2e
+ ---
+ 
+ <!--
+-Based on Anthropic's code-simplifier agent:
++Adapted for AI Girls Generator from Sentry's code-simplifier skill:
++https://github.com/getsentry/skills/blob/d12f250460ffd961f549dbebf7eeb0cf4afd4c2e/skills/code-simplifier/SKILL.md
++The upstream skill is based on Anthropic's code-simplifier agent:
+ https://github.com/anthropics/claude-plugins-official/blob/main/plugins/code-simplifier/agents/code-simplifier.md
++Local changes remove React advice and blanket exception-handling preferences.
++They add pipeline safety and determinism invariants, explicit scope, and verification requirements.
+ -->
+ 
+-# Code Simplifier
++# Simplify asset pipeline code
+ 
+-You are an expert code simplification specialist focused on enhancing code clarity, consistency, and maintainability while preserving exact functionality. Your expertise lies in applying project-specific best practices to simplify and improve code without altering its behavior. You prioritize readable, explicit code over overly compact solutions.
++Read [AGENTS.md](../../../AGENTS.md) and the affected package documentation first.
++Use the [asset-factory workflow](../asset-factory/SKILL.md) for the required security reviews.
++This skill grants no additional permission to change assets, Git history, or external services.
++
++## Scope
++
++Simplify the files selected by the user or the code changed for the current task.
++Do not expand a cleanup into a repository-wide refactor.
++Do not modify unrelated user changes, generated build output, or character assets.
++
++## Preserve behavior
++
++Keep public APIs, return values, exit codes, file contents, and ordering intact.
++Keep JSON key order, number formatting, and file names that tests or hashes depend on.
++Keep prompts, help, errors, and confirmation defaults intact unless the task requests a text change.
++Keep the compiled package compatible with the supported Node.js versions.
++Preserve explicit runtime import extensions and the `dist/` build output.
++
++Preserve these properties when present:
++
++- Schema validation, contract cross-checks, and rejection of ambiguous states.
++- Deterministic output: stable sort order, fixed seeds, explicit color space and alpha mode.
++- Image size limits before decoding and explicit resampling filters.
++- Provenance records: model hashes, seeds, workflow files, and tool versions.
++- Subprocess argument arrays and environment isolation for Python tools and Spine CLI.
++- Path checks, link checks, and overwrite protection for character packages.
++- Dry-run behavior, atomic writes, and partial-failure diagnostics.
++- Explicit authorization for network access, model downloads, and paid API calls.
++
++Do not remove try/catch/finally blocks merely to reduce nesting.
++Keep error propagation, cancellation, cleanup, and recovery semantics intact.
++Keep comments that explain a contract rule, a security invariant, or a non-obvious tool constraint.
++Write new code comments in English.
++
++## Improve readability
++
++Prefer explicit control flow to nested ternaries and dense expressions.
++Use the terms from [the glossary](../../../docs/GLOSSARY.md) for names: bone, slot, attachment, part, package.
++Remove redundant abstractions only when their removal improves understanding.
++Keep validation, planning, writes, and verification distinct when this separation protects assets.
++Use early returns only when they preserve cleanup and error behavior.
++Do not introduce a dependency, framework, or new build step for cosmetic simplification.
++Choose clarity over fewer lines or fewer tokens.
++
++## Verify the change
++
++1. Identify the behavior, determinism, and safety properties affected by the refactor.
++2. Make the smallest useful change.
++3. Read the complete diff, including failure and cleanup paths.
++4. Run the relevant existing checks in isolated fixtures with synthetic images.
++5. Compare output hashes before and after the change when the code writes assets.
++6. Add a regression check if the change exposes a defect or missing behavioral coverage.
++7. Perform the separate security review required by AGENTS.md.
++8. Report the result, executed checks, and remaining limits in English.
+ 
+-## Refinement Principles
+-
+-### 1. Preserve Functionality
+-
+-Never change what the code does - only how it does it. All original features, outputs, and behaviors must remain intact.
+-
+-### 2. Apply Project Standards
+-
+-Follow the established coding standards from CLAUDE.md including:
+-
+-- Use ES modules with proper import sorting and extensions
+-- Prefer `function` keyword over arrow functions
+-- Use explicit return type annotations for top-level functions
+-- Follow proper React component patterns with explicit Props types
+-- Use proper error handling patterns (avoid try/catch when possible)
+-- Maintain consistent naming conventions
+-
+-### 3. Enhance Clarity
+-
+-Simplify code structure by:
+-
+-- Reducing unnecessary complexity and nesting
+-- Eliminating redundant code and abstractions
+-- Improving readability through clear variable and function names
+-- Consolidating related logic
+-- Removing unnecessary comments that describe obvious code
+-- **Avoiding nested ternary operators** - prefer switch statements or if/else chains for multiple conditions
+-- Choosing clarity over brevity - explicit code is often better than overly compact code
+-
+-### 4. Maintain Balance
+-
+-Avoid over-simplification that could:
+-
+-- Reduce code clarity or maintainability
+-- Create overly clever solutions that are hard to understand
+-- Combine too many concerns into single functions or components
+-- Remove helpful abstractions that improve code organization
+-- Prioritize "fewer lines" over readability (e.g., nested ternaries, dense one-liners)
+-- Make the code harder to debug or extend
+-
+-### 5. Focus Scope
+-
+-Only refine code that has been recently modified or touched in the current session, unless explicitly instructed to review a broader scope.
+-
+-## Refinement Process
+-
+-1. **Identify** the recently modified code sections
+-2. **Analyze** for opportunities to improve elegance and consistency
+-3. **Apply** project-specific best practices and coding standards
+-4. **Ensure** all functionality remains unchanged
+-5. **Verify** the refined code is simpler and more maintainable
+-6. **Document** only significant changes that affect understanding
+-
+-## Examples
+-
+-### Before: Nested Ternaries
+-
+-```typescript
+-const status = isLoading ? 'loading' : hasError ? 'error' : isComplete ? 'complete' : 'idle';
+-```
+-
+-### After: Clear Switch Statement
+-
+-```typescript
+-function getStatus(isLoading: boolean, hasError: boolean, isComplete: boolean): string {
+-  if (isLoading) return 'loading';
+-  if (hasError) return 'error';
+-  if (isComplete) return 'complete';
+-  return 'idle';
+-}
+-```
+-
+-### Before: Overly Compact
+-
+-```typescript
+-const result = arr.filter(x => x > 0).map(x => x * 2).reduce((a, b) => a + b, 0);
+-```
+-
+-### After: Clear Steps
+-
+-```typescript
+-const positiveNumbers = arr.filter(x => x > 0);
+-const doubled = positiveNumbers.map(x => x * 2);
+-const sum = doubled.reduce((a, b) => a + b, 0);
+-```
+-
+-### Before: Redundant Abstraction
+-
+-```typescript
+-function isNotEmpty(arr: unknown[]): boolean {
+-  return arr.length > 0;
+-}
+-
+-if (isNotEmpty(items)) {
+-  // ...
+-}
+-```
+-
+-### After: Direct Check
+-
+-```typescript
+-if (items.length > 0) {
+-  // ...
+-}
+-```
++Do not run generation, downloads, or paid services to validate a cleanup.

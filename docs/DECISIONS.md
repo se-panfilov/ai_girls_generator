@@ -1,0 +1,53 @@
+# Decision log
+
+**Draft.** This log lists the decisions that the owner must make before implementation. The ids D1–D14 come from the technical audit. The other ids are new.
+Only the owner closes an entry. An agent can add options and a recommendation, but it cannot change the status to **Accepted**.
+
+## Known owner requirements
+
+These items come from the owner. They are not open.
+
+| Requirement                                                                                              |
+| -------------------------------------------------------------------------------------------------------- |
+| The factory makes rig-compatible layered cutout characters for one shared skeleton.                      |
+| All characters share one animation set. Version 1 has no character-specific skeletons or animations.     |
+| Version 1 is the pipeline, not a game or an engine.                                                      |
+| The game that uses the packages is built with Vue 3, TypeScript, and probably Electron, with a DOM UI.   |
+| The game does not use PixiJS, Phaser, or Three.js.                                                       |
+| Required animations: `idle`, `run`, `jump`, `shoot_stand`, `shoot_crouch`, `hit`, facing left and right. |
+| The repository is an npm workspaces monorepo. Code runs on Node.js.                                      |
+| No license purchase or paid API call without the owner's approval.                                       |
+| Everything in the repository is in English: code, comments, user interface, documentation, and reports.  |
+
+## Open decisions
+
+| Id  | Decision                         | Options                                                       | Recommendation                                                         | Status |
+| --- | -------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------- | ------ |
+| D1  | Animation runtime                | Spine Web Components / Rive / DOM animation                   | Spine Web Components 4.3 (works in Vue in a local test)                | Open   |
+| D2  | Spine edition                    | Essential / Professional                                      | Essential for rigid parts. Professional if meshes or IK are necessary. | Open   |
+| D3  | Side names                       | `_near`/`_far` / `_l`/`_r` with a fixed rule                  | `_near`/`_far`                                                         | Open   |
+| D4  | Editable source format           | PSD / ORA / both                                              | PSD required, ORA optional and derived                                 | Open   |
+| D5  | Animation list                   | 6 from the owner's list / 9 with split jump and crouch entry  | 9, if game physics controls the jump                                   | Open   |
+| D6  | Weapon grip                      | Near hand / two hands                                         | Near hand in version 1                                                 | Open   |
+| D7  | Shared base body                 | One body / 2–3 body types / no shared body                    | One body in version 1                                                  | Open   |
+| D8  | Soft parts (meshes) in version 1 | Yes / no                                                      | No                                                                     | Open   |
+| D9  | Generation models                | Only with verified commercial license / any for prototypes    | Only verified, with a hash registry                                    | Open   |
+| D10 | Spine license for experiment D   | Buy / do not buy                                              | Buy after experiment A passes                                          | Open   |
+| D11 | Two-step generation              | Free concept then posed art / strict pose at once             | Two steps, review after experiment C                                   | Open   |
+| D12 | Asymmetric designs               | Allow with a flag / forbid in version 1                       | Allow with a flag, accept the side change when mirrored                | Open   |
+| D13 | Editable file in the package     | `.ora` / `.psd` / both                                        | PSD required, ORA optional                                             | Open   |
+| D14 | Reproducibility definition       | Same pixels / same parameters, log, and result hashes         | Same parameters, log, and result hashes                                | Open   |
+| D15 | Binary asset storage             | Git LFS / object storage / local only                         | Not evaluated yet                                                      | Open   |
+| D16 | Part canvas                      | Full contract canvas for each part / cropped part with offset | Full canvas in `parts/`, crop only at atlas export                     | Open   |
+| D17 | View                             | Three-quarter facing right / profile / front                  | Three-quarter facing right                                             | Open   |
+| D18 | On-screen character height       | Value in pixels and target screens                            | Not evaluated yet. It sets the source resolution.                      | Open   |
+| D19 | GPU                              | Own GPU with 16 GB or more / rented cloud GPU                 | Not evaluated yet                                                      | Open   |
+| D20 | Content rules                    | Age, explicitness, store disclosure rules                     | Explicitly adult characters, no explicit content, human approval       | Open   |
+| D21 | Package names in the monorepo    | `@aigg/<dir>` scope and `aigg-<dir>` commands / other         | `@aigg/<dir>`, private packages                                        | Open   |
+
+## How to record a decision
+
+1. Change the status to **Accepted** and write the selected option.
+2. Write the reason in one or two sentences.
+3. List the documents and contract fields that the decision changes.
+4. Update those documents in the same pull request.
