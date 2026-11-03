@@ -123,7 +123,7 @@ These limits are instructions, not access controls. Hosts that ignore `allowed-t
 
 ## Manual hash check
 
-No automatic check compares the files with the manifest yet. Run this command from the repository root after a skill change:
+`npm run check:config` compares the files with the manifest automatically, and the `repository` job in Tests runs it. This command does the same comparison without the other configuration checks. Run it from the repository root after a skill change:
 
 ```sh
 node -e 'const fs=require("node:fs"),c=require("node:crypto");const m=JSON.parse(fs.readFileSync("docs/skill-provenance.json","utf8"));let bad=0;for(const[n,s]of Object.entries(m.skills))for(const f of s.files){const h=c.createHash("sha256").update(fs.readFileSync(`.agents/skills/${n}/${f.path}`)).digest("hex");if(h!==f.sha256){bad++;console.log("changed:",n,f.path)}}process.exit(bad?1:0)'

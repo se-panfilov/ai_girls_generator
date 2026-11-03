@@ -65,3 +65,4 @@ Static checks do not prove that every vendor session follows instructions.
 - Keep adapters small. Check relative paths after directory changes.
 - Read package documentation before moving a package rule to repository scope.
 - Never add global permissions, automatic hooks, publication credentials, or network actions to adapters.
+- Do not add host settings files, such as `.claude/settings.json` or `.mcp.json`, without a human decision. `npm run check:config` rejects them. See [Enforced rules](ENFORCED_RULES.md#configuration-check).

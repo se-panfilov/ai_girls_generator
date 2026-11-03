@@ -16,7 +16,7 @@ Get these values from the user or from the task before you write files:
 | Input          | Rule                                                                                            | Example                        |
 | -------------- | ----------------------------------------------------------------------------------------------- | ------------------------------ |
 | Directory name | Matches `^[a-z][a-z0-9-]{0,63}$`. Use kebab case.                                               | `validator`                    |
-| Package name   | `@aigg/` followed by the directory name.                                                        | `@aigg/validator`              |
+| Package name   | `@aigg/` followed by the directory name. Proposed: decision D21 is open, so confirm the scope. | `@aigg/validator`              |
 | Kind           | `library` (imported by other packages) or `cli` (has one bin entry).                            | `cli`                          |
 | CLI command    | Only for `cli`: `aigg-` followed by the directory name.                                         | `aigg-validator`               |
 | Alias          | `@<directory-name>/*`.                                                                          | `@validator/*`                 |

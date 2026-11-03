@@ -45,7 +45,7 @@ const languageExempt = [vendoredSkills, /^docs\/skill-patches\//, /^docs\/skill-
 const textFile = /\.(md|mjs|cjs|js|ts|json|ya?ml|toml|txt)$|(^|\/)\.[a-z]+(rc|ignore|attributes|config)$|(^|\/)(LICENSE|CODEOWNERS)$/;
 const cyrillic = /[\u0400-\u04FF]/;
 // Events that run with write access or secrets for code or text from pull requests and comments.
-export const forbiddenWorkflowEvents = ['pull_request_target', 'workflow_run', 'issue_comment', 'pull_request_review', 'pull_request_review_comment'];
+export const forbiddenWorkflowEvents = ['pull_request_target', 'workflow_run', 'issue_comment', 'pull_request_review', 'pull_request_review_comment', 'discussion', 'discussion_comment'];
 // Shell scripts that are permitted. Use TypeScript or Node.js unless a documented reason requires Bash.
 export const shellScriptAllowlist = [];
 // Binary files that a human approved for Git. Add an entry only after the storage decision.
@@ -54,6 +54,20 @@ export const binaryAssetAllowlist = [];
 export const skillToolAllowlist = ['Read', 'Grep', 'Glob', 'LSP', 'Task', 'AskUserQuestion', 'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet'];
 // Skills that this repository maintains. All other skills in .agents/skills must be in docs/skill-provenance.json.
 export const localSkills = ['asset-factory', 'new-package'];
+// Agent host files that can run commands, grant tool permissions, start MCP servers, or replace AGENTS.md.
+// A pull request can add them without a review of the instruction files. Add an entry only after a human decision.
+export const hostConfigAllowlist = [];
+const hostConfig = [
+  /^\.claude\/settings(\.local)?\.json$/,
+  /^\.mcp\.json$/,
+  /^\.gemini\/settings\.json$/,
+  /^\.codex\/config\.toml$/,
+  /^\.cursor\//,
+  /^\.vscode\/(tasks|settings|mcp)\.json$/,
+  /(^|\/)AGENTS\.override\.md$/i,
+  /(^|\/)(CLAUDE|GEMINI)\.local\.md$/i,
+  /(^|\/)\.(cursorrules|windsurfrules|clinerules)$/
+];
 // Runtime dependencies that a human approved for each package, by package name. Add an entry only after a dependency review.
 export const runtimeDependencyAllowlist = {};
 
@@ -190,6 +204,9 @@ export function structureProblems(files) {
     if (lockfiles.has(name) && path !== 'package-lock.json') problems.push(`${safe(path)}: use only the root package-lock.json.`);
     if (/\.(sh|bash|zsh)$/.test(name) && !vendoredSkills.test(path) && !shellScriptAllowlist.includes(path)) {
       problems.push(`${safe(path)}: the Bash script is not in the permitted list. Use Node.js or document the exception.`);
+    }
+    if (hostConfig.some((pattern) => pattern.test(path)) && !hostConfigAllowlist.includes(path)) {
+      problems.push(`${safe(path)}: agent host settings and override instructions can run commands or change permissions. Add the file only after a human decision.`);
     }
     if (binaryAsset.test(name) && !vendoredSkills.test(path) && !binaryAssetAllowlist.includes(path)) {
       problems.push(`${safe(path)}: images, editor files, archives, and model weights stay out of Git until the storage decision. Use synthetic test images made at run time.`);
@@ -335,15 +352,29 @@ export function skillProblems(base = root) {
 
 const indentOf = (line) => line.length - line.trimStart().length;
 
+// YAML forms of an event name: a key, a block list item, a flow list on the `on` line, or a flow list continuation. Quotes are optional.
+function eventPatterns(event) {
+  const name = `['"]?${event}['"]?`;
+  return [new RegExp(`^\\s*${name}\\s*:`), new RegExp(`^\\s*-\\s*${name}\\s*(#.*)?$`), new RegExp(`^\\s*['"]?on['"]?\\s*:.*[\\s\\[{,'"]${event}\\b`), new RegExp(`^\\s*${name}\\s*[,\\]}]`)];
+}
+
 // GitHub Actions rules from AGENTS.md. The parser reads the line structure of the workflow files in this repository.
 export function workflowRuleProblems(file, text) {
   const lines = text.split(/\r?\n/);
+  const code = lines.filter((line) => !line.trimStart().startsWith('#'));
   const problems = [];
-  if (!lines.some((line) => /^permissions:/.test(line))) problems.push(`${file}: top-level permissions are missing.`);
+  const top = lines.findIndex((line) => /^['"]?permissions['"]?\s*:/.test(line));
+  if (top < 0) problems.push(`${file}: top-level permissions are missing.`);
+  else {
+    // Top-level permissions are read-only. A job that needs write access sets it in its own permissions block.
+    const end = lines.findIndex((line, position) => position > top && line.trim() !== '' && !line.trimStart().startsWith('#') && indentOf(line) === 0);
+    const block = [lines[top] ?? '', ...lines.slice(top + 1, end < 0 ? lines.length : end)];
+    if (block.some((line) => /:\s*\{?.*\bwrite\b/.test(line.replace(/#.*$/, '')))) problems.push(`${file}: top-level permissions must be read-only. Give write access only to the job that needs it.`);
+  }
+  if (code.some((line) => /^\s*permissions\s*:\s*['"]?write-all\b/.test(line))) problems.push(`${file}: permissions: write-all is not permitted.`);
   for (const event of forbiddenWorkflowEvents) {
-    const key = new RegExp(`^\\s*${event}\\s*:`);
-    const inline = new RegExp(`^on:.*\\b${event}\\b`);
-    if (lines.some((line) => key.test(line) || inline.test(line))) problems.push(`${file}: the ${event} event is not permitted.`);
+    const patterns = eventPatterns(event);
+    if (code.some((line) => patterns.some((pattern) => pattern.test(line)))) problems.push(`${file}: the ${event} event is not permitted.`);
   }
   lines.forEach((line, index) => {
     const number = index + 1;
