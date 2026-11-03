@@ -1,25 +1,26 @@
 # npm workspaces
 
-**Draft.** No package exists yet. This document describes the planned layout. The package names depend on decision D21.
+The root workspace and the shared configuration exist. No package exists yet. **Draft:** the package list is a proposal, and the package names depend on decision D21.
 
 ## Layout
 
-The private root package will declare `packages/*` as workspaces.
+The private root package declares `packages/*` as workspaces.
 Each package keeps its own name, version, runtime dependencies, and entry points.
 Shared development dependencies belong to the root `package.json`.
 One root `package-lock.json` records the complete dependency tree.
 All packages are private. Publication to npm needs a separate human decision.
 
-| Shared configuration          | Package configuration                                                            |
-| ----------------------------- | -------------------------------------------------------------------------------- |
-| `configs/eslint.config.mjs`   | Root discovery supplies the shared rules. A package needs no duplicate file.     |
-| `configs/prettier.config.mjs` | Root discovery supplies formatting. Package commands use the root ignore file.   |
-| `configs/tsconfig.base.json`  | Package `tsconfig.json` extends the base and sets local paths and inputs.        |
-| `configs/vite.config.mjs`     | Package `vite.config.mjs` supplies its root, alias namespace, and entry modules. |
-| `configs/vitest.config.mjs`   | Package `vitest.config.mjs` supplies its root and the Vite alias mapping.        |
+| Shared configuration          | Package configuration                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `configs/eslint.config.mjs`   | Root discovery supplies the shared rules. A package needs no duplicate file.                           |
+| `configs/prettier.config.mjs` | Root discovery supplies formatting. Package commands use the root ignore file.                         |
+| `configs/tsconfig.base.json`  | Package `tsconfig.json` extends the base and sets local paths and inputs.                              |
+| `configs/vite.config.mjs`     | Package `vite.config.mjs` calls `nodePackageConfig` with its root, alias namespace, and entry modules. |
+| `configs/vitest.config.mjs`   | Package `vitest.config.mjs` calls `nodeTestConfig` with its root and the Vite alias mapping.           |
 
 Path settings remain local because relative paths resolve from their configuration file.
-The shared configuration follows the Toolchain repository. Copy it when the first package is added, and adapt the package rules.
+The shared configuration comes from the Toolchain repository with the same tool versions. The root `npm test`, `npm run build`, and `npm run typecheck` use [scripts/workspaces.mjs](../scripts/workspaces.mjs). It runs the script in each package, and it succeeds with a message when `packages/` has no package.
+`npm run check:config` checks each package against these rules. See [Enforced rules](ENFORCED_RULES.md#configuration-check).
 
 ## Planned packages
 
@@ -42,7 +43,7 @@ Packages that decode or write images will need an image library with native bina
 
 ## Commands
 
-Run these commands from the repository root after the first package exists:
+Run these commands from the repository root:
 
 ```sh
 npm ci --ignore-scripts

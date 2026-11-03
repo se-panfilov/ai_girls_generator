@@ -10,7 +10,11 @@ Keep package-specific requirements in package documentation and common rules her
 The repository is at the draft stage. No pipeline package exists yet.
 The documents in `docs/` are drafts. Many design choices are still open in [the decision log](docs/DECISIONS.md).
 Do not implement an open decision as if it were accepted. Ask, or implement the part that does not depend on it.
-Automatic checks for these rules are planned but not installed yet. Follow the rules without them.
+
+## Enforced rules
+
+ESLint, `npm run check:config`, Git hooks, and the CI jobs enforce part of these rules. See [Enforced rules](docs/ENFORCED_RULES.md).
+Fix a failed check. Do not weaken or bypass it without a human decision. The checks do not replace the rules that they do not cover.
 
 ## Before work
 
@@ -148,7 +152,7 @@ If unclear, keep the safer state and ask.
 
 ## GitHub Actions
 
-- No workflow exists yet. Read this section before you add one.
+- Read this section and [the GitHub Actions guide](docs/GITHUB_ACTIONS.md) before you change or add a workflow.
 - Pin actions to full commit SHAs with version comments, never tags or branches.
 - Give jobs only necessary token permissions. Use `persist-credentials: false` for checkout.
 - Pass inputs through environment variables. Never interpolate input `${{ }}` expressions into `run` text.
@@ -169,17 +173,22 @@ If unclear, keep the safer state and ask.
 
 ## Commands
 
-No root `package.json` exists yet. After the first package is added, run commands from the repository root:
+Run commands from the repository root:
 
 ```sh
 npm ci --ignore-scripts
 npm run format
 npm run format:check
 npm run lint
+npm run check:config
+npm run check:workflows
 npm run typecheck
 npm run build
 npm test
 npm test --workspace <name>
+npm run check
 ```
 
-Root build, test, and typecheck scripts aggregate workspaces. Root formatting and lint exclude generated output and vendored skills.
+Root build, test, and typecheck scripts aggregate workspaces. Before the first package exists, they report that they have nothing to run and succeed.
+Root formatting and lint exclude generated output and vendored skills. `npm run check` runs formatting, lint, configuration, workflow, and package checks.
+See [Git hooks and secret checks](docs/GIT_HOOKS.md) for `npm run hooks:install` and the Gitleaks commands.

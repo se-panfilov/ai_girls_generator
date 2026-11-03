@@ -40,10 +40,9 @@ It reports findings. A human decides how to handle each finding.
 
 ## Enforcement status
 
-The Toolchain repository enforces part of its rules with ESLint rules, a configuration check, Git hooks, and CI jobs.
-These checks are not installed in this repository yet, because it has no root `package.json`.
-Until they are installed, agents and reviewers must apply the rules manually.
-[docs/skill-provenance.json](skill-provenance.json) records the expected file hashes. Compare them manually after a skill update. See [Installed third-party skills](INSTALLED_SKILLS.md#manual-hash-check).
+ESLint rules, a configuration check, Git hooks, and CI jobs enforce part of the rules. They are the same for each person and each agent, because they use only repository files, Git, and GitHub Actions. See [Enforced rules](ENFORCED_RULES.md).
+`npm run check:config` compares each third-party skill file with the hash in [docs/skill-provenance.json](skill-provenance.json). See [Installed third-party skills](INSTALLED_SKILLS.md#manual-hash-check) for the manual command.
+Cloud agents work in a new clone without local Git hooks. CI repeats each hook check for this reason.
 
 ## Verify the active session
 

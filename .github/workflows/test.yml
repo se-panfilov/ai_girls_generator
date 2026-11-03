@@ -1,0 +1,124 @@
+# Run repository checks and package tests.
+# When you add, remove, or rename a package in packages/, update the `package` options in this file.
+# `npm run check:workflows` and the `plan` job stop when the list differs from packages/.
+
+name: Tests
+run-name: Tests (${{ github.event_name }}, package=${{ inputs.package || 'all' }}, dry_run=${{ inputs.dry_run == true }})
+
+on:
+  # The pr-rules workflow checks the pull request rules. It also runs after a change to the title or description.
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package directory in packages/, or all
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+      dry_run:
+        description: Show the plan only. Do not install or run tests.
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      packages: ${{ steps.select.outputs.packages }}
+      selected: ${{ steps.select.outputs.selected }}
+      dry_run: ${{ steps.select.outputs.dry_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # A pull request needs the history to find the changed packages.
+          fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      # On a pull request, only the packages with changed files are tested. A change outside packages/<directory>/ selects all packages.
+      - id: select
+        name: Select packages
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PACKAGE: ${{ inputs.package || 'all' }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
+        run: node scripts/ci/packages.mjs select
+
+  repository:
+    needs: plan
+    if: needs.plan.outputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run check:config
+      - run: npm run check:workflows
+
+  test:
+    needs: plan
+    # A matrix without values is an error. Before the first package exists, the job is skipped.
+    if: needs.plan.outputs.dry_run != 'true' && needs.plan.outputs.packages != '[]'
+    name: test (${{ matrix.package.dir }}, ${{ matrix.os }}, Node.js ${{ matrix.node }})
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.plan.outputs.packages) }}
+        # macOS is the first supported platform (AGENTS.md). Linux runs the same tests as a second platform.
+        os: [macos-latest, ubuntu-latest]
+        node: ['26']
+    # A skipped job keeps its check name from matrix.os, but runs on a Linux runner. Thus it does not wait for a macOS runner.
+    runs-on: ${{ contains(fromJSON(needs.plan.outputs.selected), matrix.package.dir) && matrix.os || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      WORKSPACE: ${{ matrix.package.name }}
+      SELECTED: ${{ contains(fromJSON(needs.plan.outputs.selected), matrix.package.dir) }}
+    # Every matrix job runs, so that each `test (…)` check reports a result for required status checks.
+    # A job for a package that the pull request does not change skips all steps after this note and succeeds.
+    steps:
+      - name: Report a skipped package
+        if: env.SELECTED != 'true'
+        run: echo "The pull request does not change this package. Tests are skipped."
+      - if: env.SELECTED == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: env.SELECTED == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - if: env.SELECTED == 'true'
+        run: node --version && npm --version
+      - if: env.SELECTED == 'true'
+        run: npm ci --ignore-scripts
+      - name: Check types
+        if: env.SELECTED == 'true'
+        run: npm run typecheck --workspace "$WORKSPACE"
+      - name: Test the package
+        if: env.SELECTED == 'true'
+        run: npm test --workspace "$WORKSPACE"
