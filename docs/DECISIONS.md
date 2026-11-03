@@ -7,17 +7,20 @@ Only the owner closes an entry. An agent can add options and a recommendation, b
 
 These items come from the owner. They are not open.
 
-| Requirement                                                                                              |
-| -------------------------------------------------------------------------------------------------------- |
-| The factory makes rig-compatible layered cutout characters for one shared skeleton.                      |
-| All characters share one animation set. Version 1 has no character-specific skeletons or animations.     |
-| Version 1 is the pipeline, not a game or an engine.                                                      |
-| The game that uses the packages is built with Vue 3, TypeScript, and probably Electron, with a DOM UI.   |
-| The game does not use PixiJS, Phaser, or Three.js.                                                       |
-| Required animations: `idle`, `run`, `jump`, `shoot_stand`, `shoot_crouch`, `hit`, facing left and right. |
-| The repository is an npm workspaces monorepo. Code runs on Node.js.                                      |
-| No license purchase or paid API call without the owner's approval.                                       |
-| Everything in the repository is in English: code, comments, user interface, documentation, and reports.  |
+| Requirement                                                                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------- |
+| The factory makes rig-compatible layered cutout characters for one shared skeleton.                                                     |
+| All characters share one animation set. Version 1 has no character-specific skeletons or animations.                                    |
+| Version 1 is the pipeline, not a game or an engine.                                                                                     |
+| The game that uses the packages is built with Vue 3, TypeScript, and probably Electron, with a DOM UI.                                  |
+| The game does not use PixiJS, Phaser, or Three.js.                                                                                      |
+| Required animations: `idle`, `run`, `jump`, `shoot_stand`, `shoot_crouch`, `hit`, facing left and right.                                |
+| The repository is an npm workspaces monorepo. Code runs on Node.js.                                                                     |
+| No license purchase or paid API call without the owner's approval.                                                                      |
+| Everything in the repository is in English: code, comments, user interface, documentation, and reports.                                 |
+| New custom tooling is TypeScript on Node.js. Shell is only a thin wrapper. See [engineering requirements](ENGINEERING_REQUIREMENTS.md). |
+| Supported operating systems for the current gates: macOS and Linux. Windows is not tested.                                              |
+| The purchase of Spine Essential is approved in principle. The owner buys it. Spine Professional is not part of this approval.           |
 
 ## Open decisions
 
