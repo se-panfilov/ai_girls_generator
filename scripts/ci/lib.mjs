@@ -1,7 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { readRegularFile } from './files.mjs';
 
 export const root = realpathSync(fileURLToPath(new URL('../../', import.meta.url)));
 // Each of these workflows has a `package` choice input that must list `all` and every package directory.
@@ -16,9 +18,10 @@ const command = /^[a-z][a-z0-9-]{0,63}$/;
 export const safe = (value) => String(value).replace(/[\p{Cc}\p{Cf}]/gu, (character) => (character === '\n' ? character : '?'));
 
 export function readJson(path) {
-  const stat = lstatSync(path);
-  if (!stat.isFile()) throw new Error(`Expected a regular file: ${safe(path)}`);
-  return JSON.parse(readFileSync(path, 'utf8'));
+  // One descriptor opened without following links prevents a change between the check and the read.
+  const text = readRegularFile(path);
+  if (text === undefined) throw new Error(`File not found: ${safe(path)}`);
+  return JSON.parse(text);
 }
 
 // Read and validate every package in packages/. An unexpected entry stops the workflow instead of being skipped.
