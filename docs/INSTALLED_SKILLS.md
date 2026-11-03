@@ -90,7 +90,7 @@ The adaptations keep the Toolchain safety limits and replace the Toolchain CLI i
   It requires confirmation of untracked files, stops on secrets in the patch, and forbids CLI installation or authentication.
   It removes Bash from `allowed-tools` and adds `disable-model-invocation: true`, so Claude Code starts it only on a user command.
   It runs the provider from an empty temporary directory that contains only the prompt file, not from the repository root.
-- [grilling](skill-patches/grilling.patch) requires Russian questions, limits questions to material ones, and makes the subagent lookup optional.
+- [grilling](skill-patches/grilling.patch) requires English questions, limits questions to material ones, and makes the subagent lookup optional.
 - [writing-for-agents](skill-patches/writing-for-agents.patch) keeps required safety and authorization rules and security prohibitions.
   It identifies `disable-model-invocation` as Claude Code frontmatter.
 

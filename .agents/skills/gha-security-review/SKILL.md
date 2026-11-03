@@ -27,7 +27,7 @@ The project rules are stricter. Report a deviation from them in a separate "Poli
 - A publication token or secret in the repository or workflows.
 - A workflow that downloads model weights, calls a paid API, or uploads character assets without an explicit human decision.
 
-Write the report in Russian. A human decides how to handle each finding.
+Write the report in English. A human decides how to handle each finding.
 
 ## Upstream workflow
 

@@ -38,7 +38,7 @@ Start with the smallest working package: one exported function and one test, or 
 | `tsconfig.json`     | Extend `../../configs/tsconfig.base.json`. Set `rootDir: "."`, `outDir: "dist"`, `paths`, `include`, and `exclude`. |
 | `vite.config.mjs`   | Use the shared preset from `../../configs/`. Set `root`, the alias namespace, and the entry modules.                |
 | `vitest.config.mjs` | Use the shared test preset and pass the Vite alias mapping.                                                         |
-| `src/index.ts`      | The library entry, or `src/cli.ts` with a Node.js shebang and Russian help text for a CLI.                          |
+| `src/index.ts`      | The library entry, or `src/cli.ts` with a Node.js shebang and English help text for a CLI.                          |
 | `test/*.test.ts`    | English test names. Test one success path and one failure path in a temporary directory with synthetic data.       |
 | `README.md`         | Purpose, pipeline stage, inputs, outputs, commands, and limits.                                                     |
 | `SECURITY.md`       | Required when the package writes assets, decodes images, starts subprocesses, or uses the network.                  |
@@ -94,4 +94,4 @@ After that, use `npm ci --ignore-scripts` for later installs.
 - Do a security review of the scaffold.
 - Do not run `npm version` for a new package. Its first version is `0.1.0`.
 - Add the package to the table in [the workspace layout](../../../docs/WORKSPACES.md).
-- Report the new files, the checks, and the open questions in Russian.
+- Report the new files, the checks, and the open questions in English.

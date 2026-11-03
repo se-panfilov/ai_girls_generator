@@ -8,7 +8,7 @@ description: Grill the user relentlessly about a plan, decision, or idea. Use wh
 ## Project integration
 
 Read [AGENTS.md](../../../AGENTS.md) before applying the upstream workflow below.
-Write the questions and recommended answers in Russian.
+Write the questions and recommended answers in English.
 Ask only questions that materially affect scope, safety, or observable behavior. Look up facts yourself.
 Use a subagent for a fact lookup only if the host has one. Otherwise, do the read-only lookup in the current session.
 An answer to a question does not authorize a decision that AGENTS.md reserves for a human unless the human makes that decision explicitly.

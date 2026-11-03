@@ -92,6 +92,6 @@ Run Prettier on changed maintained files with the existing configuration.
 Run the root format check, ESLint, type check, and the affected workspace tests. Fix errors before completion.
 Keep generated output and vendored skills outside formatting changes.
 Update the package README and the affected docs when behavior or data formats change.
-Report the result, executed checks, fixed defects, and remaining limits in Russian.
+Report the result, executed checks, fixed defects, and remaining limits in English.
 Never merge the pull request. A human reviews and merges it.
 Do not present static review as a test on real hardware or a formal security certificate.

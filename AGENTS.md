@@ -115,7 +115,7 @@ If unclear, keep the safer state and ask.
 ## CLI behavior
 
 - Make normal operation non-interactive with explicit inputs, because pipeline stages run in batches. Use interactive prompts only for human review steps.
-- Write prompts, help, progress, and user errors in Russian. Keep text short and specific.
+- Write prompts, help, progress, and user errors in English. Keep text short and specific.
 - Write machine-readable reports as JSON. Keep machine output free of colors, progress, and prompts.
 - Provide a dry-run mode for each command that writes a character package.
 - Respect `NO_COLOR` and terminal capabilities. Sanitize untrusted text before adding terminal control sequences.
@@ -144,7 +144,7 @@ If unclear, keep the safer state and ask.
 - Run relevant checks. For documentation-only edits, check links, commands, scope, and consistency with the decision log. Avoid unnecessary runtime suites.
 - Read scripts before execution. Never use generation or paid services as smoke tests.
 - Build and test before delivery. Build failure must stop startup, never run stale output.
-- Report changes, checks, findings, fixes, and limitations in Russian. Distinguish completed from planned checks and static inspection from tests on real tools or hardware.
+- Report changes, checks, findings, fixes, and limitations in English. Distinguish completed from planned checks and static inspection from tests on real tools or hardware.
 
 ## GitHub Actions
 
@@ -158,7 +158,7 @@ If unclear, keep the safer state and ask.
 ## Documentation
 
 - Write documentation and code comments in English under [the writing rules](docs/WRITING.md), based on ASD-STE100 Issue 9.
-- Keep commands, identifiers, Russian interface strings, and license text exact.
+- Keep commands, identifiers, interface strings, and license text exact.
 - Use the terms in [the glossary](docs/GLOSSARY.md). Use one term for each concept.
 - Mark draft content, assumptions, and open decisions in the text. Do not present a proposal as an accepted decision.
 - Start PR descriptions with `## tl;dr`: at most two short paragraphs in plain language for readers with little subject knowledge.

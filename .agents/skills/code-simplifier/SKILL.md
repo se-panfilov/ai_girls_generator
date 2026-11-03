@@ -32,7 +32,7 @@ Do not modify unrelated user changes, generated build output, or character asset
 
 Keep public APIs, return values, exit codes, file contents, and ordering intact.
 Keep JSON key order, number formatting, and file names that tests or hashes depend on.
-Keep Russian prompts, help, errors, and confirmation defaults intact unless the task requests a text change.
+Keep prompts, help, errors, and confirmation defaults intact unless the task requests a text change.
 Keep the compiled package compatible with the supported Node.js versions.
 Preserve explicit runtime import extensions and the `dist/` build output.
 
@@ -71,6 +71,6 @@ Choose clarity over fewer lines or fewer tokens.
 5. Compare output hashes before and after the change when the code writes assets.
 6. Add a regression check if the change exposes a defect or missing behavioral coverage.
 7. Perform the separate security review required by AGENTS.md.
-8. Report the result, executed checks, and remaining limits in Russian.
+8. Report the result, executed checks, and remaining limits in English.
 
 Do not run generation, downloads, or paid services to validate a cleanup.

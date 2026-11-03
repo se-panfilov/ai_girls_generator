@@ -17,7 +17,7 @@ Before the run, tell the user that the collector sends dependency names to publi
 Do not install `uv`, Python packages, or other tools. Report the missing setup.
 Write outputs only in a temporary directory outside the repository.
 The collector does not examine model weights, ComfyUI custom nodes, or Python tool environments. Report them as not examined, and refer to [the model license registry](../../../docs/MODEL_LICENSES.md).
-Write the report in Russian. A human decides how to handle each finding.
+Write the report in English. A human decides how to handle each finding.
 
 ## Upstream workflow
 

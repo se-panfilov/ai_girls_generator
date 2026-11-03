@@ -35,8 +35,8 @@ You did not write the change. Examine it as an independent reviewer.
 
 ## Report
 
-Write the report in Russian. Keep identifiers, paths, and commands exact.
-Start with one line: the number of findings for each severity, or "Подтверждённых проблем нет".
+Write the report in English. Keep identifiers, paths, and commands exact.
+Start with one line: the number of findings for each severity, or "No confirmed findings".
 
 For each finding, give:
 

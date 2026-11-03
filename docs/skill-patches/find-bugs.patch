@@ -25,7 +25,7 @@
 +* [ ] **Network and external effects**: no model download, paid API call, GPU rental, data transfer, publication, or push without explicit authorization.
 +* [ ] **Terminal**: input handlers restored after success, cancellation, and errors. Machine output has no colors or prompts.
 +
-+Write the report in Russian. A human decides how to handle each finding.
++Write the report in English. A human decides how to handle each finding.
 +
 +## Upstream workflow
 +

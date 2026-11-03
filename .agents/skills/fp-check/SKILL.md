@@ -17,7 +17,7 @@ Prefer pseudocode PoCs. Create an executable or unit test PoC only in an isolate
 Do not run a PoC against real repositories, user data, remote services, or the network.
 Do not add a PoC or regression test to the repository unless the user asks for that change.
 The verdict is evidence for a human decision. It does not accept, ignore, or postpone a security risk.
-Write the report in Russian.
+Write the report in English.
 
 ## Upstream workflow
 

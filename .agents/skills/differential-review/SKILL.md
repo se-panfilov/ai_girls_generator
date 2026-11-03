@@ -15,7 +15,7 @@ Bash and Write are removed from `allowed-tools`. Commands and file writes then f
 This skill is read-only for the repository. Do not write the report into the repository, the Desktop, or the home directory.
 Give the report in the reply. If the user asks for a file, write it in a temporary directory outside the repository. Do not put a date in the file name.
 The issue-writer and audit-context-building skills and the adversarial-modeler agent are not installed. Do those phases in the current session, or skip them and say so.
-Write the report in Russian. A human decides how to handle each finding.
+Write the report in English. A human decides how to handle each finding.
 
 ## Upstream workflow
 

@@ -17,6 +17,7 @@ These items come from the owner. They are not open.
 | Required animations: `idle`, `run`, `jump`, `shoot_stand`, `shoot_crouch`, `hit`, facing left and right. |
 | The repository is an npm workspaces monorepo. Code runs on Node.js.                                      |
 | No license purchase or paid API call without the owner's approval.                                       |
+| Everything in the repository is in English: code, comments, user interface, documentation, and reports.  |
 
 ## Open decisions
 
@@ -43,7 +44,6 @@ These items come from the owner. They are not open.
 | D19 | GPU                              | Own GPU with 16 GB or more / rented cloud GPU                 | Not evaluated yet                                                      | Open   |
 | D20 | Content rules                    | Age, explicitness, store disclosure rules                     | Explicitly adult characters, no explicit content, human approval       | Open   |
 | D21 | Package names in the monorepo    | `@aigg/<dir>` scope and `aigg-<dir>` commands / other         | `@aigg/<dir>`, private packages                                        | Open   |
-| D22 | Documentation language           | English with ASD-STE100 (as in Toolchain) / Russian           | English, with Russian interface text and reports                       | Open   |
 
 ## How to record a decision
 

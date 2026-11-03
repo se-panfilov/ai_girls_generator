@@ -6,12 +6,11 @@ Do not claim full conformance from a sentence counter or an unchecked vocabulary
 
 ## Language
 
-- Write documentation and code comments in English.
-- Write the CLI interface and user-facing task reports in Russian.
+- Write everything in the repository in English: code, code comments, user interface text, documentation, tests, and reports.
+- Write the CLI interface, user-facing task reports, and agent reports in English.
 - Keep commands, paths, identifiers, quoted software labels, and license text exact.
 - Write test names, test data, and test comments in English. Tests are not user interaction.
-- Use Russian in tests only to match Russian interface strings, such as an expected error message.
-- Write identifiers in contract and package data in lowercase ASCII `snake_case`. Do not use Cyrillic in file names, slot names, or attachment names.
+- Write identifiers in contract and package data in lowercase ASCII `snake_case`. Use only ASCII characters in file names, slot names, and attachment names.
 
 ## Terms
 
