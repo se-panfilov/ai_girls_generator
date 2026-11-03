@@ -1,0 +1,50 @@
+{
+  "name": "ai-girls-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=26.12.1"
+  },
+  "scripts": {
+    "build": "node scripts/workspaces.mjs build",
+    "check": "npm run format:check && npm run lint && npm run check:config && npm run check:workflows && npm test",
+    "check:config": "node scripts/ci/config.mjs",
+    "check:workflows": "node scripts/ci/packages.mjs check && node --test \"tests/ci/*.test.mjs\"",
+    "clean:reinstall": "npm ci --ignore-scripts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "gitleaks:staged": "node scripts/scan-secrets.mjs staged",
+    "gitleaks:history": "node scripts/scan-secrets.mjs history",
+    "gitleaks:files": "node scripts/scan-secrets.mjs files",
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "hooks:check": "lefthook validate",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix --max-warnings=0",
+    "lint:fix:all": "node scripts/workspaces.mjs lint:fix --if-present",
+    "prettier:changed": "node scripts/format-changed.mjs",
+    "pretty-quick": "node scripts/format-changed.mjs --staged",
+    "test": "node scripts/workspaces.mjs test",
+    "test:unit": "node scripts/workspaces.mjs test:unit --if-present",
+    "test:hooks": "vitest run --config configs/hooks.vitest.config.mjs",
+    "typecheck": "node scripts/workspaces.mjs typecheck",
+    "typecheck:check:all": "node scripts/workspaces.mjs typecheck --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.5",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-simple-import-sort": "14.0.0",
+    "globals": "17.13.0",
+    "lefthook": "2.2.2",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.0",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

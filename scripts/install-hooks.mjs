@@ -1,0 +1,52 @@
+import { spawnSync } from 'node:child_process';
+import { lstatSync, realpathSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { readRegularFile } from './ci/files.mjs';
+
+const root = realpathSync.native(fileURLToPath(new URL('../', import.meta.url)));
+// Hooks configured in lefthook.yml. Keep this list synchronized with the hook sections there.
+const hooks = ['pre-commit', 'commit-msg', 'pre-push'];
+const isProjectWrapper = (text) => text.includes('call_lefthook') && text.includes('node node_modules/lefthook/bin/index.js');
+const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.toUpperCase().startsWith('GIT_')));
+
+function git(args) {
+  const result = spawnSync('git', ['--no-pager', ...args], { cwd: root, env, encoding: 'utf8', timeout: 10000 });
+  if (result.error || ![0, 1].includes(result.status)) throw new Error('Cannot read the Git configuration.');
+  return result.stdout.trim();
+}
+
+try {
+  if (process.argv.length !== 2) throw new Error('Options are not supported.');
+  if (realpathSync.native(git(['rev-parse', '--show-toplevel'])) !== root) throw new Error('The script must be in the repository root.');
+  if (git(['config', '--null', '--name-only', '--get-regexp', '^core\\.hookspath$'])) throw new Error('core.hooksPath is already set. Installation stopped. The setting is not changed.');
+  // --git-path can resolve a linked hooks directory before lstat can reject it.
+  const directory = join(git(['rev-parse', '--path-format=absolute', '--git-common-dir']), 'hooks');
+  if (realpathSync.native(dirname(directory)) !== dirname(directory)) throw new Error('The parent directory of hooks must not contain links.');
+  try {
+    const stat = lstatSync(directory);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('The hooks directory must be a regular directory without links.');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  for (const hook of hooks) {
+    let text;
+    try {
+      text = readRegularFile(join(directory, hook), 1024 * 1024);
+    } catch {
+      text = '';
+    }
+    if (text === undefined) continue;
+    // A wrapper from an earlier installation of this project can be replaced. Any other hook, link, or directory stays unchanged.
+    if (!isProjectWrapper(text)) {
+      throw new Error(`${hook} already exists. Save and examine it before a manual Lefthook installation.`);
+    }
+  }
+  const result = spawnSync(process.execPath, [join(root, 'node_modules/lefthook/bin/index.js'), 'install', ...hooks], { cwd: root, env, encoding: 'utf8', timeout: 30000 });
+  if (result.error || result.status !== 0) throw new Error('Lefthook did not install the hook. Examine the dependencies and permissions.');
+  console.log(`Installed hooks: ${hooks.join(', ')}. The Git index and configuration are not changed.`);
+} catch (error) {
+  console.error(String(error.message).replace(/[\p{Cc}\p{Cf}]/gu, '?'));
+  process.exitCode = 1;
+}

@@ -36,14 +36,14 @@ Start with the smallest working package: one exported function and one test, or 
 | ------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `package.json`      | Fields from the next section. `version` is `0.1.0`.                                                                 |
 | `tsconfig.json`     | Extend `../../configs/tsconfig.base.json`. Set `rootDir: "."`, `outDir: "dist"`, `paths`, `include`, and `exclude`. |
-| `vite.config.mjs`   | Use the shared preset from `../../configs/`. Set `root`, the alias namespace, and the entry modules.                |
-| `vitest.config.mjs` | Use the shared test preset and pass the Vite alias mapping.                                                         |
+| `vite.config.mjs`   | Call `nodePackageConfig` from `../../configs/vite.config.mjs`. Set `root`, the alias namespace, and the entry modules. |
+| `vitest.config.mjs` | Call `nodeTestConfig` from `../../configs/vitest.config.mjs` and pass the Vite alias mapping.                       |
 | `src/index.ts`      | The library entry, or `src/cli.ts` with a Node.js shebang and English help text for a CLI.                          |
 | `test/*.test.ts`    | English test names. Test one success path and one failure path in a temporary directory with synthetic data.       |
 | `README.md`         | Purpose, pipeline stage, inputs, outputs, commands, and limits.                                                     |
 | `SECURITY.md`       | Required when the package writes assets, decodes images, starts subprocesses, or uses the network.                  |
 
-If `configs/` does not exist yet, stop and report it. The first package must add the shared configuration in a separate reviewed step.
+The shared configuration in `configs/` and the root scripts already exist. Do not copy them into the package.
 
 Use these `package.json` fields. Replace the placeholders.
 
@@ -81,6 +81,7 @@ Run these commands from the repository root:
 npm install --ignore-scripts
 npm run format:check
 npm run lint
+npm run check:config
 npm run typecheck
 npm test --workspace @aigg/<dir>
 ```
@@ -94,4 +95,5 @@ After that, use `npm ci --ignore-scripts` for later installs.
 - Do a security review of the scaffold.
 - Do not run `npm version` for a new package. Its first version is `0.1.0`.
 - Add the package to the table in [the workspace layout](../../../docs/WORKSPACES.md).
+- Add the directory name to the `package` options in [test.yml](../../../.github/workflows/test.yml), then run `npm run check:workflows`.
 - Report the new files, the checks, and the open questions in English.
