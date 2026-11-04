@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,5 +145,18 @@ describe('aigg-rig-runtime CLI', () => {
     expect(runCli(['manifest', before, join(before, 'inside.sha256')]).status).toBe(2);
     expect(runCli(['verify', before, out, '--strict']).report).toMatchObject({ status: 'PASS', checked: 5 });
     expect(runCli(['verify', before, out, '--bad']).status).toBe(2);
+  });
+
+  it('replaces a file with --overwrite and never writes through a symbolic link', () => {
+    const { before } = ownerLayout();
+    const target = join(root, 'target.txt');
+    writeFileSync(target, 'keep');
+    const out = join(root, 'linked.sha256');
+    symlinkSync(target, out);
+    expect(runCli(['manifest', before, out]).report).toMatchObject({ status: 'ERROR', problems: [expect.objectContaining({ code: 'E_USAGE' })] });
+    expect(runCli(['manifest', before, out, '--overwrite']).status).toBe(0);
+    expect(readFileSync(target, 'utf8')).toBe('keep');
+    expect(lstatSync(out).isFile()).toBe(true);
+    expect(readdirSync(root).filter((name) => name.endsWith('.tmp'))).toEqual([]);
   });
 });

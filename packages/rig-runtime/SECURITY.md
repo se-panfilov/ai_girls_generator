@@ -14,7 +14,9 @@
 ## Writes
 
 The CLI writes one file: the manifest of `manifest`. It refuses a path inside the described folder, refuses to replace an existing file
-without `--overwrite`, and `--dry-run` writes nothing. Other commands only read. The library writes no files.
+without `--overwrite`, and `--dry-run` writes nothing.
+A new file is opened with the exclusive flag. A replacement is written to a new temporary file and renamed over the target,
+so the write does not follow a symbolic link at the target path. Other commands only read. The library writes no files.
 
 ## External effects
 

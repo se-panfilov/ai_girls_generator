@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
 
 import { createManifest, formatManifest, type ManifestEntry, parseManifest, verifyManifest } from '@rig-runtime/manifest';
@@ -32,6 +33,31 @@ function directory(path: string | undefined): string {
   return full;
 }
 
+/**
+ * Writes the manifest without a check-then-write race. A new file uses the exclusive flag `wx`.
+ * A replacement goes to a new temporary file in the same folder and then replaces the target name with one rename.
+ * The rename replaces a symbolic link itself, so the write never follows a link to another file.
+ */
+function writeManifest(out: string, label: string, text: string, overwrite: boolean): void {
+  if (!overwrite) {
+    try {
+      writeFileSync(out, text, { flag: 'wx' });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') usage(`${label} exists. Give --overwrite to replace it.`);
+      throw error;
+    }
+    return;
+  }
+  const temporary = `${out}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, text, { flag: 'wx' });
+  try {
+    renameSync(temporary, out);
+  } catch (error) {
+    rmSync(temporary, { force: true });
+    throw error;
+  }
+}
+
 function readManifestOrDirectory(path: string): { entries: ManifestEntry[]; ignored: string[] } {
   const full = resolve(path);
   if (existsSync(full) && statSync(full).isDirectory()) return createManifest(full);
@@ -52,9 +78,10 @@ function run(argv: readonly string[]): Report {
     const out = resolve(second ?? '');
     const inside = relative(dir, out);
     if (!inside.startsWith(`..`) && !inside.startsWith(sep)) usage('The manifest file must be outside the directory that it describes.');
-    if (existsSync(out) && !flags.has('--overwrite')) usage(`${second} exists. Give --overwrite to replace it.`);
     const { entries, ignored } = createManifest(dir);
-    if (!flags.has('--dry-run')) writeFileSync(out, formatManifest(entries), { flag: flags.has('--overwrite') ? 'w' : 'wx' });
+    if (flags.has('--dry-run')) {
+      if (existsSync(out) && !flags.has('--overwrite')) usage(`${second} exists. Give --overwrite to replace it.`);
+    } else writeManifest(out, second ?? '', formatManifest(entries), flags.has('--overwrite'));
     return { status: 'PASS', command, files: entries.length, ignored, written: !flags.has('--dry-run'), out };
   }
   if (command === 'verify') {
