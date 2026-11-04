@@ -4,21 +4,40 @@
 
 ## Phases
 
-| Phase | Content                                                                                                 | Gate                                                                      |
-| ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                       |
-| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                      |
-| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime. |
-| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                       |
-| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.      |
-| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                    |
-| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                           |
-| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.    |
-| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change.                                 |
+| Phase | Content                                                                                                 | Gate                                                                                |
+| ----- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                                 |
+| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                                |
+| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime.           |
+| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                                 |
+| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.                |
+| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                              |
+| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                                     |
+| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.              |
+| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). |
 
 Automate a step only after it was done the same way by hand at least three times.
 
 Owner decision: full GPU and performance tests wait until realistic game assets and mass-render scenarios exist. They are not a gate for decision D22 or for the design of D23. The performance question of D24 stays open.
+
+## Future Equipment System (v2+)
+
+**Owner-approved strategic intent. Not a version 1 task.** The implementation details below are not approved. Decision D25 holds the open questions.
+
+The factory will support equipment that does not depend on the character appearance:
+
+1. Appearance and equipment are different entities. Weapons and removable armor are not drawn permanently into the source images of the body.
+2. Items in the hands change at run time without a change of the shared skeleton and without a restart of the animation.
+3. Named mount points on the rig and local item points, for example `grip`, `muzzle`, `tip`, and others when necessary.
+4. Removable clothes and armor: helmets, body armor, shoulder guards, bracers, footwear, and similar items.
+5. Future operations overlay, replace, and hide/override. Their exact API is not approved yet.
+6. A multi-part item changes atomically.
+7. The design considers rig compatibility, draw order, and independent resource management (see D23 and D24).
+8. Before the rig contract freeze, estimate the additional slots and mount points that equipment needs. Do not add hypothetical slots now without a reason.
+9. Two-handed weapons, complex grips, and the limits of Spine Essential are separate questions for version 2 or later (see D6).
+10. Full GPU and performance tests stay deferred until realistic game assets exist.
+
+Gate for phase 8 (contract 1.0 freeze): an equipment extensibility check of the rig contract (D25).
 
 ## Experiments
 
