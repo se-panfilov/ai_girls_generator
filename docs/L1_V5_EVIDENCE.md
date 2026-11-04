@@ -127,6 +127,19 @@ node v5/run-v5.mjs <repository> <owner-archive-root> <v4-kit> <output-dir>
 | spine-webcomponents | 4.3.13                                                     |
 | Editor export       | `skeleton.spine` 4.3.26 (owner reports 4.3.08 selected)    |
 
+## Remediation after the independent PR review (Agent Task v5.1)
+
+An independent review of the first version of this change found three defects in the draft module code. Each defect was reproduced with a failing test before the fix (`test/audit-v51.test.ts`: 3 failed, 1 passed).
+
+| Finding                 | Defect before the fix                                                                                                                                          | Fix                                                                                                                                                                                           | Evidence after the fix                                                                                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0 atlas cache identity | The cache key was only the atlas text hash. A second reference with the same atlas text and other page images got the first texture set.                       | The key is `atlasIdentity`: atlas text hash, alpha mode, and page image hashes in page order. File paths are not part of it.                                                                  | Two texture sets for different page hashes, independent owners and disposal. One shared texture set, counted owners and one unload for identical content. |
+| P1 greedy composition   | `composeModules` chose groups one by one and did not go back. With heads `tone1` and `tone2` and one torso `tone1`, some seeds gave `E_COMPOSE_NO_COMPATIBLE`. | Depth-first backtracking over one seeded shuffle of each group. Limits: `maxModules` (`E_COMPOSE_CATALOG_TOO_LARGE`) and `maxSteps` (`E_COMPOSE_SEARCH_LIMIT`). No partial result at a limit. | 64 of 64 seeds find the only compatible selection. Limit, configuration and no-solution tests pass.                                                       |
+| P1 duplicate module ids | Candidates were sorted by `moduleId` only. Two modules with one id and different content gave a result that depended on the catalog order.                     | Catalog identity rule: the same id with different content is `E_CATALOG_DUPLICATE_ID`. Copies with the same content (canonical JSON) are permitted.                                           | A reversed catalog gives the same outcome for 32 seeds, also in the formerly ambiguous case.                                                              |
+
+The seeded selection of seed 20261104 changed with the new algorithm (snapshot updated). The same seed still gives the same selection on each run and for each catalog order.
+After the fixes: package tests 77 of 77 PASS, `npm run check` PASS, and the browser bench again gives 11/11 steps and 53/53 inner checks.
+
 ## Known harness defects (follow-up, not in this task)
 
 | Id    | Defect                                                                                                  | Proposed fix                                                        |

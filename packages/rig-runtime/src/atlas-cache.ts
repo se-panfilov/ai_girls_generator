@@ -18,16 +18,26 @@ export type AtlasCacheStats = {
   readonly unused: number;
   readonly loads: number;
   readonly unloads: number;
-  /** Owner count by atlas sha256. */
+  /** Owner count by atlas identity (see `atlasIdentity`). */
   readonly owners: Readonly<Record<string, number>>;
 };
+
+/**
+ * Cache identity of an atlas: the hash of the atlas text, the alpha mode, and the hash of each page image in page order.
+ * File paths are not part of the identity: two references with the same content share one texture set.
+ * Two references with the same atlas text but different page images have different identities, so a texture is never
+ * reused for an image with other bytes.
+ */
+export function atlasIdentity(ref: AtlasRef): string {
+  return `${ref.sha256}:${ref.pma ? 'pma' : 'straight'}:${ref.pages.map((page) => page.sha256).join(',')}`;
+}
 
 type Entry = { ref: AtlasRef; owners: number; promise: Promise<Spine.TextureAtlas>; atlas: Spine.TextureAtlas | null };
 
 /**
  * Shared atlas cache with explicit owners. Each acquire needs one release. An atlas without owners stays loaded
  * until more than `maxUnused` atlases have no owner; then the least recently released atlas is unloaded.
- * The key is the atlas sha256, so two characters that use the same atlas share one texture set,
+ * The key is `atlasIdentity` (atlas and page content hashes), so two characters that use the same atlas share one texture set,
  * and a release by one character never unloads an atlas that another character still owns.
  */
 export class AtlasCache {
@@ -46,7 +56,7 @@ export class AtlasCache {
 
   /** Adds one owner and returns the loaded atlas. A failed load adds no owner and keeps no entry. */
   async acquire(ref: AtlasRef): Promise<Spine.TextureAtlas> {
-    const key = ref.sha256;
+    const key = atlasIdentity(ref);
     let entry = this.entries.get(key);
     if (!entry) {
       this.loads += 1;
@@ -74,7 +84,7 @@ export class AtlasCache {
 
   /** Removes one owner. Releasing an atlas without an owner is an error (E_CACHE_RELEASE), because it shows a lifetime defect. */
   release(ref: AtlasRef): void {
-    const key = ref.sha256;
+    const key = atlasIdentity(ref);
     const entry = this.entries.get(key);
     if (!entry || entry.owners <= 0) throw new RigRuntimeError([problem('E_CACHE_RELEASE', `The atlas ${show(ref.file)} has no owner to release.`)]);
     entry.owners -= 1;

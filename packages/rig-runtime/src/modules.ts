@@ -173,22 +173,92 @@ export function seededRandom(seed: number): () => number {
   };
 }
 
-/**
- * Chooses one module per group with a fixed seed. Candidates are sorted by moduleId, so the input order has no effect.
- * Each choice must agree with the rules and the earlier choices. Code: E_COMPOSE_NO_COMPATIBLE.
- */
-export function composeModules(seed: number, catalog: readonly PartModule[], groups: readonly ModuleGroup[], rules: readonly CompatibilityRule[]): Map<string, PartModule> {
-  const random = seededRandom(seed);
-  const selection = new Map<string, PartModule>();
-  for (const group of groups) {
-    const candidates = catalog
-      .filter((item) => item.group === group.id)
-      .sort((left, right) => (left.moduleId < right.moduleId ? -1 : left.moduleId > right.moduleId ? 1 : 0))
-      .filter((item) => compatibilityProblems(new Map([...selection, [group.id, item]]), rules).length === 0);
-    const choice = candidates[Math.floor(random() * candidates.length)];
-    if (!choice) throw new RigRuntimeError([problem('E_COMPOSE_NO_COMPATIBLE', `No module of the group ${show(group.id)} agrees with the earlier choices.`, group.id)]);
-    selection.set(group.id, choice);
+/** Default limits of `composeModules`. */
+export const composeLimits = { maxModules: 10_000, maxSteps: 100_000 } as const;
+export type ComposeOptions = { readonly maxModules?: number; readonly maxSteps?: number };
+
+/** JSON text with sorted object keys. Two modules with the same canonical text have the same content. */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(',')}]`;
+  if (isRecord(value)) {
+    const keys = Object.keys(value).sort();
+    return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
   }
+  return JSON.stringify(value) ?? 'null';
+}
+
+/**
+ * Catalog identity rule: a moduleId identifies one module content. The same id with different content is an error
+ * (E_CATALOG_DUPLICATE_ID), because the result would depend on the catalog order. Copies with the same content are permitted.
+ */
+export function catalogProblems(catalog: readonly PartModule[]): Problem[] {
+  const problems: Problem[] = [];
+  const seen = new Map<string, string>();
+  const reported = new Set<string>();
+  for (const item of catalog) {
+    const content = canonicalJson(item);
+    const earlier = seen.get(item.moduleId);
+    if (earlier === undefined) seen.set(item.moduleId, content);
+    else if (earlier !== content && !reported.has(item.moduleId)) {
+      reported.add(item.moduleId);
+      problems.push(problem('E_CATALOG_DUPLICATE_ID', `The catalog has different modules with the id ${show(item.moduleId)}.`, item.moduleId));
+    }
+  }
+  return problems;
+}
+
+function limit(value: number | undefined, fallback: number, name: string): number {
+  const result = value ?? fallback;
+  if (!Number.isSafeInteger(result) || result < 1) throw new RigRuntimeError([problem('E_COMPOSE_CONFIG', `${name} must be a positive integer.`)]);
+  return result;
+}
+
+/**
+ * Chooses one module per group with a fixed seed, so that all compatibility rules agree.
+ * The search is complete: it uses depth-first backtracking, so it finds a selection when one exists.
+ * Determinism: candidates are sorted by moduleId (unique by the catalog identity rule), then each group gets one
+ * seeded shuffle. The catalog order has no effect.
+ * Limits: more than `maxModules` modules (E_COMPOSE_CATALOG_TOO_LARGE) or more than `maxSteps` tried candidates
+ * (E_COMPOSE_SEARCH_LIMIT) stop the search without a result. No complete selection: E_COMPOSE_NO_COMPATIBLE.
+ */
+export function composeModules(
+  seed: number,
+  catalog: readonly PartModule[],
+  groups: readonly ModuleGroup[],
+  rules: readonly CompatibilityRule[],
+  options: ComposeOptions = {}
+): Map<string, PartModule> {
+  const maxModules = limit(options.maxModules, composeLimits.maxModules, 'maxModules');
+  const maxSteps = limit(options.maxSteps, composeLimits.maxSteps, 'maxSteps');
+  if (catalog.length > maxModules) throw new RigRuntimeError([problem('E_COMPOSE_CATALOG_TOO_LARGE', `The catalog has ${catalog.length} modules. The limit is ${maxModules}.`)]);
+  throwIfAny(catalogProblems(catalog));
+  const unique = new Map<string, PartModule>();
+  for (const item of catalog) if (!unique.has(item.moduleId)) unique.set(item.moduleId, item);
+  const random = seededRandom(seed);
+  const orders = groups.map((group) => {
+    const candidates = [...unique.values()].filter((item) => item.group === group.id).sort((left, right) => (left.moduleId < right.moduleId ? -1 : left.moduleId > right.moduleId ? 1 : 0));
+    if (candidates.length === 0) throw new RigRuntimeError([problem('E_COMPOSE_NO_COMPATIBLE', `The catalog has no module of the group ${show(group.id)}.`, group.id)]);
+    for (let index = candidates.length - 1; index > 0; index -= 1) {
+      const other = Math.floor(random() * (index + 1));
+      [candidates[index], candidates[other]] = [candidates[other] as PartModule, candidates[index] as PartModule];
+    }
+    return candidates;
+  });
+  const selection = new Map<string, PartModule>();
+  let steps = 0;
+  const search = (index: number): boolean => {
+    const group = groups[index];
+    if (!group) return true;
+    for (const item of orders[index] ?? []) {
+      steps += 1;
+      if (steps > maxSteps) throw new RigRuntimeError([problem('E_COMPOSE_SEARCH_LIMIT', `The search tried ${maxSteps} candidates without a result.`)]);
+      selection.set(group.id, item);
+      if (compatibilityProblems(selection, rules).length === 0 && search(index + 1)) return true;
+      selection.delete(group.id);
+    }
+    return false;
+  };
+  if (!search(0)) throw new RigRuntimeError([problem('E_COMPOSE_NO_COMPATIBLE', 'No complete selection of modules agrees with the compatibility rules.')]);
   return selection;
 }
 

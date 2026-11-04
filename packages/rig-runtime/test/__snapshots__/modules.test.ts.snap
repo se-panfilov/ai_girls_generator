@@ -4,10 +4,10 @@ exports[`MIX-DET deterministic composition > records the composition hash of see
 [
   "arm_far=b.arm_far",
   "arm_near=c.arm_near",
-  "head=c.head",
+  "head=b.head",
   "head_accessory=a.head_accessory",
-  "legs=a.legs",
-  "torso=b.torso",
-  "weapon=a.weapon",
+  "legs=c.legs",
+  "torso=c.torso",
+  "weapon=b.weapon",
 ]
 `;

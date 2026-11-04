@@ -63,11 +63,11 @@ A module supplies one group of slots from one atlas. The draft groups for `human
 Each contract slot is in exactly one group. A module must give a status for each slot of its group.
 A module fits the rig when the `rigId` is the same and the contract major and minor versions are the same.
 Compatibility rules compare tags, for example the skin tone of `head`, `torso`, and the arms. They do not prove that parts look good together.
-Composition with a seed is deterministic and does not depend on the catalog order.
+Composition with a seed is deterministic, complete (it finds a compatible selection when one exists), bounded, and does not depend on the catalog order. A module id identifies one module content in a catalog.
 
 ## 4. Texture ownership (D24)
 
-The runtime loads each module atlas once and counts its owners. An atlas without owners stays in a bounded list and is unloaded after that.
+The runtime loads each module atlas once and counts its owners. The cache identity is the atlas text hash, the alpha mode, and the hash of each page image. Same atlas text with other page images is a different atlas. An atlas without owners stays in a bounded list and is unloaded after that.
 A part change loads and checks everything first and then changes the skin in one synchronous step. A failure keeps the old character.
 Open questions: the size of the unused list on real devices, and the GPU budget for each character.
 

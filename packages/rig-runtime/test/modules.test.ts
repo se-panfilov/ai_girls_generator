@@ -1,4 +1,4 @@
-import { AtlasCache } from '@rig-runtime/atlas-cache';
+import { AtlasCache, atlasIdentity } from '@rig-runtime/atlas-cache';
 import { ModularCharacter } from '@rig-runtime/modular-character';
 import { composeModules, humanoidGirlV1Groups, moduleGroupProblems, parseModule, type PartModule, selectionText } from '@rig-runtime/modules';
 import { RigRuntimeError } from '@rig-runtime/problems';
@@ -307,6 +307,6 @@ describe('host adoption and cache sharing', () => {
     const [first, second] = await Promise.all([cache.acquire(ref), cache.acquire(ref)]);
     expect(first).toBe(second);
     expect(loader.calls).toEqual(['b/b.atlas']);
-    expect(cache.stats().owners[ref.sha256]).toBe(2);
+    expect(cache.stats().owners[atlasIdentity(ref)]).toBe(2);
   });
 });
