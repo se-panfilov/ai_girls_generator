@@ -38,6 +38,8 @@ test('a missing, extra, or reordered package choice is reported', (t) => {
   cpSync(join(root, '.github'), join(base, '.github'), { recursive: true });
   const [file] = workflows.map((path) => join(base, path));
   const packages = [item, { ...item, dir: 'other', name: '@scope/other' }];
+  // Start from a list with only `all`, so that the packages of the repository do not change the result.
+  writeFileSync(file, readFileSync(file, 'utf8').replace(/( {10}- all\n)(?: {10}- [a-z0-9-]+\n)*/, '$1'));
   writeFileSync(file, readFileSync(file, 'utf8').replace(/( {10}- all\n)/, '$1          - demo\n          - removed\n'));
   const problems = workflowProblems(packages, base);
   assert.equal(problems.length, 1);

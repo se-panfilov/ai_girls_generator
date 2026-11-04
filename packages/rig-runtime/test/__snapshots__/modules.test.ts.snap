@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MIX-DET deterministic composition > records the composition hash of seed 20261104 for cross-platform comparison 1`] = `
+[
+  "arm_far=b.arm_far",
+  "arm_near=c.arm_near",
+  "head=b.head",
+  "head_accessory=a.head_accessory",
+  "legs=c.legs",
+  "torso=c.torso",
+  "weapon=b.weapon",
+]
+`;

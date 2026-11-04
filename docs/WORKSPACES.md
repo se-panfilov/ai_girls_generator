@@ -1,6 +1,6 @@
 # npm workspaces
 
-The root workspace and the shared configuration exist. No package exists yet. **Draft:** the package list is a proposal, and the package names depend on decision D21.
+The root workspace and the shared configuration exist. The first package is `rig-runtime`. **Draft:** the package list is a proposal, and the package names depend on decision D21.
 
 ## Layout
 
@@ -38,6 +38,12 @@ The shared configuration comes from the Toolchain repository with the same tool 
 | `pack`      | cli     | S10        | Atlas export through Spine CLI with fixed attachment rectangles.                          |
 | `preview`   | cli     | S11        | Contact sheet and video from the Spine web runtime through Playwright.                    |
 | `factory`   | cli     | S1–S12     | Orchestration of the stages and human review steps for one character.                     |
+
+## Existing packages
+
+| Directory     | Kind          | Stage   | Purpose                                                                                                                                                                                                  |
+| ------------- | ------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rig-runtime` | library + cli | S9, S11 | Shared runtime skeleton, character skins from `character.json` without blank placeholder regions, part modules (draft), atlas cache, and asset manifests with the macOS metadata policy. See its README. |
 
 Packages that decode or write images will need an image library with native binaries, such as `sharp`. That dependency needs a human decision.
 

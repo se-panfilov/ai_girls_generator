@@ -1,0 +1,9 @@
+d8a71ead0d58d727d31f2306b4dde9e9a78662cf6f7f53e5dd01b9f5ba9967f6  ./characters/a.json
+62c230fafab335aaae5738976810ab2b30ab282d7c9de281765812fc5f2e3900  ./characters/b.json
+d8aab5e3926205334ae2437307fc2d0cb8dc5764084002c7f43a437be9348c82  ./characters/c.json
+8ad54b20e04ad42d3e2864ab88a7a8bccc2cb3288dc06102c5fcf64f650a62bb  ./editor-out-blank/a/a.atlas
+f2fe7867853023a81457d3f3d4a4c792be759b6de80ec3e602e4d3280cadeee7  ./editor-out/a/a.atlas
+75bf79ffbb3ba04536d43775c08e2a5f9f57d2eac4f03f81d44d6e64b5c13291  ./editor-out/b/b.atlas
+b062c3aa83f26867fa1cc17c6e7a273043bfab4525ee45288c154af8939e7472  ./editor-out/c/c.atlas
+1cd5bf8c886f09f4fd629cd504020616a105ce310cd7f46031898e0883943eb5  ./editor-out/skeleton.json
+e9951ec07764b37dce04cb992d0a0952600db3b2a80ca5bd7f95e8ed72d822d0  ./rig.contract.json

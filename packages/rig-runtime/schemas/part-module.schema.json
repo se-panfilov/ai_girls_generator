@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/se-panfilov/ai_girls_generator/packages/rig-runtime/schemas/part-module.schema.json",
+  "title": "Part module manifest (DRAFT aigg.part-module/0.1)",
+  "description": "DRAFT, not accepted. A group of slots that changes as one unit on the shared rig. Cross rules (group membership, completeness, required slots, region collisions, rig compatibility) are checked by parseModule in @aigg/rig-runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "moduleId", "rig", "group", "side", "bindings", "atlas", "tags", "provenance"],
+  "properties": {
+    "schema": { "const": "aigg.part-module/0.1" },
+    "moduleId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$" },
+    "rig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rigId", "contractVersion"],
+      "properties": {
+        "rigId": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "contractVersion": { "type": "string", "pattern": "^(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})$" }
+      }
+    },
+    "group": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+    "side": { "enum": ["near", "far", "none"] },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "status", "region"],
+            "properties": {
+              "slot": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+              "status": { "const": "present" },
+              "region": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,128}$" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["slot", "status"],
+            "properties": {
+              "slot": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+              "status": { "const": "absent_by_design" }
+            }
+          }
+        ]
+      }
+    },
+    "atlas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "sha256", "pma", "pages"],
+      "properties": {
+        "file": { "$ref": "#/$defs/relativePath" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "pma": { "type": "boolean" },
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file", "sha256"],
+            "properties": { "file": { "$ref": "#/$defs/relativePath" }, "sha256": { "$ref": "#/$defs/sha256" } }
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+      "additionalProperties": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$" }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source"],
+      "properties": { "source": { "type": "string", "pattern": "^[\\x20-\\x7e]{1,200}$" } },
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+      "additionalProperties": { "type": "string", "pattern": "^[\\x20-\\x7e]{1,200}$" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "relativePath": { "type": "string", "pattern": "^(?!.*\\.\\.)(?!/)(?!.*//)[A-Za-z0-9_][A-Za-z0-9_./-]{0,200}$" }
+  }
+}

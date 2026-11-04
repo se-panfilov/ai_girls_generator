@@ -1,0 +1,110 @@
+{
+ "characterId": "fixture_c",
+ "rigId": "humanoid_girl_v1",
+ "parts": {
+  "hair_back": {
+   "status": "present",
+   "file": "parts/hair_back.png"
+  },
+  "tail": {
+   "status": "absent_by_design"
+  },
+  "ear_far": {
+   "status": "absent_by_design"
+  },
+  "hand_far": {
+   "status": "present",
+   "file": "parts/hand_far.png"
+  },
+  "forearm_far": {
+   "status": "present",
+   "file": "parts/forearm_far.png"
+  },
+  "upper_arm_far": {
+   "status": "present",
+   "file": "parts/upper_arm_far.png"
+  },
+  "foot_far": {
+   "status": "present",
+   "file": "parts/foot_far.png"
+  },
+  "shin_far": {
+   "status": "present",
+   "file": "parts/shin_far.png"
+  },
+  "thigh_far": {
+   "status": "present",
+   "file": "parts/thigh_far.png"
+  },
+  "skirt_back": {
+   "status": "present",
+   "file": "parts/skirt_back.png"
+  },
+  "torso": {
+   "status": "present",
+   "file": "parts/torso.png"
+  },
+  "hips": {
+   "status": "present",
+   "file": "parts/hips.png"
+  },
+  "foot_near": {
+   "status": "present",
+   "file": "parts/foot_near.png"
+  },
+  "shin_near": {
+   "status": "present",
+   "file": "parts/shin_near.png"
+  },
+  "thigh_near": {
+   "status": "present",
+   "file": "parts/thigh_near.png"
+  },
+  "skirt_front": {
+   "status": "present",
+   "file": "parts/skirt_front.png"
+  },
+  "neck": {
+   "status": "present",
+   "file": "parts/neck.png"
+  },
+  "head": {
+   "status": "present",
+   "file": "parts/head.png"
+  },
+  "ear_near": {
+   "status": "absent_by_design"
+  },
+  "hair_front": {
+   "status": "present",
+   "file": "parts/hair_front.png"
+  },
+  "hair_tail": {
+   "status": "absent_by_design"
+  },
+  "acc_head": {
+   "status": "present",
+   "file": "parts/acc_head.png"
+  },
+  "upper_arm_near": {
+   "status": "present",
+   "file": "parts/upper_arm_near.png"
+  },
+  "forearm_near": {
+   "status": "present",
+   "file": "parts/forearm_near.png"
+  },
+  "weapon": {
+   "status": "present",
+   "file": "parts/weapon.png"
+  },
+  "hand_near": {
+   "status": "present",
+   "file": "parts/hand_near.png"
+  },
+  "hand_near_front": {
+   "status": "present",
+   "file": "parts/hand_near_front.png"
+  }
+ }
+}

@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`selection identity covers the full module content > the same data and seed give a reproducible identity 1`] = `"06c775abb772c73c93f4bb283738598cf9b648ed4badef67f8c4537bf8dd2c44"`;
