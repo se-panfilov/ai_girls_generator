@@ -10,3 +10,6 @@ skills-lock.json
 .gemini/skills/**
 *.tgz
 docs/skill-provenance.json
+
+# Exact copies of Spine Editor output: keep their bytes (see the README in the folder)
+packages/*/test/fixtures/l1-owner/**

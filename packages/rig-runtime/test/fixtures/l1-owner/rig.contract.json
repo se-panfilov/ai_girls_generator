@@ -1,0 +1,760 @@
+{
+ "rigId": "humanoid_girl_v1",
+ "contractVersion": "0.2.0",
+ "spine": {
+  "editorVersion": "4.3.26",
+  "skeletonFile": "rig/skeleton.json",
+  "skeletonSha256": "550c3947ad10d245ae63c712544747ce154c2eead1eec42326551b7390ec5d97"
+ },
+ "space": {
+  "canvas": {
+   "width": 1024,
+   "height": 1536
+  },
+  "yAxis": "down",
+  "rigOrigin": {
+   "x": 512,
+   "y": 1490
+  },
+  "rigUnitsPerPx": 1,
+  "generationResolution": {
+   "width": 832,
+   "height": 1248
+  }
+ },
+ "view": "three_quarter_right",
+ "sideNaming": "near_far",
+ "tolerances": {
+  "jointErrorMaxPctHeight": 2.5,
+  "jointErrorMeanPctHeight": 1.5,
+  "segmentLengthRatio": [
+   0.95,
+   1.05
+  ],
+  "zoneIoUMin": 0.85,
+  "parityTolerancePx": 0.01
+ },
+ "bones": [
+  {
+   "id": "root",
+   "parent": null,
+   "joint": {
+    "x": 512,
+    "y": 1490
+   },
+   "role": "control"
+  },
+  {
+   "id": "hips",
+   "parent": "root",
+   "joint": {
+    "x": 512,
+    "y": 900
+   },
+   "role": "deform"
+  },
+  {
+   "id": "spine",
+   "parent": "hips",
+   "joint": {
+    "x": 512,
+    "y": 820
+   },
+   "role": "deform"
+  },
+  {
+   "id": "chest",
+   "parent": "spine",
+   "joint": {
+    "x": 512,
+    "y": 700
+   },
+   "role": "deform"
+  },
+  {
+   "id": "neck",
+   "parent": "chest",
+   "joint": {
+    "x": 515,
+    "y": 560
+   },
+   "role": "deform"
+  },
+  {
+   "id": "head",
+   "parent": "neck",
+   "joint": {
+    "x": 518,
+    "y": 520
+   },
+   "role": "deform"
+  },
+  {
+   "id": "upper_arm_near",
+   "parent": "chest",
+   "joint": {
+    "x": 580,
+    "y": 600
+   },
+   "role": "deform"
+  },
+  {
+   "id": "forearm_near",
+   "parent": "upper_arm_near",
+   "joint": {
+    "x": 600,
+    "y": 770
+   },
+   "role": "deform"
+  },
+  {
+   "id": "hand_near",
+   "parent": "forearm_near",
+   "joint": {
+    "x": 610,
+    "y": 920
+   },
+   "role": "deform"
+  },
+  {
+   "id": "upper_arm_far",
+   "parent": "chest",
+   "joint": {
+    "x": 445,
+    "y": 605
+   },
+   "role": "deform"
+  },
+  {
+   "id": "forearm_far",
+   "parent": "upper_arm_far",
+   "joint": {
+    "x": 420,
+    "y": 770
+   },
+   "role": "deform"
+  },
+  {
+   "id": "hand_far",
+   "parent": "forearm_far",
+   "joint": {
+    "x": 410,
+    "y": 915
+   },
+   "role": "deform"
+  },
+  {
+   "id": "thigh_near",
+   "parent": "hips",
+   "joint": {
+    "x": 550,
+    "y": 920
+   },
+   "role": "deform"
+  },
+  {
+   "id": "shin_near",
+   "parent": "thigh_near",
+   "joint": {
+    "x": 565,
+    "y": 1180
+   },
+   "role": "deform"
+  },
+  {
+   "id": "foot_near",
+   "parent": "shin_near",
+   "joint": {
+    "x": 575,
+    "y": 1440
+   },
+   "role": "deform"
+  },
+  {
+   "id": "thigh_far",
+   "parent": "hips",
+   "joint": {
+    "x": 480,
+    "y": 915
+   },
+   "role": "deform"
+  },
+  {
+   "id": "shin_far",
+   "parent": "thigh_far",
+   "joint": {
+    "x": 470,
+    "y": 1175
+   },
+   "role": "deform"
+  },
+  {
+   "id": "foot_far",
+   "parent": "shin_far",
+   "joint": {
+    "x": 460,
+    "y": 1435
+   },
+   "role": "deform"
+  },
+  {
+   "id": "hair_tail_1",
+   "parent": "head",
+   "joint": {
+    "x": 450,
+    "y": 470
+   },
+   "role": "deform"
+  },
+  {
+   "id": "hair_tail_2",
+   "parent": "hair_tail_1",
+   "joint": {
+    "x": 420,
+    "y": 600
+   },
+   "role": "deform"
+  },
+  {
+   "id": "ear_near",
+   "parent": "head",
+   "joint": {
+    "x": 560,
+    "y": 330
+   },
+   "role": "deform"
+  },
+  {
+   "id": "ear_far",
+   "parent": "head",
+   "joint": {
+    "x": 480,
+    "y": 325
+   },
+   "role": "deform"
+  },
+  {
+   "id": "tail_1",
+   "parent": "hips",
+   "joint": {
+    "x": 440,
+    "y": 930
+   },
+   "role": "deform"
+  },
+  {
+   "id": "tail_2",
+   "parent": "tail_1",
+   "joint": {
+    "x": 360,
+    "y": 1010
+   },
+   "role": "deform"
+  },
+  {
+   "id": "skirt_front",
+   "parent": "hips",
+   "joint": {
+    "x": 530,
+    "y": 905
+   },
+   "role": "deform"
+  },
+  {
+   "id": "skirt_back",
+   "parent": "hips",
+   "joint": {
+    "x": 490,
+    "y": 905
+   },
+   "role": "deform"
+  },
+  {
+   "id": "weapon_grip",
+   "parent": "hand_near",
+   "joint": {
+    "x": 615,
+    "y": 935
+   },
+   "role": "attach_point"
+  },
+  {
+   "id": "aim",
+   "parent": "root",
+   "joint": {
+    "x": 900,
+    "y": 700
+   },
+   "role": "aim"
+  }
+ ],
+ "slots": [
+  {
+   "id": "hair_back",
+   "bone": "head",
+   "drawOrder": 0,
+   "required": true,
+   "category": "hair",
+   "attachmentRect": {
+    "x": 330,
+    "y": 260,
+    "w": 360,
+    "h": 560
+   }
+  },
+  {
+   "id": "tail",
+   "bone": "tail_1",
+   "drawOrder": 1,
+   "required": false,
+   "category": "tail",
+   "attachmentRect": {
+    "x": 240,
+    "y": 880,
+    "w": 260,
+    "h": 260
+   }
+  },
+  {
+   "id": "ear_far",
+   "bone": "ear_far",
+   "drawOrder": 2,
+   "required": false,
+   "category": "ears",
+   "attachmentRect": {
+    "x": 430,
+    "y": 230,
+    "w": 110,
+    "h": 140
+   }
+  },
+  {
+   "id": "hand_far",
+   "bone": "hand_far",
+   "drawOrder": 3,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 360,
+    "y": 880,
+    "w": 110,
+    "h": 120
+   }
+  },
+  {
+   "id": "forearm_far",
+   "bone": "forearm_far",
+   "drawOrder": 4,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 370,
+    "y": 740,
+    "w": 100,
+    "h": 210
+   },
+   "overlap": [
+    {
+     "childBone": "hand_far",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "upper_arm_far",
+   "bone": "upper_arm_far",
+   "drawOrder": 5,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 390,
+    "y": 570,
+    "w": 110,
+    "h": 230
+   },
+   "overlap": [
+    {
+     "childBone": "forearm_far",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "foot_far",
+   "bone": "foot_far",
+   "drawOrder": 6,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 400,
+    "y": 1400,
+    "w": 150,
+    "h": 100
+   }
+  },
+  {
+   "id": "shin_far",
+   "bone": "shin_far",
+   "drawOrder": 7,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 420,
+    "y": 1140,
+    "w": 110,
+    "h": 330
+   },
+   "overlap": [
+    {
+     "childBone": "foot_far",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "thigh_far",
+   "bone": "thigh_far",
+   "drawOrder": 8,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 420,
+    "y": 880,
+    "w": 130,
+    "h": 330
+   },
+   "overlap": [
+    {
+     "childBone": "shin_far",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "skirt_back",
+   "bone": "skirt_back",
+   "drawOrder": 9,
+   "required": false,
+   "category": "clothing",
+   "attachmentRect": {
+    "x": 400,
+    "y": 860,
+    "w": 250,
+    "h": 220
+   }
+  },
+  {
+   "id": "torso",
+   "bone": "chest",
+   "drawOrder": 10,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 420,
+    "y": 540,
+    "w": 200,
+    "h": 420
+   }
+  },
+  {
+   "id": "hips",
+   "bone": "hips",
+   "drawOrder": 11,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 430,
+    "y": 840,
+    "w": 190,
+    "h": 160
+   }
+  },
+  {
+   "id": "foot_near",
+   "bone": "foot_near",
+   "drawOrder": 12,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 520,
+    "y": 1400,
+    "w": 160,
+    "h": 100
+   }
+  },
+  {
+   "id": "shin_near",
+   "bone": "shin_near",
+   "drawOrder": 13,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 510,
+    "y": 1140,
+    "w": 120,
+    "h": 330
+   },
+   "overlap": [
+    {
+     "childBone": "foot_near",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "thigh_near",
+   "bone": "thigh_near",
+   "drawOrder": 14,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 490,
+    "y": 880,
+    "w": 140,
+    "h": 330
+   },
+   "overlap": [
+    {
+     "childBone": "shin_near",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "skirt_front",
+   "bone": "skirt_front",
+   "drawOrder": 15,
+   "required": false,
+   "category": "clothing",
+   "attachmentRect": {
+    "x": 430,
+    "y": 860,
+    "w": 260,
+    "h": 240
+   }
+  },
+  {
+   "id": "neck",
+   "bone": "neck",
+   "drawOrder": 16,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 480,
+    "y": 520,
+    "w": 80,
+    "h": 90
+   }
+  },
+  {
+   "id": "head",
+   "bone": "head",
+   "drawOrder": 17,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 400,
+    "y": 250,
+    "w": 250,
+    "h": 320
+   }
+  },
+  {
+   "id": "ear_near",
+   "bone": "ear_near",
+   "drawOrder": 18,
+   "required": false,
+   "category": "ears",
+   "attachmentRect": {
+    "x": 510,
+    "y": 230,
+    "w": 110,
+    "h": 140
+   }
+  },
+  {
+   "id": "hair_front",
+   "bone": "head",
+   "drawOrder": 19,
+   "required": true,
+   "category": "hair",
+   "attachmentRect": {
+    "x": 380,
+    "y": 240,
+    "w": 300,
+    "h": 320
+   }
+  },
+  {
+   "id": "hair_tail",
+   "bone": "hair_tail_1",
+   "drawOrder": 20,
+   "required": false,
+   "category": "hair",
+   "attachmentRect": {
+    "x": 330,
+    "y": 420,
+    "w": 200,
+    "h": 330
+   }
+  },
+  {
+   "id": "acc_head",
+   "bone": "head",
+   "drawOrder": 21,
+   "required": false,
+   "category": "accessory",
+   "attachmentRect": {
+    "x": 370,
+    "y": 180,
+    "w": 320,
+    "h": 180
+   }
+  },
+  {
+   "id": "upper_arm_near",
+   "bone": "upper_arm_near",
+   "drawOrder": 22,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 540,
+    "y": 560,
+    "w": 110,
+    "h": 240
+   },
+   "overlap": [
+    {
+     "childBone": "forearm_near",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "forearm_near",
+   "bone": "forearm_near",
+   "drawOrder": 23,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 560,
+    "y": 740,
+    "w": 100,
+    "h": 220
+   },
+   "overlap": [
+    {
+     "childBone": "hand_near",
+     "radiusPx": 24
+    }
+   ]
+  },
+  {
+   "id": "weapon",
+   "bone": "weapon_grip",
+   "drawOrder": 24,
+   "required": false,
+   "category": "weapon",
+   "attachmentRect": {
+    "x": 560,
+    "y": 820,
+    "w": 420,
+    "h": 200
+   }
+  },
+  {
+   "id": "hand_near",
+   "bone": "hand_near",
+   "drawOrder": 25,
+   "required": true,
+   "category": "body",
+   "attachmentRect": {
+    "x": 560,
+    "y": 880,
+    "w": 120,
+    "h": 120
+   }
+  },
+  {
+   "id": "hand_near_front",
+   "bone": "hand_near",
+   "drawOrder": 26,
+   "required": false,
+   "category": "body",
+   "attachmentRect": {
+    "x": 570,
+    "y": 890,
+    "w": 90,
+    "h": 80
+   }
+  }
+ ],
+ "points": [
+  {
+   "id": "grip",
+   "bone": "weapon_grip",
+   "position": {
+    "x": 615,
+    "y": 935
+   }
+  },
+  {
+   "id": "muzzle",
+   "bone": "weapon_grip",
+   "position": {
+    "x": 960,
+    "y": 905
+   }
+  },
+  {
+   "id": "fx_hit",
+   "bone": "chest",
+   "position": {
+    "x": 520,
+    "y": 650
+   }
+  }
+ ],
+ "animations": [
+  {
+   "id": "idle",
+   "loop": true
+  },
+  {
+   "id": "run",
+   "loop": true
+  },
+  {
+   "id": "jump_start",
+   "loop": false
+  },
+  {
+   "id": "jump_air",
+   "loop": true
+  },
+  {
+   "id": "jump_land",
+   "loop": false
+  },
+  {
+   "id": "crouch_enter",
+   "loop": false
+  },
+  {
+   "id": "shoot_stand",
+   "loop": false
+  },
+  {
+   "id": "shoot_crouch",
+   "loop": false
+  },
+  {
+   "id": "hit",
+   "loop": false
+  }
+ ],
+ "mirroring": {
+  "method": "scaleX",
+  "asymmetryAllowed": true
+ }
+}

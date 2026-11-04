@@ -35,7 +35,9 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@esotericsoftware/spine-core": "4.3.13",
     "@types/node": "26.6.5",
+    "ajv": "8.17.1",
     "eslint": "10.13.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-simple-import-sort": "14.0.0",
