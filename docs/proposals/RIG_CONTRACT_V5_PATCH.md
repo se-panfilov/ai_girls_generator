@@ -1,14 +1,14 @@
 # Proposed contract patch after L1 v5
 
-**Proposal. Not accepted.** Only the owner accepts it. It does not freeze contract version 1.0.
+**Proposal, partly accepted.** Section 1 (absent parts, D22) is accepted and is now in [the rig contract](../RIG_CONTRACT.md). The other sections are not accepted. Only the owner accepts them. The patch does not freeze contract version 1.0.
 Evidence: [L1 v5 evidence](../L1_V5_EVIDENCE.md). Related open decisions: D22, D23, D24 in [the decision log](../DECISIONS.md).
 
 ## Scope
 
 The patch changes only statements that the L1 owner export and the v5 tests support. It keeps all bone, slot, and attachment names and the draw order.
-It does not change the [rig contract](../RIG_CONTRACT.md) text now. The diffs below show the proposed text.
+The diffs below show the proposed text. Only section 1 was applied to the [rig contract](../RIG_CONTRACT.md).
 
-## 1. Absent parts (D22)
+## 1. Absent parts (D22, accepted)
 
 Evidence: L1-02 A and C, and the blank-dropping atlas of A. Both "Ignore blank images" settings work when absence comes from `character.json`.
 
@@ -70,6 +70,7 @@ Composition with a seed is deterministic, complete (it finds a compatible select
 The runtime loads each module atlas once and counts its owners. The cache identity is the atlas text hash, the alpha mode, and the hash of each page image. Same atlas text with other page images is a different atlas. An atlas without owners stays in a bounded list and is unloaded after that.
 A part change loads and checks everything first and then changes the skin in one synchronous step. A failure keeps the old character.
 Open questions: the size of the unused list on real devices, and the GPU budget for each character.
+The owner deferred full GPU and performance tests until realistic game assets and mass-render scenarios exist. These tests are not a gate for D22 or for the design of D23. This question of D24 stays open.
 
 ## Migration and versions
 
@@ -80,7 +81,7 @@ Open questions: the size of the unused list on real devices, and the GPU budget 
 
 ## Risks
 
-- GPU memory and performance with many atlases: measured only with software WebGL.
+- GPU memory and performance with many atlases: measured only with software WebGL. Full tests are deferred by the owner (see D24).
 - Visual seams between modules of different characters: an art issue.
 - Atlas lifetime when a page also uses the widget asset manager for the same atlas.
 - Animations with attachment keys need the attachment names in each module.
