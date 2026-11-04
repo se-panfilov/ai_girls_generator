@@ -49,13 +49,14 @@ Storage of binary files is open. See decision D15.
 | `characterId`                                   | `snake_case` identifier. It is also the directory name.                                                            |
 | `rigId`, `rigContractVersion`, `animationSetId` | The contract that the package targets.                                                                             |
 | `source`                                        | Canvas size, color space, alpha mode, pose, view, paths to concept, production art, and the derived editable file. |
-| `parts`                                         | One entry for each slot of the contract. `present` with file and SHA-256, or `absent_by_design`.                   |
+| `parts`                                         | One entry for each slot of the contract. `present` with file and SHA-256, or `absent_by_design` with no file.      |
 | `design`                                        | `asymmetric` flag and details, body type, skin tone.                                                               |
 | `render`                                        | Default facing and whether mirroring is allowed.                                                                   |
 | `provenance`                                    | Path to the generation record.                                                                                     |
 
 A part entry with `present` can also give its `origin`: `base_body`, `generated`, `decomposed`, or `manual`.
 The sidecar never sets pivots or draw order. The contract sets them.
+An `absent_by_design` part has no PNG file and no atlas region (decision D22, accepted). See [Absent parts](RIG_CONTRACT.md#absent-parts-accepted-decision-d22).
 
 ## Generation record
 

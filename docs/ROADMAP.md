@@ -18,6 +18,8 @@
 
 Automate a step only after it was done the same way by hand at least three times.
 
+Owner decision: full GPU and performance tests wait until realistic game assets and mass-render scenarios exist. They are not a gate for decision D22 or for the design of D23. The performance question of D24 stays open.
+
 ## Experiments
 
 ### A. Runtime feasibility

@@ -2,6 +2,7 @@
 
 **Draft.** This document summarizes the proposed contract version 0.2. It replaces the owner's "Character Asset Contract v0.1" only after the owner accepts the changes.
 The example geometry is a placeholder. The real coordinates come from the mannequin.
+The absent part rules are an accepted owner decision (D22). The rest of the document is still a proposal. The contract is not frozen.
 
 ## Purpose
 
@@ -69,10 +70,31 @@ The list goes from back to front. The contract sets the order. A package cannot 
 
 Rules:
 
-1. An empty optional slot has the status `absent_by_design` in the sidecar.
+1. An empty optional slot has the status `absent_by_design` in the sidecar. See [Absent parts](#absent-parts-accepted-decision-d22).
 2. An empty required slot is a validation error.
 3. Only the master rig can change the draw order during an animation. The change is the same for all characters.
 4. Accessories use a closed list of slots, for example `acc_head`, `acc_neck`, `acc_waist`, `acc_back`, `acc_hand_near`. There is no open `accessory_*` list.
+
+## Absent parts (accepted, decision D22)
+
+1. An absent optional part has the status `absent_by_design` in `character.json`. The package has no PNG file and needs no atlas region for it.
+2. The runtime attaches nothing to the slot of an absent part. The slot stays empty in all animations.
+3. If an atlas has a region for an absent part, for example a transparent 1×1 placeholder from an older export, the check ignores the region and reports the warning `W_ABSENT_PART_REGION_IGNORED`.
+4. A required part with the status `absent_by_design` is an error (`E_REQUIRED_PART_ABSENT`).
+5. A present part must have an atlas region (`E_REGION_MISSING`) with `orig` equal to the attachment rectangle (`E_REGION_ORIG_MISMATCH`).
+   A 1×1 blank region for a present part is an error (`E_PRESENT_PART_BLANK`). The check never accepts a transparent placeholder image.
+
+The Spine Editor texture packer setting "Ignore blank images" changes the output for a fully transparent part image:
+
+| Setting | Output for a fully transparent part image (L1 export)              | Result with these rules                        |
+| ------- | ------------------------------------------------------------------ | ---------------------------------------------- |
+| Off     | A 1×1 region, `bounds` 1×1, `orig` 1×1. The original size is lost. | Ignored with a warning, if the part is absent. |
+| On      | No region.                                                         | Correct, if the part is absent.                |
+
+Neither setting keeps the geometry of a blank image, so absence comes only from `character.json`.
+Use "Ignore blank images: on" for new exports. Older exports with 1×1 placeholders, such as the test characters A, B and C, stay valid.
+
+`@aigg/rig-runtime` implements these rules (`parseCharacter`, `assembleCharacter`). Evidence: L1-02 A, B and C and the blank-dropping atlas of A in [the L1 v5 evidence](L1_V5_EVIDENCE.md).
 
 ## Animations (proposed)
 
@@ -100,6 +122,7 @@ This lets game physics control the jump height. See decision D5.
 Each slot has one fixed attachment rectangle (`attachmentRect`). Every character part for that slot fits inside it.
 The packer exports each region to this rectangle and removes empty pixels with a saved offset.
 Then one `skeleton.json` works for all characters without changes. This must be confirmed by experiment D.
+A fully transparent image does not keep this rectangle in the packer output. An absent part therefore has no image (see [Absent parts](#absent-parts-accepted-decision-d22)).
 
 ## Category limits (proposed)
 
@@ -130,4 +153,5 @@ Pose detectors trained on photos can fail on anime images. Experiment C compares
 
 The research prototype checks the schemas and these cross rules: one root bone, existing parents, unique ids and draw order, rectangles inside the canvas, overlap circles inside slot rectangles, points on existing bones, matching rig id and version, a slot for each part, a status for each slot, required slots present, and safe relative paths.
 
-Not implemented yet: the comparison with the Spine export, and pixel checks (parts inside rectangles and zones, overlap coverage by opaque pixels, stray alpha components).
+`@aigg/rig-runtime` also checks the absent part rules and the atlas regions of a character against the Spine export.
+Not implemented yet: pixel checks (parts inside rectangles and zones, overlap coverage by opaque pixels, stray alpha components).
