@@ -71,10 +71,16 @@ describe('P1 complete composition', () => {
   const headTwo = moduleFor('b', 'head', { moduleId: 'h.tone2', tags: { skin_tone: 'tone2', style: 'fixture' } });
   const torso = moduleFor('a', 'torso', { moduleId: 't.tone1', tags: { skin_tone: 'tone1', style: 'fixture' } });
   const groups = [...group('head'), ...group('torso')];
+  const expected = selectionText(
+    new Map([
+      ['head', headOne],
+      ['torso', torso]
+    ])
+  );
 
   it('finds the only compatible selection for every seed (head tone2 has no torso)', () => {
     for (let seed = 0; seed < 64; seed += 1) {
-      expect(outcome(seed, [headOne, headTwo, torso], groups)).toBe(`head=h.tone1@${headOne.atlas.sha256}\ntorso=t.tone1@${torso.atlas.sha256}`);
+      expect(outcome(seed, [headOne, headTwo, torso], groups)).toBe(expected);
     }
   });
 
@@ -93,7 +99,7 @@ describe('P1 complete composition', () => {
     // Worst case: 40 heads of tone2 are tried before the only head of tone1 (no torso agrees with tone2).
     const heads = Array.from({ length: 40 }, (_item, index) => moduleFor('b', 'head', { moduleId: `h.tone2.${index}`, tags: { skin_tone: 'tone2', style: 'fixture' } }));
     const catalog = [...heads, headOne, torso];
-    expect(outcome(3, catalog, groups)).toBe(`head=h.tone1@${headOne.atlas.sha256}\ntorso=t.tone1@${torso.atlas.sha256}`);
+    expect(outcome(3, catalog, groups)).toBe(expected);
     const limited = (options: { maxModules?: number; maxSteps?: number }): string => {
       try {
         return selectionText(composeModules(3, catalog, groups, rules, options));

@@ -282,7 +282,7 @@ describe('MIX-DET deterministic composition', () => {
 
   it('records the composition hash of seed 20261104 for cross-platform comparison', () => {
     const text = selectionText(composeModules(20261104, catalog, humanoidGirlV1Groups, rules));
-    expect(text.split('\n').map((line) => line.split('@')[0])).toMatchSnapshot();
+    expect(text.split('\n').map((line) => `${line.slice(0, line.indexOf('='))}=${(JSON.parse(line.slice(line.indexOf('=') + 1)) as PartModule).moduleId}`)).toMatchSnapshot();
   });
 });
 

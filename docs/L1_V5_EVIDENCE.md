@@ -140,6 +140,11 @@ An independent review of the first version of this change found three defects in
 The seeded selection of seed 20261104 changed with the new algorithm (snapshot updated). The same seed still gives the same selection on each run and for each catalog order.
 After the fixes: package tests 77 of 77 PASS, `npm run check` PASS, and the browser bench again gives 11/11 steps and 53/53 inner checks.
 
+A second review found that `selectionText`, the identity text of a selection, held only the module id and the atlas text hash of each module.
+Two regression tests failed before the fix: other page image hashes, and other bindings or tags, gave the same identity.
+The identity text now holds the canonical JSON (sorted keys) of the full content of each selected module.
+`test/audit-v52.test.ts` (4 tests) passes: page hashes, bindings, tags and provenance change the identity; another key order does not; the same data and seed give the same identity.
+
 ## Known harness defects (follow-up, not in this task)
 
 | Id    | Defect                                                                                                  | Proposed fix                                                        |

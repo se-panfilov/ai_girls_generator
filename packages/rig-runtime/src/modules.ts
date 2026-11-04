@@ -181,7 +181,10 @@ export type ComposeOptions = { readonly maxModules?: number; readonly maxSteps?:
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item)).join(',')}]`;
   if (isRecord(value)) {
-    const keys = Object.keys(value).sort();
+    // Keys with the value undefined are left out, as in JSON.stringify.
+    const keys = Object.keys(value)
+      .filter((key) => value[key] !== undefined)
+      .sort();
     return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
   }
   return JSON.stringify(value) ?? 'null';
@@ -262,10 +265,15 @@ export function composeModules(
   return selection;
 }
 
-/** Canonical text of a selection (group order, module id and atlas hash). Hash it to get a stable composition id. */
+/**
+ * Canonical identity text of a selection: one line for each group, sorted by group id, with the canonical JSON
+ * (sorted keys) of the full module content. Each change of a selected module (page image hashes, bindings, tags,
+ * provenance, any other field) changes the text, and the order of JSON keys has no effect.
+ * Hash the text (SHA-256) to get a stable composition id.
+ */
 export function selectionText(selection: ReadonlyMap<string, PartModule>): string {
   return [...selection]
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
-    .map(([groupId, item]) => `${groupId}=${item.moduleId}@${item.atlas.sha256}`)
+    .map(([groupId, item]) => `${groupId}=${canonicalJson(item)}`)
     .join('\n');
 }

@@ -6,15 +6,15 @@ Evidence and the owner-facing summary: [L1 v5 evidence](../../docs/L1_V5_EVIDENC
 
 ## What it does
 
-| Area                   | Module                  | Summary                                                                                                                                                                 |
-| ---------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shared rig             | `rig.ts`                | Reads the unchanged editor JSON once. Region attachments become templates. `SkeletonData` has bones, slots, animations only.                                            |
-| Character skin         | `assemble.ts`           | Makes a runtime `Skin` from `character.json` and an atlas. Absent parts get no attachment. Present parts need a real region.                                            |
-| Atlas checks           | `atlas.ts`              | Structure checks on the spine-core `TextureAtlas` parser, with stable error codes.                                                                                      |
-| Part modules (draft)   | `modules.ts`            | Module manifest `aigg.part-module/0.1`, the draft group table, compatibility rules, complete composition with a seed (backtracking, bounded), unique module ids.        |
-| Modular character      | `modular-character.ts`  | One skeleton per character. Module changes are checked and loaded first, then applied in one synchronous step (atomic).                                                 |
-| Atlas cache            | `atlas-cache.ts`        | Shared atlases keyed by atlas and page content hashes (`atlasIdentity`), with explicit owners, a bounded set of unused atlases, and unload through the caller's loader. |
-| Asset manifests (Node) | `manifest.ts`, `cli.ts` | SHA-256 manifests of exported files. macOS `.DS_Store` and `._*` files are skipped by name; all other files are hashed.                                                 |
+| Area                   | Module                  | Summary                                                                                                                                                                                                                                   |
+| ---------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared rig             | `rig.ts`                | Reads the unchanged editor JSON once. Region attachments become templates. `SkeletonData` has bones, slots, animations only.                                                                                                              |
+| Character skin         | `assemble.ts`           | Makes a runtime `Skin` from `character.json` and an atlas. Absent parts get no attachment. Present parts need a real region.                                                                                                              |
+| Atlas checks           | `atlas.ts`              | Structure checks on the spine-core `TextureAtlas` parser, with stable error codes.                                                                                                                                                        |
+| Part modules (draft)   | `modules.ts`            | Module manifest `aigg.part-module/0.1`, the draft group table, compatibility rules, complete composition with a seed (backtracking, bounded), unique module ids, and a selection identity over the full module content (`selectionText`). |
+| Modular character      | `modular-character.ts`  | One skeleton per character. Module changes are checked and loaded first, then applied in one synchronous step (atomic).                                                                                                                   |
+| Atlas cache            | `atlas-cache.ts`        | Shared atlases keyed by atlas and page content hashes (`atlasIdentity`), with explicit owners, a bounded set of unused atlases, and unload through the caller's loader.                                                                   |
+| Asset manifests (Node) | `manifest.ts`, `cli.ts` | SHA-256 manifests of exported files. macOS `.DS_Store` and `._*` files are skipped by name; all other files are hashed.                                                                                                                   |
 
 The browser-safe entry is `@aigg/rig-runtime` (`src/index.ts`). The Node.js entry is `@aigg/rig-runtime/node` (`src/node.ts`).
 
