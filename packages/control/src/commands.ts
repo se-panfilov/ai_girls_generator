@@ -1,4 +1,8 @@
-import { type ControlContract, parseControlContract, type Size } from '@control/contract';
+import { consistencyChecks } from '@control/consistency';
+import { type ControlContract, type Joint, parseControlContract, type Size } from '@control/contract';
+import { renderMannequin } from '@control/figure';
+import { extremeTime, parseAnimations, posedContract } from '@control/kinematics';
+import { candidateContract, referenceBody } from '@control/mannequin';
 import { measure, type Measurement, parseMarks } from '@control/measure';
 import type { PlannedFile } from '@control/output';
 import { decodePng, encodePng, pixelHash, sha256 } from '@control/png';
@@ -240,4 +244,160 @@ export function overlayCommand(options: OverlayOptions): CommandResult {
   const reportFile: PlannedFile = { name: 'overlay.json', bytes: json(result) };
   const status = measurement === null ? 'PASS' : measurement.status;
   return { report: { status, command: 'overlay', ...result, files: [...result.files, record(reportFile)] }, files: [overlayFile, sheetFile, reportFile] };
+}
+
+/** `candidate`: the candidate rig contract of C0.5 from a base contract, as canonical JSON. */
+export function candidateCommand(baseBytes: Buffer, yawDegrees?: number): CommandResult {
+  parseContractBytes(baseBytes);
+  const base = JSON.parse(baseBytes.toString('utf8')) as Record<string, unknown>;
+  const candidate = candidateContract(base, yawDegrees);
+  const contract = parseControlContract(candidate);
+  const file: PlannedFile = { name: 'rig.contract.json', bytes: json(candidate) };
+  const checks = consistencyChecks(contract);
+  const failed = checks.filter((check) => check.status === 'FAIL');
+  return {
+    report: {
+      status: failed.length === 0 ? 'PASS' : 'FAIL',
+      command: 'candidate',
+      base: { rigId: base.rigId, contractVersion: base.contractVersion, sha256: sha256(baseBytes) },
+      referenceBody: { version: referenceBody.version, heads: referenceBody.heads, yawDegrees: yawDegrees ?? referenceBody.yawDegrees },
+      checks,
+      files: [record(file)]
+    },
+    files: [file]
+  };
+}
+
+export type CalibrateOptions = { readonly beforeBytes: Buffer; readonly afterBytes: Buffer; readonly skeletonBytes?: Buffer; readonly size?: string };
+
+function label(raster: Raster, color: Color): void {
+  raster.fillPolygon(
+    [
+      { x: 0, y: 0 },
+      { x: raster.width, y: 0 },
+      { x: raster.width, y: 10 },
+      { x: 0, y: 10 }
+    ],
+    color
+  );
+}
+
+function sheetOf(rows: readonly (readonly Raster[])[], gap: number): Raster {
+  const cellWidth = Math.max(...rows.flat().map((item) => item.width));
+  const cellHeight = Math.max(...rows.flat().map((item) => item.height));
+  const columns = Math.max(...rows.map((row) => row.length));
+  const sheet = new Raster(columns * cellWidth + (columns - 1) * gap, rows.length * cellHeight + (rows.length - 1) * gap, [255, 255, 255, 255]);
+  rows.forEach((row, y) => {
+    row.forEach((cell, x) => {
+      sheet.draw(cell, x * (cellWidth + gap), y * (cellHeight + gap));
+    });
+  });
+  return sheet;
+}
+
+const beforeColor: Color = [200, 60, 60, 255];
+const afterColor: Color = [40, 150, 70, 255];
+
+/** `calibrate`: before and after mannequins, overlays, OpenPose images, a comparison sheet, consistency checks, and the migration table. */
+export function calibrateCommand(options: CalibrateOptions): CommandResult {
+  const before = parseContractBytes(options.beforeBytes);
+  const after = parseContractBytes(options.afterBytes);
+  const size = parseSize(options.size ?? '832x1216', before);
+  const transform = fitTransform(before.canvas, size);
+  const files: PlannedFile[] = [];
+  const records: FileRecord[] = [];
+  const png = (name: string, raster: Raster): void => {
+    const file = { name, bytes: encodePng(raster) };
+    files.push(file);
+    records.push(record(file, raster));
+  };
+  const panels: Raster[][] = [];
+  for (const [tag, contract, color] of [
+    ['before', before, beforeColor],
+    ['after', after, afterColor]
+  ] as const) {
+    const plain = renderMannequin(contract, size, transform, { joints: false, slots: false, background: [255, 255, 255, 255] });
+    const overlay = renderMannequin(contract, size, transform, { joints: true, slots: true, background: [255, 255, 255, 255] });
+    const pose = rigPose(contract, 'anatomical');
+    const openPose = renderOpenPose(pose.keypoints, size, transform);
+    png(`${tag}-mannequin.png`, plain);
+    png(`${tag}-overlay.png`, overlay);
+    png(`${tag}-openpose-anatomical.png`, openPose);
+    for (const panel of [plain, overlay, openPose]) label(panel, color);
+    panels.push([plain, overlay, openPose]);
+  }
+  png('comparison.png', sheetOf(panels, 16));
+
+  let animationReport: Record<string, unknown> | null = null;
+  if (options.skeletonBytes) {
+    let skeleton: unknown;
+    try {
+      skeleton = JSON.parse(options.skeletonBytes.toString('utf8'));
+    } catch {
+      fail('E_SKELETON_FORMAT', 'The skeleton is not valid JSON.');
+    }
+    const { animations, ignored } = parseAnimations(skeleton);
+    const small = { width: Math.round(size.width / 2), height: Math.round(size.height / 2) };
+    const smallTransform = fitTransform(before.canvas, small);
+    const rows: Raster[][] = [];
+    const poses: Record<string, unknown>[] = [];
+    for (const animation of animations) {
+      const time = extremeTime(animation);
+      const row = [before, after].map((contract, index) => {
+        const posed = renderMannequin(posedContract(contract, animation, time), small, smallTransform, { joints: true, slots: false, background: [255, 255, 255, 255] });
+        label(posed, index === 0 ? beforeColor : afterColor);
+        return posed;
+      });
+      rows.push(row);
+      poses.push({ animation: animation.name, time, keyedBones: [...animation.bones.keys()].sort() });
+    }
+    png('animation-key-poses.png', sheetOf(rows, 12));
+    animationReport = {
+      method: 'forward kinematics, linear interpolation, rotate and translate only',
+      rows: poses,
+      ignoredTimelines: ignored,
+      sheet: 'One row for each animation in skeleton order. Left: before. Right: after.'
+    };
+  }
+
+  const boneDeltas = [...after.bones.values()].map((bone) => {
+    const old = before.bones.get(bone.id);
+    const local = (contract: ControlContract, id: string): Joint | null => {
+      const item = contract.bones.get(id);
+      const parent = item?.parent ? contract.bones.get(item.parent) : undefined;
+      return item && parent ? { x: item.joint.x - parent.joint.x, y: -(item.joint.y - parent.joint.y) } : null;
+    };
+    return { bone: bone.id, before: old?.joint ?? null, after: bone.joint, localRigBefore: local(before, bone.id), localRigAfter: local(after, bone.id) };
+  });
+  const slotDeltas = [...after.slots.values()].map((slot) => ({
+    slot: slot.id,
+    drawOrderBefore: before.slots.get(slot.id)?.drawOrder ?? null,
+    drawOrderAfter: slot.drawOrder,
+    rectBefore: before.slots.get(slot.id)?.attachmentRect ?? null,
+    rectAfter: slot.attachmentRect
+  }));
+  const sameIds =
+    JSON.stringify([...before.bones.values()].map((bone) => [bone.id, bone.parent])) === JSON.stringify([...after.bones.values()].map((bone) => [bone.id, bone.parent])) &&
+    JSON.stringify([...before.slots.keys()]) === JSON.stringify([...after.slots.keys()]);
+  const report = {
+    format: 'aigg.calibration/0.1',
+    tool: toolName,
+    before: { ...contractReport(before, options.beforeBytes), checks: consistencyChecks(before) },
+    after: { ...contractReport(after, options.afterBytes), checks: consistencyChecks(after) },
+    target: { size, transform: { scale: round(transform.scale), offsetX: round(transform.offsetX), offsetY: round(transform.offsetY) } },
+    comparison: 'Rows: before (red bar), after (green bar). Columns: flat mannequin, mannequin with joints and slot rectangles, OpenPose (anatomical labels).',
+    migration: {
+      sameBoneAndSlotIds: sameIds,
+      drawOrderChanged: slotDeltas.filter((item) => item.drawOrderBefore !== item.drawOrderAfter).map((item) => item.slot),
+      bones: boneDeltas,
+      slots: slotDeltas,
+      addedPoints: [...after.points.keys()].filter((id) => !before.points.has(id))
+    },
+    animations: animationReport,
+    files: records
+  };
+  const reportFile: PlannedFile = { name: 'calibration.json', bytes: json(report) };
+  files.push(reportFile);
+  const failedAfter = report.after.checks.filter((check) => check.status === 'FAIL').length;
+  return { report: { status: failedAfter === 0 ? 'PASS' : 'FAIL', command: 'calibrate', ...report, files: [...records, record(reportFile)] }, files };
 }

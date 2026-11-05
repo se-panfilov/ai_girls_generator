@@ -1,6 +1,6 @@
 # @aigg/control
 
-**Draft.** Stage S4 (production art) helper for experiment C0. See [the C0 report](../../docs/proposals/C0_RIG_GUIDED_GENERATION.md).
+**Draft.** Stage S4 (production art) helper for experiment C0 and the C0.5 view calibration. See [the C0 report](../../docs/proposals/C0_RIG_GUIDED_GENERATION.md) and [the C0.5 report](../../docs/proposals/C05_REFERENCE_MANNEQUIN.md).
 
 The package makes control and reference images from the rig contract, ComfyUI workflow files for a small generation run, and rig overlays of generated images.
 It does not run a model, does not contact a server, and does not detect keypoints.
@@ -14,6 +14,9 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `pose`     | `rig.contract.json`, optional `--size WxH` | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`         |
 | `workflow` | An OpenPose image, model file names, seeds | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json` |
 | `overlay`  | `rig.contract.json`, a PNG, optional marks | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`         |
+
+| `candidate` | A base `rig.contract.json`, optional `--yaw` | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below) |
+| `calibrate` | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -39,6 +42,15 @@ The contract canvas is scaled uniformly into the target size and centered. The p
 - Body keypoints come from contract bones: shoulder `upper_arm_*`, elbow `forearm_*`, wrist `hand_*`, hip `thigh_*`, knee `shin_*`, ankle `foot_*`. The neck is the midpoint of the shoulders.
 - **Assumption:** the face keypoints (nose, eyes, near ear) are not in the contract. Fixed fractions of the `head` rectangle place them (`faceTemplate`). The far ear is hidden.
 - Side mapping: `detector` gives the subject's right to the side whose shoulder is on the left of the image (as a pose detector does for a front view). `anatomical` gives it to `_near`. For a layout with the near side on the left, both are the same.
+
+## Reference mannequin and view checks (C0.5)
+
+- `candidate` projects a simple 3D reference body (`referenceBody`: 7 head heights, yaw 40 degrees, arms slightly away from the torso) into the canvas of a base contract.
+  It keeps all ids, parents, slots, draw order and animations, and replaces joints, rectangles and points. The result is a **proposal**, not an accepted contract.
+- `calibrate` draws a flat mannequin from contract joints only (the same generic widths for both contracts), in slot draw order, with face marks.
+  It runs the consistency checks V1 to V11 (side order, front/back cues, face direction, BODY_18 labels, draw order, rectangles, proportion proxy, arm separation) and writes the migration table.
+  With `--skeleton`, it poses both contracts at the most extreme key of each animation (forward kinematics, linear keys, rotate and translate only).
+- Face keypoints come from contract points `face_nose`, `face_eye_<side>` and `face_ear_<side>` when they exist. Otherwise the face template is used.
 
 ## Measurement
 
