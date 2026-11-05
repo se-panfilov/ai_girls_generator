@@ -5,7 +5,7 @@ import { deflateSync } from 'node:zlib';
 import { overlayCommand, parseContractBytes, poseCommand, workflowCommand } from '@control/commands';
 import { parseControlContract } from '@control/contract';
 import { marksFormat } from '@control/measure';
-import { checkOutputDirectory, writeFiles } from '@control/output';
+import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { decodePng, encodePng, pixelHash } from '@control/png';
 import { fitTransform, keypointColors, keypointNames, renderOpenPose, rigPose, toTarget } from '@control/pose';
 import { ControlError } from '@control/problems';
@@ -234,5 +234,17 @@ describe('output directory', () => {
     writeFiles(real, [{ name: 'a.json', bytes: Buffer.from('new') }], false);
     expect(readFileSync(victim, 'utf8')).toBe('keep');
     expect(codeOf(() => writeFiles(real, [{ name: '../x.json', bytes: Buffer.from('') }], false))).toBe('E_OUTPUT');
+  });
+});
+
+describe('input files', () => {
+  it('reads a file and refuses a missing file, a directory, and a file above the limit', () => {
+    const root = temporaryDirectory();
+    const file = join(root, 'a.json');
+    writeFileSync(file, '0123456789');
+    expect(readInput(file, 10, 'A').toString('utf8')).toBe('0123456789');
+    expect(codeOf(() => readInput(file, 9, 'A'))).toBe('E_INPUT_TOO_LARGE');
+    expect(codeOf(() => readInput(join(root, 'missing.json'), 10, 'A'))).toBe('E_INPUT');
+    expect(codeOf(() => readInput(root, 10, 'A'))).toBe('E_INPUT');
   });
 });

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readdirSync, readSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { fail } from '@control/problems';
@@ -11,19 +11,35 @@ import { fail } from '@control/problems';
 
 export type PlannedFile = { readonly name: string; readonly bytes: Buffer };
 
+/**
+ * Reads an input file through one open file descriptor, so the size check and the read see the same file.
+ * The read stops at maxBytes + 1 bytes, so a file that grows after the check is still refused.
+ */
 export function readInput(path: string, maxBytes: number, label: string): Buffer {
-  const full = resolve(path);
-  let size: number;
+  let fd: number;
   try {
-    const info = statSync(full);
-    if (!info.isFile()) fail('E_INPUT', `${label} is not a regular file.`);
-    size = info.size;
+    fd = openSync(resolve(path), 'r');
   } catch (error) {
-    if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') fail('E_INPUT', `${label} is not found.`);
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') fail('E_INPUT', `${label} is not found.`);
+    if ((error as NodeJS.ErrnoException).code === 'EISDIR') fail('E_INPUT', `${label} is not a regular file.`);
     throw error;
   }
-  if (size > maxBytes) fail('E_INPUT_TOO_LARGE', `${label} has ${size} bytes. The limit is ${maxBytes}.`);
-  return readFileSync(full);
+  try {
+    const info = fstatSync(fd);
+    if (!info.isFile()) fail('E_INPUT', `${label} is not a regular file.`);
+    if (info.size > maxBytes) fail('E_INPUT_TOO_LARGE', `${label} has ${info.size} bytes. The limit is ${maxBytes}.`);
+    const buffer = Buffer.alloc(maxBytes + 1);
+    let length = 0;
+    for (;;) {
+      const count = readSync(fd, buffer, length, buffer.length - length, null);
+      if (count === 0) break;
+      length += count;
+      if (length > maxBytes) fail('E_INPUT_TOO_LARGE', `${label} has more than ${maxBytes} bytes.`);
+    }
+    return buffer.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** Checks the output directory. Returns true when it must be created. */
