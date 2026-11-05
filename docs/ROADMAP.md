@@ -4,17 +4,17 @@
 
 ## Phases
 
-| Phase | Content                                                                                                 | Gate                                                                                |
-| ----- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                                 |
-| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                                |
-| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime.           |
-| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                                 |
-| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.                |
-| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                              |
-| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                                     |
-| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.              |
-| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). |
+| Phase | Content                                                                                                 | Gate                                                                                                                            |
+| ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                                                                             |
+| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                                                                            |
+| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime.                                                       |
+| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                                                                             |
+| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.                                                            |
+| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                                                                          |
+| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                                                                                 |
+| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.                                                          |
+| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). The animated parts spike passes (D23, D26). |
 
 Automate a step only after it was done the same way by hand at least three times.
 
@@ -38,6 +38,25 @@ The factory will support equipment that does not depend on the character appeara
 10. Full GPU and performance tests stay deferred until realistic game assets exist.
 
 Gate for phase 8 (contract 1.0 freeze): an equipment extensibility check of the rig contract (D25).
+
+## Animated parts and secondary animation (D26)
+
+**Owner-approved strategic intent.** The implementation is not approved. Decisions D23 and D26 hold the open questions. Details: [appearance modules and animated parts](proposals/D23_D26_MODULES_AND_ANIMATED_PARTS.md).
+
+- Individual visual parts can have their own animations at the same time as the primary animation, without character-specific skeletons. Examples: periodic blinking, facial expressions, independently animated eyes, breathing, tail and hair movement, glowing or pulsing accessories, small looping effects.
+- Conceptual behaviours: `static`, `frame_sequence` (image frames at their own rate), `bone_animated` (movement through the shared rig). These are not final enum values or API names.
+- GIF-like behaviour is desired, not GIF playback. A later Node.js/TypeScript build step can convert GIF, APNG, animated WebP or image sequences into normalised frames and atlases.
+- Prefer Spine Essential capabilities. The initial feature set must not need Spine Professional.
+- Later playback policies: loop, one-shot, ping-pong, periodic activation. Secondary animations do not disturb primary animations, and a priority strategy defines the owner of each property.
+- All frames keep alignment, logical size and attachment geometry. Playback is deterministic (seeded) where requested.
+- Appearance modules (D23): hairstyles and tails are replaceable independently of the head and the torso.
+
+### Pre-freeze validation spike (future task)
+
+Before the rig contract 1.0 freeze, a small automated spike shows one shared skeleton, the primary `run` animation, independent blinking with a short frame sequence, independent tail movement, and a hairstyle change without a reset of the active animations.
+Acceptance: deterministic playback, no attachment conflicts, no conflicting timelines (no bone or slot keyed by both a primary and a secondary animation), no visible alignment jumps, and the runtime state kept during the module change.
+Known conflict: the current `run` and `jump_air` key bone `tail_1`. The proposal recommends to move this tail movement to secondary animations, which changes the shared animation set version (not done).
+The spike does not include GPU or performance benchmarks. They stay deferred by owner decision.
 
 ## Experiments
 
