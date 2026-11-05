@@ -54,7 +54,8 @@ Gate for phase 8 (contract 1.0 freeze): an equipment extensibility check of the 
 ### Pre-freeze validation spike (future task)
 
 Before the rig contract 1.0 freeze, a small automated spike shows one shared skeleton, the primary `run` animation, independent blinking with a short frame sequence, independent tail movement, and a hairstyle change without a reset of the active animations.
-Acceptance: deterministic playback, no attachment conflicts, no visible alignment jumps, and the runtime state kept during the module change.
+Acceptance: deterministic playback, no attachment conflicts, no conflicting timelines (no bone or slot keyed by both a primary and a secondary animation), no visible alignment jumps, and the runtime state kept during the module change.
+Known conflict: the current `run` and `jump_air` key bone `tail_1`. The proposal recommends to move this tail movement to secondary animations, which changes the shared animation set version (not done).
 The spike does not include GPU or performance benchmarks. They stay deferred by owner decision.
 
 ## Experiments
