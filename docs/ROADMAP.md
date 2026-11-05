@@ -91,6 +91,8 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 | Pass       | 70 % or more inside tolerance with three attempts or fewer. Design kept in 70 % or more by human score.                                                                 |
 | Fail       | Below 40 % inside tolerance.                                                                                                                                            |
 
+Status: pilot C0 prepared the pose control images, ComfyUI workflows, and overlay tools. Inference is blocked (no GPU, no approved model). See [the C0 report](proposals/C0_RIG_GUIDED_GENERATION.md).
+
 ### D. Asset interchange
 
 | Field      | Content                                                                                                                                                            |
