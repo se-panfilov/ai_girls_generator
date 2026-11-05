@@ -49,6 +49,9 @@ npm test --workspace @aigg/rig-runtime
 The tests use byte-exact text files of the owner L1 export in `test/fixtures/l1-owner/` (skeleton JSON, atlases) and synthetic files in temporary folders.
 Page images are not in the repository. Pixel tests run in the gate test bench outside the repository (see the evidence document).
 
+The D26 spike (experiment, not part of the package API) is in `test/d26/` with the tests `test/d26-*.test.ts` and the derived fixture `test/fixtures/d26-spike/`.
+It makes synthetic images at run time. Its visual test is opt-in (`AIGG_VISUAL_SMOKE=1`). See [the D26 spike report](../../docs/proposals/D26_ANIMATED_PARTS_SPIKE.md).
+
 ## Limits
 
 - Rigid region attachments only. Mesh, path, clipping, bounding box and point attachments are rejected (profile check).

@@ -206,6 +206,8 @@ Acceptance criteria:
 
 The spike uses synthetic or test assets and software WebGL. It does not include GPU or performance benchmarks. It needs no manual Spine work from the owner if the test rig can be made as JSON; **Open:** whether the face slot and the secondary animations need an editor export.
 
+Spike result (draft evidence, D26 stays open): [the D26 spike report](D26_ANIMATED_PARTS_SPIKE.md).
+
 ## 7. Relation to other decisions
 
 | Decision | Relation                                                                                                                                                                    |

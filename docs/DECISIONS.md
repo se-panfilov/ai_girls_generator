@@ -93,6 +93,7 @@ Known conflict: the current `run` and `jump_air` key bone `tail_1`, but the prop
 Open: manifest schemas, the Spine attachment and track strategy, the timing and scheduling API, layering priorities, import formats, and implementation and resource budgets.
 Related decisions: D22 (blank frame rules), D23 (modules that contain animated parts), D24 (frames in atlases), D25 (equipment layering).
 Before the rig contract freeze, a small automated spike must show the primary `run` animation with independent blinking, tail movement and a hairstyle change without an animation reset. See [the roadmap](ROADMAP.md#animated-parts-and-secondary-animation-d26).
+Spike evidence (draft, does not close D26): [the D26 spike report](proposals/D26_ANIMATED_PARTS_SPIKE.md). Native Spine sequence attachments work with spine-core 4.3.13; the production loader and the module format need changes.
 Details: [appearance modules and animated parts](proposals/D23_D26_MODULES_AND_ANIMATED_PARTS.md).
 
 ## How to record a decision

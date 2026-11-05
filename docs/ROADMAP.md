@@ -57,6 +57,7 @@ Before the rig contract 1.0 freeze, a small automated spike shows one shared ske
 Acceptance: deterministic playback, no attachment conflicts, no conflicting timelines (no bone or slot keyed by both a primary and a secondary animation), no visible alignment jumps, and the runtime state kept during the module change.
 Known conflict: the current `run` and `jump_air` key bone `tail_1`. The proposal recommends to move this tail movement to secondary animations, which changes the shared animation set version (not done).
 The spike does not include GPU or performance benchmarks. They stay deferred by owner decision.
+Status: a first spike ran on an isolated test fixture. See [the D26 spike report](proposals/D26_ANIMATED_PARTS_SPIKE.md). The rig contract and the master rig did not change.
 
 ## Experiments
 
