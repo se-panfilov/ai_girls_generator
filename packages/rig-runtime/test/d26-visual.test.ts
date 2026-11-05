@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -16,7 +16,7 @@ import { loadSpike, makeCharacter, moduleOf, type Spike, spine } from './d26/set
 // Run: AIGG_VISUAL_SMOKE=1 npx vitest run test/d26-visual.test.ts (in packages/rig-runtime).
 // It needs Playwright with Chromium. The repository does not install them (no new dependency for a spike): the test resolves
 // `playwright` from the environment and fails with a clear message when it is not there. Screenshots go to AIGG_VISUAL_OUT
-// (default: <tmp>/aigg-d26-visual). Nothing is written into the repository.
+// (default: a new private folder <tmp>/aigg-d26-visual-*). Nothing is written into the repository.
 
 const enabled = process.env.AIGG_VISUAL_SMOKE === '1';
 const view = { x0: -300, y0: 1340, scale: 1, width: 800, height: 1380 };
@@ -28,8 +28,15 @@ type Scene = { readonly name: string; readonly eyeFrame: number; readonly items:
 type Browser = { newPage: () => Promise<Page>; close: () => Promise<void>; version: () => string };
 type Page = {
   goto: (url: string) => Promise<unknown>;
-  evaluate: <T>(code: string) => Promise<T>;
+  evaluate: <T, A>(code: (arg: A) => T | Promise<T>, arg: A) => Promise<T>;
   locator: (selector: string) => { screenshot: (options: { path: string }) => Promise<unknown> };
+};
+
+/** The functions of the renderer page (window.spike). Playwright serialises each evaluate callback, so each callback reads window.spike itself. Data goes in as an argument, never as code text. */
+type PageApi = {
+  setup: (width: number, height: number) => string;
+  loadPage: (name: string, url: string) => Promise<void>;
+  draw: (scene: unknown) => Promise<{ digest: string; samples: { name: string; rgba: number[] }[]; counts: { name: string; pixels: number }[] }>;
 };
 
 function loadPlaywright(): { chromium: { launch: (options: { args: string[] }) => Promise<Browser> } } {
@@ -117,20 +124,22 @@ describe.skipIf(!enabled)('D26 visual smoke test (software WebGL)', () => {
   it('draws the real spine-core poses: eye frames at the right place, hair A then hair B, tail present; the same scene twice gives the same pixels', async () => {
     const spike = loadSpike();
     const list = await scenes(spike);
-    const out = process.env.AIGG_VISUAL_OUT ?? join(tmpdir(), 'aigg-d26-visual');
-    mkdirSync(out, { recursive: true });
+    // A new private folder (mkdtemp, mode 0700) unless the caller names one.
+    const named = process.env.AIGG_VISUAL_OUT;
+    if (named) mkdirSync(named, { recursive: true });
+    const out = named ?? mkdtempSync(join(tmpdir(), 'aigg-d26-visual-'));
     const { chromium } = loadPlaywright();
     const { server, url } = await serve(spike.assets.files);
     const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
     try {
       const page = await browser.newPage();
       await page.goto(`${url}index.html`);
-      const renderer = await page.evaluate<string>(`window.spike.setup(${view.width}, ${view.height})`);
+      const renderer = await page.evaluate((size) => (globalThis as unknown as { spike: PageApi }).spike.setup(size.width, size.height), { width: view.width, height: view.height });
       const pages = [...spike.assets.files.keys()].filter((path) => path.endsWith('.png'));
-      await page.evaluate(`Promise.all(${JSON.stringify(pages)}.map((name) => window.spike.loadPage(name, ${JSON.stringify(url)} + name)))`);
+      await page.evaluate((input) => Promise.all(input.pages.map((name) => (globalThis as unknown as { spike: PageApi }).spike.loadPage(name, input.url + name))), { pages, url });
       const report: Record<string, unknown>[] = [];
       for (const item of list) {
-        const payload = JSON.stringify({
+        const payload = {
           view,
           items: item.items,
           samples: item.samples.map(({ name, at }) => ({ name, at })),
@@ -138,10 +147,10 @@ describe.skipIf(!enabled)('D26 visual smoke test (software WebGL)', () => {
             { name: 'eyes', rgba: colours.eyes },
             { name: 'tail', rgba: colours.tail }
           ]
-        });
-        const first = await page.evaluate<{ digest: string; samples: { name: string; rgba: number[] }[]; counts: { name: string; pixels: number }[] }>(`window.spike.draw(${payload})`);
+        };
+        const first = await page.evaluate((scene) => (globalThis as unknown as { spike: PageApi }).spike.draw(scene), payload);
         await page.locator('canvas').screenshot({ path: join(out, `${item.name}.png`) });
-        const second = await page.evaluate<{ digest: string }>(`window.spike.draw(${payload})`);
+        const second = await page.evaluate((scene) => (globalThis as unknown as { spike: PageApi }).spike.draw(scene), payload);
         const mismatches = item.samples.filter((sample, index) => JSON.stringify(first.samples[index]?.rgba) !== JSON.stringify(sample.expected));
         report.push({
           scene: item.name,
