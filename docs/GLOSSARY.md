@@ -30,6 +30,8 @@
 | Base body         | The shared skin parts (arms, legs, neck, torso). They are drawn once and are part of the contract.                                |
 | Character package | All data of one character: parts, sidecar, sources, derived files, and QA output. See [the package format](CHARACTER_PACKAGE.md). |
 | Part              | One PNG file in a character package. It becomes one attachment.                                                                   |
+| Rig part          | One part on one slot that bones and joints of the shared rig move, for example `forearm_near`. Proposal, see D23.                 |
+| Appearance module | A group of parts that is replaced as one unit, for example a complete arm or a hairstyle. Proposal, see D23.                      |
 | Sidecar           | The `character.json` file. It describes the parts and the provenance of one character.                                            |
 | Layer             | One image layer in a PSD, ORA, or decomposition output. A layer is not a part until the assembly stage maps it to a slot.         |
 | Concept           | A free-pose image of a character design. A human selects one concept.                                                             |

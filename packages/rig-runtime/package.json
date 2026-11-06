@@ -1,6 +1,6 @@
 {
   "name": "@aigg/rig-runtime",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Assemble character skins on one shared Spine skeleton, swap part modules at run time, and check asset manifests",
   "private": true,
   "type": "module",

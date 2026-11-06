@@ -1,6 +1,6 @@
 # npm workspaces
 
-The root workspace and the shared configuration exist. The first package is `rig-runtime`. **Draft:** the package list is a proposal, and the package names depend on decision D21.
+The root workspace and the shared configuration exist. The packages are `rig-runtime` and `control`. **Draft:** the package list is a proposal, and the package names depend on decision D21.
 
 ## Layout
 
@@ -43,6 +43,7 @@ The shared configuration comes from the Toolchain repository with the same tool 
 
 | Directory     | Kind          | Stage   | Purpose                                                                                                                                                                                                  |
 | ------------- | ------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `control`     | library + cli | S4      | Pose control images, proportion references, ComfyUI workflow files, and rig overlays for experiment C0. No model runs. See its README.                                                                   |
 | `rig-runtime` | library + cli | S9, S11 | Shared runtime skeleton, character skins from `character.json` without blank placeholder regions, part modules (draft), atlas cache, and asset manifests with the macOS metadata policy. See its README. |
 
 Packages that decode or write images will need an image library with native binaries, such as `sharp`. That dependency needs a human decision.

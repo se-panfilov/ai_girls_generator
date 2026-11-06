@@ -1,0 +1,1051 @@
+{
+  "skeleton": {
+    "hash": "d26-spike",
+    "spine": "4.3.26",
+    "x": -272,
+    "y": -10,
+    "width": 740,
+    "height": 1320
+  },
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "hips",
+      "parent": "root",
+      "y": 590
+    },
+    {
+      "name": "spine",
+      "parent": "hips",
+      "y": 80
+    },
+    {
+      "name": "chest",
+      "parent": "spine",
+      "y": 120
+    },
+    {
+      "name": "neck",
+      "parent": "chest",
+      "x": 3,
+      "y": 140
+    },
+    {
+      "name": "head",
+      "parent": "neck",
+      "x": 3,
+      "y": 40
+    },
+    {
+      "name": "upper_arm_near",
+      "parent": "chest",
+      "x": 68,
+      "y": 100
+    },
+    {
+      "name": "forearm_near",
+      "parent": "upper_arm_near",
+      "x": 20,
+      "y": -170
+    },
+    {
+      "name": "hand_near",
+      "parent": "forearm_near",
+      "x": 10,
+      "y": -150
+    },
+    {
+      "name": "upper_arm_far",
+      "parent": "chest",
+      "x": -67,
+      "y": 95
+    },
+    {
+      "name": "forearm_far",
+      "parent": "upper_arm_far",
+      "x": -25,
+      "y": -165
+    },
+    {
+      "name": "hand_far",
+      "parent": "forearm_far",
+      "x": -10,
+      "y": -145
+    },
+    {
+      "name": "thigh_near",
+      "parent": "hips",
+      "x": 38,
+      "y": -20
+    },
+    {
+      "name": "shin_near",
+      "parent": "thigh_near",
+      "x": 15,
+      "y": -260
+    },
+    {
+      "name": "foot_near",
+      "parent": "shin_near",
+      "x": 10,
+      "y": -260
+    },
+    {
+      "name": "thigh_far",
+      "parent": "hips",
+      "x": -32,
+      "y": -15
+    },
+    {
+      "name": "shin_far",
+      "parent": "thigh_far",
+      "x": -10,
+      "y": -260
+    },
+    {
+      "name": "foot_far",
+      "parent": "shin_far",
+      "x": -10,
+      "y": -260
+    },
+    {
+      "name": "hair_tail_1",
+      "parent": "head",
+      "x": -68,
+      "y": 50
+    },
+    {
+      "name": "hair_tail_2",
+      "parent": "hair_tail_1",
+      "x": -30,
+      "y": -130
+    },
+    {
+      "name": "ear_near",
+      "parent": "head",
+      "x": 42,
+      "y": 190
+    },
+    {
+      "name": "ear_far",
+      "parent": "head",
+      "x": -38,
+      "y": 195
+    },
+    {
+      "name": "tail_1",
+      "parent": "hips",
+      "x": -72,
+      "y": -30
+    },
+    {
+      "name": "tail_2",
+      "parent": "tail_1",
+      "x": -80,
+      "y": -80
+    },
+    {
+      "name": "skirt_front",
+      "parent": "hips",
+      "x": 18,
+      "y": -5
+    },
+    {
+      "name": "skirt_back",
+      "parent": "hips",
+      "x": -22,
+      "y": -5
+    },
+    {
+      "name": "weapon_grip",
+      "parent": "hand_near",
+      "x": 5,
+      "y": -15
+    },
+    {
+      "name": "aim",
+      "parent": "root",
+      "x": 388,
+      "y": 790
+    }
+  ],
+  "slots": [
+    {
+      "name": "hair_back",
+      "bone": "head",
+      "attachment": "hair_back"
+    },
+    {
+      "name": "tail",
+      "bone": "tail_1",
+      "attachment": "tail"
+    },
+    {
+      "name": "ear_far",
+      "bone": "ear_far",
+      "attachment": "ear_far"
+    },
+    {
+      "name": "hand_far",
+      "bone": "hand_far",
+      "attachment": "hand_far"
+    },
+    {
+      "name": "forearm_far",
+      "bone": "forearm_far",
+      "attachment": "forearm_far"
+    },
+    {
+      "name": "upper_arm_far",
+      "bone": "upper_arm_far",
+      "attachment": "upper_arm_far"
+    },
+    {
+      "name": "foot_far",
+      "bone": "foot_far",
+      "attachment": "foot_far"
+    },
+    {
+      "name": "shin_far",
+      "bone": "shin_far",
+      "attachment": "shin_far"
+    },
+    {
+      "name": "thigh_far",
+      "bone": "thigh_far",
+      "attachment": "thigh_far"
+    },
+    {
+      "name": "skirt_back",
+      "bone": "skirt_back",
+      "attachment": "skirt_back"
+    },
+    {
+      "name": "torso",
+      "bone": "chest",
+      "attachment": "torso"
+    },
+    {
+      "name": "hips",
+      "bone": "hips",
+      "attachment": "hips"
+    },
+    {
+      "name": "foot_near",
+      "bone": "foot_near",
+      "attachment": "foot_near"
+    },
+    {
+      "name": "shin_near",
+      "bone": "shin_near",
+      "attachment": "shin_near"
+    },
+    {
+      "name": "thigh_near",
+      "bone": "thigh_near",
+      "attachment": "thigh_near"
+    },
+    {
+      "name": "skirt_front",
+      "bone": "skirt_front",
+      "attachment": "skirt_front"
+    },
+    {
+      "name": "neck",
+      "bone": "neck",
+      "attachment": "neck"
+    },
+    {
+      "name": "head",
+      "bone": "head",
+      "attachment": "head"
+    },
+    {
+      "name": "eyes",
+      "bone": "head",
+      "attachment": "eyes"
+    },
+    {
+      "name": "ear_near",
+      "bone": "ear_near",
+      "attachment": "ear_near"
+    },
+    {
+      "name": "hair_front",
+      "bone": "head",
+      "attachment": "hair_front"
+    },
+    {
+      "name": "hair_tail",
+      "bone": "hair_tail_1",
+      "attachment": "hair_tail"
+    },
+    {
+      "name": "acc_head",
+      "bone": "head",
+      "attachment": "acc_head"
+    },
+    {
+      "name": "upper_arm_near",
+      "bone": "upper_arm_near",
+      "attachment": "upper_arm_near"
+    },
+    {
+      "name": "forearm_near",
+      "bone": "forearm_near",
+      "attachment": "forearm_near"
+    },
+    {
+      "name": "weapon",
+      "bone": "weapon_grip",
+      "attachment": "weapon"
+    },
+    {
+      "name": "hand_near",
+      "bone": "hand_near",
+      "attachment": "hand_near"
+    },
+    {
+      "name": "hand_near_front",
+      "bone": "hand_near",
+      "attachment": "hand_near_front"
+    }
+  ],
+  "skins": [
+    {
+      "name": "default",
+      "attachments": {
+        "acc_head": {
+          "acc_head": {
+            "x": 12,
+            "y": 250,
+            "width": 320,
+            "height": 180
+          }
+        },
+        "ear_far": {
+          "ear_far": {
+            "x": 5,
+            "y": 25,
+            "width": 110,
+            "height": 140
+          }
+        },
+        "ear_near": {
+          "ear_near": {
+            "x": 5,
+            "y": 30,
+            "width": 110,
+            "height": 140
+          }
+        },
+        "foot_far": {
+          "foot_far": {
+            "x": 15,
+            "y": -15,
+            "width": 150,
+            "height": 100
+          }
+        },
+        "foot_near": {
+          "foot_near": {
+            "x": 25,
+            "y": -10,
+            "width": 160,
+            "height": 100
+          }
+        },
+        "forearm_far": {
+          "forearm_far": {
+            "y": -75,
+            "width": 100,
+            "height": 210
+          }
+        },
+        "forearm_near": {
+          "forearm_near": {
+            "x": 10,
+            "y": -80,
+            "width": 100,
+            "height": 220
+          }
+        },
+        "hair_back": {
+          "hair_back": {
+            "x": -8,
+            "y": -20,
+            "width": 360,
+            "height": 560
+          }
+        },
+        "hair_front": {
+          "hair_front": {
+            "x": 12,
+            "y": 120,
+            "width": 300,
+            "height": 320
+          }
+        },
+        "hair_tail": {
+          "hair_tail": {
+            "x": -20,
+            "y": -115,
+            "width": 200,
+            "height": 330
+          }
+        },
+        "hand_far": {
+          "hand_far": {
+            "x": 5,
+            "y": -25,
+            "width": 110,
+            "height": 120
+          }
+        },
+        "hand_near": {
+          "hand_near": {
+            "x": 10,
+            "y": -20,
+            "width": 120,
+            "height": 120
+          }
+        },
+        "hand_near_front": {
+          "hand_near_front": {
+            "x": 5,
+            "y": -10,
+            "width": 90,
+            "height": 80
+          }
+        },
+        "head": {
+          "head": {
+            "x": 7,
+            "y": 110,
+            "width": 250,
+            "height": 320
+          }
+        },
+        "hips": {
+          "hips": {
+            "x": 13,
+            "y": -20,
+            "width": 190,
+            "height": 160
+          }
+        },
+        "neck": {
+          "neck": {
+            "x": 5,
+            "y": -5,
+            "width": 80,
+            "height": 90
+          }
+        },
+        "shin_far": {
+          "shin_far": {
+            "x": 5,
+            "y": -130,
+            "width": 110,
+            "height": 330
+          }
+        },
+        "shin_near": {
+          "shin_near": {
+            "x": 5,
+            "y": -125,
+            "width": 120,
+            "height": 330
+          }
+        },
+        "skirt_back": {
+          "skirt_back": {
+            "x": 35,
+            "y": -65,
+            "width": 250,
+            "height": 220
+          }
+        },
+        "skirt_front": {
+          "skirt_front": {
+            "x": 30,
+            "y": -75,
+            "width": 260,
+            "height": 240
+          }
+        },
+        "tail": {
+          "tail": {
+            "x": -70,
+            "y": -80,
+            "width": 260,
+            "height": 260
+          }
+        },
+        "thigh_far": {
+          "thigh_far": {
+            "x": 5,
+            "y": -130,
+            "width": 130,
+            "height": 330
+          }
+        },
+        "thigh_near": {
+          "thigh_near": {
+            "x": 10,
+            "y": -125,
+            "width": 140,
+            "height": 330
+          }
+        },
+        "torso": {
+          "torso": {
+            "x": 8,
+            "y": -50,
+            "width": 200,
+            "height": 420
+          }
+        },
+        "upper_arm_far": {
+          "upper_arm_far": {
+            "y": -80,
+            "width": 110,
+            "height": 230
+          }
+        },
+        "upper_arm_near": {
+          "upper_arm_near": {
+            "x": 15,
+            "y": -80,
+            "width": 110,
+            "height": 240
+          }
+        },
+        "weapon": {
+          "weapon": {
+            "x": 155,
+            "y": 15,
+            "width": 420,
+            "height": 200
+          }
+        },
+        "eyes": {
+          "eyes": {
+            "path": "eyes_",
+            "x": 30,
+            "y": 120,
+            "width": 140,
+            "height": 48,
+            "sequence": {
+              "count": 3,
+              "start": 0,
+              "setup": 0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "animations": {
+    "blink": {
+      "attachments": {
+        "default": {
+          "eyes": {
+            "eyes": {
+              "sequence": [
+                {
+                  "mode": "once",
+                  "index": 0,
+                  "delay": 0.05
+                },
+                {
+                  "time": 0.15,
+                  "mode": "onceReverse",
+                  "delay": 0.05
+                },
+                {
+                  "time": 0.3,
+                  "mode": "hold",
+                  "index": 0
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "crouch_enter": {
+      "bones": {
+        "hips": {
+          "translate": [
+            {},
+            {
+              "time": 0.25,
+              "y": -120
+            }
+          ]
+        },
+        "shin_far": {
+          "rotate": [
+            {},
+            {
+              "time": 0.25,
+              "value": -65
+            }
+          ]
+        },
+        "shin_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.25,
+              "value": -70
+            }
+          ]
+        },
+        "thigh_far": {
+          "rotate": [
+            {},
+            {
+              "time": 0.25,
+              "value": 35
+            }
+          ]
+        },
+        "thigh_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.25,
+              "value": 40
+            }
+          ]
+        }
+      }
+    },
+    "hit": {
+      "bones": {
+        "chest": {
+          "rotate": [
+            {},
+            {
+              "time": 0.1,
+              "value": -15
+            },
+            {
+              "time": 0.4
+            }
+          ]
+        },
+        "head": {
+          "rotate": [
+            {},
+            {
+              "time": 0.1,
+              "value": 10
+            },
+            {
+              "time": 0.4
+            }
+          ]
+        }
+      }
+    },
+    "idle": {
+      "bones": {
+        "hips": {
+          "translate": [
+            {},
+            {
+              "time": 0.5,
+              "y": -6
+            },
+            {
+              "time": 1
+            }
+          ]
+        }
+      }
+    },
+    "jump_air": {
+      "bones": {
+        "hips": {
+          "translate": [
+            {
+              "y": 80
+            }
+          ]
+        },
+        "shin_near": {
+          "rotate": [
+            {
+              "value": -60
+            }
+          ]
+        },
+        "thigh_near": {
+          "rotate": [
+            {
+              "value": 35
+            }
+          ]
+        }
+      }
+    },
+    "jump_land": {
+      "bones": {
+        "hips": {
+          "translate": [
+            {
+              "y": -40
+            },
+            {
+              "time": 0.25
+            }
+          ]
+        }
+      }
+    },
+    "jump_start": {
+      "bones": {
+        "hips": {
+          "translate": [
+            {},
+            {
+              "time": 0.2,
+              "y": -40
+            }
+          ]
+        },
+        "shin_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.2,
+              "value": -30
+            }
+          ]
+        },
+        "thigh_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.2,
+              "value": 20
+            }
+          ]
+        }
+      }
+    },
+    "run": {
+      "bones": {
+        "hips": {
+          "translate": [
+            {},
+            {
+              "time": 0.15,
+              "y": 10
+            },
+            {
+              "time": 0.3
+            },
+            {
+              "time": 0.45,
+              "y": 10
+            },
+            {
+              "time": 0.6
+            }
+          ]
+        },
+        "shin_far": {
+          "rotate": [
+            {
+              "time": 0.3
+            },
+            {
+              "time": 0.45,
+              "value": -50
+            },
+            {
+              "time": 0.6
+            }
+          ]
+        },
+        "shin_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.15,
+              "value": -50
+            },
+            {
+              "time": 0.3
+            }
+          ]
+        },
+        "thigh_far": {
+          "rotate": [
+            {
+              "value": -30
+            },
+            {
+              "time": 0.3,
+              "value": 30
+            },
+            {
+              "time": 0.6,
+              "value": -30
+            }
+          ]
+        },
+        "thigh_near": {
+          "rotate": [
+            {
+              "value": 30
+            },
+            {
+              "time": 0.3,
+              "value": -30
+            },
+            {
+              "time": 0.6,
+              "value": 30
+            }
+          ]
+        },
+        "upper_arm_far": {
+          "rotate": [
+            {
+              "value": 25
+            },
+            {
+              "time": 0.3,
+              "value": -25
+            },
+            {
+              "time": 0.6,
+              "value": 25
+            }
+          ]
+        },
+        "upper_arm_near": {
+          "rotate": [
+            {
+              "value": -25
+            },
+            {
+              "time": 0.3,
+              "value": 25
+            },
+            {
+              "time": 0.6,
+              "value": -25
+            }
+          ]
+        }
+      }
+    },
+    "shoot_crouch": {
+      "bones": {
+        "chest": {
+          "rotate": [
+            {},
+            {
+              "time": 0.15,
+              "value": -3
+            },
+            {
+              "time": 0.3
+            }
+          ]
+        },
+        "forearm_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.1,
+              "value": 15,
+              "curve": "stepped"
+            },
+            {
+              "time": 0.5,
+              "value": 15
+            }
+          ]
+        },
+        "hips": {
+          "translate": [
+            {
+              "y": -120
+            }
+          ]
+        },
+        "shin_far": {
+          "rotate": [
+            {
+              "value": -65
+            }
+          ]
+        },
+        "shin_near": {
+          "rotate": [
+            {
+              "value": -70
+            }
+          ]
+        },
+        "thigh_far": {
+          "rotate": [
+            {
+              "value": 35
+            }
+          ]
+        },
+        "thigh_near": {
+          "rotate": [
+            {
+              "value": 40
+            }
+          ]
+        },
+        "upper_arm_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.1,
+              "value": 70
+            }
+          ]
+        }
+      }
+    },
+    "shoot_stand": {
+      "bones": {
+        "chest": {
+          "rotate": [
+            {},
+            {
+              "time": 0.15,
+              "value": -3
+            },
+            {
+              "time": 0.3
+            }
+          ]
+        },
+        "forearm_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.1,
+              "value": 15,
+              "curve": "stepped"
+            },
+            {
+              "time": 0.5,
+              "value": 15
+            }
+          ]
+        },
+        "upper_arm_near": {
+          "rotate": [
+            {},
+            {
+              "time": 0.1,
+              "value": 70
+            }
+          ]
+        }
+      }
+    },
+    "tail_idle": {
+      "bones": {
+        "tail_1": {
+          "rotate": [
+            {
+              "value": 4
+            },
+            {
+              "time": 0.6,
+              "value": -4
+            },
+            {
+              "time": 1.2,
+              "value": 4
+            }
+          ]
+        },
+        "tail_2": {
+          "rotate": [
+            {
+              "value": -3
+            },
+            {
+              "time": 0.6,
+              "value": 3
+            },
+            {
+              "time": 1.2,
+              "value": -3
+            }
+          ]
+        }
+      }
+    },
+    "tail_jump": {
+      "bones": {
+        "tail_1": {
+          "rotate": [
+            {
+              "value": -20
+            }
+          ]
+        },
+        "tail_2": {
+          "rotate": [
+            {
+              "value": -10
+            }
+          ]
+        }
+      }
+    },
+    "tail_run": {
+      "bones": {
+        "tail_1": {
+          "rotate": [
+            {
+              "value": 10
+            },
+            {
+              "time": 0.3,
+              "value": -10
+            },
+            {
+              "time": 0.6,
+              "value": 10
+            }
+          ]
+        },
+        "tail_2": {
+          "rotate": [
+            {
+              "value": 8
+            },
+            {
+              "time": 0.3,
+              "value": -8
+            },
+            {
+              "time": 0.6,
+              "value": 8
+            }
+          ]
+        }
+      }
+    }
+  }
+}
