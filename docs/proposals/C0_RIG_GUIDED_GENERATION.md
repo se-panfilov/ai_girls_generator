@@ -163,6 +163,7 @@ Effect on generation:
 
 The rig contract states that its example geometry is a placeholder. Changing the geometry or the view is a contract change and an owner decision (D17, D3). C0 does not change it.
 Recommendation: correct the side layout in the mannequin before C0-7 and C0-8, or run the C0 plan only as a check of the pose signal.
+Follow-up: [C0.5 reference mannequin](C05_REFERENCE_MANNEQUIN.md) proposes a corrected candidate geometry.
 
 ### F2: the contract generation resolution is not an SDXL bucket
 

@@ -161,7 +161,15 @@ export function rigPose(contract: ControlContract, mapping: SideMapping): RigPos
   const shoulderNear = boneJoint(contract, 'upper_arm_near');
   const shoulderFar = boneJoint(contract, 'upper_arm_far');
   const head = headRect(contract);
+  // Face keypoints come from the contract points `face_nose`, `face_eye_<side>` and `face_ear_<side>` when the contract has them.
+  // A missing face point is a hidden keypoint. Without any face point, the face template (an assumption) places them.
+  const hasFacePoints = [...contract.points.keys()].some((id) => id.startsWith('face_'));
+  const faceSide = { r_eye: `face_eye_${right}`, l_eye: `face_eye_${left}`, r_ear: `face_ear_${right}`, l_ear: `face_ear_${left}`, nose: 'face_nose' } as const;
   const face = (name: 'nose' | 'r_eye' | 'l_eye' | 'r_ear' | 'l_ear'): Keypoint => {
+    if (hasFacePoints) {
+      const point = contract.points.get(faceSide[name]);
+      return point ? { name, point: point.position, source: `point:${point.id}` } : { name, point: null, source: `point:${faceSide[name]}:absent` };
+    }
     const spec = faceTemplate[name];
     if (spec === null) return { name, point: null, source: `assumption:${faceTemplate.version}:hidden` };
     return { name, point: { x: head.x + spec.fx * head.w, y: head.y + spec.fy * head.h }, source: `assumption:${faceTemplate.version}:slot:head` };
@@ -191,13 +199,14 @@ export function rigPose(contract: ControlContract, mapping: SideMapping): RigPos
     l_ear: face('l_ear')
   };
   const keypoints = keypointNames.map((name) => byName[name]);
-  const bodyHeight = contract.rigOrigin.y - head.y;
-  if (!(bodyHeight > 0)) fail('E_CONTRACT_GEOMETRY', 'The top of the head rectangle is not above the rig origin.');
+  const headTop = contract.points.get('head_top');
+  const bodyHeight = contract.rigOrigin.y - (headTop ? headTop.position.y : head.y);
+  if (!(bodyHeight > 0)) fail('E_CONTRACT_GEOMETRY', 'The top of the head is not above the rig origin.');
   return {
     mapping,
     keypoints,
     bodyHeight,
-    bodyHeightSource: 'space.rigOrigin.y - slots.head.attachmentRect.y',
+    bodyHeightSource: headTop ? 'space.rigOrigin.y - points.head_top.y' : 'space.rigOrigin.y - slots.head.attachmentRect.y',
     warnings: layoutWarnings(contract, keypoints)
   };
 }

@@ -92,6 +92,7 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 | Fail       | Below 40 % inside tolerance.                                                                                                                                            |
 
 Status: pilot C0 prepared the pose control images, ComfyUI workflows, and overlay tools. Inference is blocked (no GPU, no approved model). See [the C0 report](proposals/C0_RIG_GUIDED_GENERATION.md).
+C0.5 proposes a corrected reference geometry for the view (candidate, not accepted). See [the C0.5 report](proposals/C05_REFERENCE_MANNEQUIN.md).
 
 ### D. Asset interchange
 

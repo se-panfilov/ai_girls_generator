@@ -7,6 +7,7 @@ export type Rect = { readonly x: number; readonly y: number; readonly w: number;
 export type Joint = { readonly x: number; readonly y: number };
 export type ContractBone = { readonly id: string; readonly parent: string | null; readonly joint: Joint };
 export type ContractSlot = { readonly id: string; readonly bone: string; readonly drawOrder: number; readonly attachmentRect: Rect };
+export type ContractPoint = { readonly id: string; readonly bone: string; readonly position: Joint };
 export type Size = { readonly width: number; readonly height: number };
 export type Tolerances = { readonly jointErrorMaxPctHeight: number; readonly jointErrorMeanPctHeight: number; readonly segmentLengthRatio: readonly [number, number] };
 
@@ -21,6 +22,8 @@ export type ControlContract = {
   readonly tolerances: Tolerances;
   readonly bones: ReadonlyMap<string, ContractBone>;
   readonly slots: ReadonlyMap<string, ContractSlot>;
+  /** Named positions without images (`points`). Optional in the contract. */
+  readonly points: ReadonlyMap<string, ContractPoint>;
 };
 
 const idPattern = /^[a-z][a-z0-9_]{0,63}$/;
@@ -61,7 +64,7 @@ function tolerancesOf(value: unknown, problems: Problem[]): Tolerances {
 export function parseControlContract(value: unknown): ControlContract {
   const problems: Problem[] = [];
   if (!isRecord(value)) throw new ControlError([problem('E_CONTRACT_FORMAT', 'The rig contract must be a JSON object.')]);
-  const { rigId, contractVersion, space, view, sideNaming, bones, slots, tolerances } = value;
+  const { rigId, contractVersion, space, view, sideNaming, bones, slots, tolerances, points } = value;
   if (typeof rigId !== 'string' || !idPattern.test(rigId)) problems.push(problem('E_CONTRACT_FORMAT', `rigId ${show(rigId)} is not a valid identifier.`));
   if (typeof contractVersion !== 'string' || !semverPattern.test(contractVersion)) problems.push(problem('E_CONTRACT_FORMAT', `contractVersion ${show(contractVersion)} is not X.Y.Z.`));
   if (typeof view !== 'string' || !idPattern.test(view)) problems.push(problem('E_CONTRACT_FORMAT', `view ${show(view)} is not a valid identifier.`));
@@ -116,6 +119,21 @@ export function parseControlContract(value: unknown): ControlContract {
       });
     }
   }
+  const pointMap = new Map<string, ContractPoint>();
+  if (points !== undefined) {
+    if (!Array.isArray(points) || points.length > 256) problems.push(problem('E_CONTRACT_FORMAT', 'points must be an array of at most 256 entries.'));
+    else {
+      for (const [index, point] of (points as unknown[]).entries()) {
+        const subject = `points[${index}]`;
+        if (!isRecord(point) || typeof point.id !== 'string' || !idPattern.test(point.id) || typeof point.bone !== 'string' || !boneMap.has(point.bone)) {
+          problems.push(problem('E_CONTRACT_FORMAT', 'A point needs a valid id and an existing bone.', subject));
+          continue;
+        }
+        if (pointMap.has(point.id)) problems.push(problem('E_CONTRACT_DUPLICATE_POINT', `point ${show(point.id)} occurs more than once.`, subject));
+        pointMap.set(point.id, { id: point.id, bone: point.bone, position: pointOf(point.position, `${subject}.position`, problems) });
+      }
+    }
+  }
   const parsedTolerances = tolerancesOf(tolerances, problems);
   if (problems.length > 0) throw new ControlError(problems);
   return {
@@ -128,6 +146,7 @@ export function parseControlContract(value: unknown): ControlContract {
     sideNaming: sideNaming as string,
     tolerances: parsedTolerances,
     bones: boneMap,
-    slots: slotMap
+    slots: slotMap,
+    points: pointMap
   };
 }

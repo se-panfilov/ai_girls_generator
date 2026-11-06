@@ -2,7 +2,7 @@
 import { basename } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { type CommandResult, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
+import { calibrateCommand, candidateCommand, type CommandResult, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
@@ -20,6 +20,12 @@ Commands:
       It does not contact a server and does not run a model.
   overlay --contract <rig.contract.json> --image <generated.png> --out <dir> [--mapping detector|anatomical] [--marks <marks.json>]
       Draw the rig over an image and write a side-by-side sheet. With manual marks, measure the joint error.
+
+  candidate --base <rig.contract.json> --out <dir> [--yaw DEGREES]
+      Write the C0.5 candidate rig contract (experimental) from a base contract, and check it.
+  calibrate --before <rig.contract.json> --after <rig.contract.json> --out <dir> [--skeleton <skeleton.json>] [--size WxH]
+      Write before and after mannequins, joint and slot overlays, OpenPose images, a comparison sheet,
+      animation key poses (with --skeleton), consistency checks, and the migration table.
 
 Common options:
   --dry-run   Print the report and write nothing.
@@ -42,6 +48,11 @@ const options = {
   seeds: { type: 'string' },
   'baseline-seed': { type: 'string' },
   image: { type: 'string' },
+  base: { type: 'string' },
+  yaw: { type: 'string' },
+  before: { type: 'string' },
+  after: { type: 'string' },
+  skeleton: { type: 'string' },
   marks: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
@@ -51,7 +62,9 @@ const options = {
 const allowed: Record<string, readonly string[]> = {
   pose: ['contract', 'out', 'size', 'mapping'],
   workflow: ['pose-image', 'out', 'checkpoint', 'controlnet', 'checkpoint-sha256', 'controlnet-sha256', 'seeds', 'baseline-seed'],
-  overlay: ['contract', 'image', 'out', 'mapping', 'marks']
+  overlay: ['contract', 'image', 'out', 'mapping', 'marks'],
+  candidate: ['base', 'out', 'yaw'],
+  calibrate: ['before', 'after', 'skeleton', 'size', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -113,6 +126,22 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       poseImageName,
       poseImageBytes: bytes
     });
+    return { result, dryRun, out, force };
+  }
+  if (command === 'candidate') {
+    const bytes = readInput(required(values.base, 'base'), maxContractBytes, 'The base contract');
+    let yaw: number | undefined;
+    if (values.yaw !== undefined) {
+      if (!/^\d{1,2}(\.\d{1,3})?$/.test(values.yaw)) fail('E_USAGE', '--yaw must be a number of degrees, for example 40.');
+      yaw = Number(values.yaw);
+    }
+    return { result: candidateCommand(bytes, yaw), dryRun, out, force };
+  }
+  if (command === 'calibrate') {
+    const beforeBytes = readInput(required(values.before, 'before'), maxContractBytes, 'The before contract');
+    const afterBytes = readInput(required(values.after, 'after'), maxContractBytes, 'The after contract');
+    const skeletonBytes = values.skeleton === undefined ? undefined : readInput(values.skeleton, 16 * 1024 * 1024, 'The skeleton file');
+    const result = calibrateCommand({ beforeBytes, afterBytes, ...(skeletonBytes === undefined ? {} : { skeletonBytes }), ...(values.size === undefined ? {} : { size: values.size }) });
     return { result, dryRun, out, force };
   }
   const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');

@@ -16,3 +16,6 @@ packages/*/test/fixtures/l1-owner/**
 
 # Derived D26 spike fixture: a test compares its bytes with the derivation output
 packages/*/test/fixtures/d26-spike/**
+
+# Generated C0.5 candidate contract: a test compares its bytes with the generator output
+packages/control/test/fixtures/c05-candidate/rig.contract.json
