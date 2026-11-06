@@ -6,28 +6,28 @@ No production rig geometry, master skeleton, L1 fixture, or D26 fixture is chang
 
 ## Result
 
-| Item                                  | Status              | Where                                                                                            |
-| ------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------ |
-| F1 analysis                           | Done                | [F1 analysis](#f1-analysis)                                                                      |
-| Candidate geometry (experimental)     | Done                | `packages/control/test/fixtures/c05-candidate/rig.contract.json`                                 |
-| Mannequin, before and after pictures  | Done                | Project files `research/c05/` (`comparison.png`, overlays, OpenPose images, animation key poses) |
-| Consistency checks on the candidate   | **PASS** (10 of 10) | [Consistency checks](#consistency-checks). One visual check is for the owner.                    |
-| Consistency checks on the L1 test rig | **FAIL** (5 of 10)  | The same checks. Two are INCOMPLETE because L1 has no face points.                               |
-| Migration impact                      | Done                | [Migration impact](#migration-impact)                                                            |
-| Owner acceptance                      | **Open**            | [Owner decisions](#owner-decisions)                                                              |
+| Item                                  | Status              | Where                                                                                                 |
+| ------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------- |
+| F1 analysis                           | Done                | [F1 analysis](#f1-analysis)                                                                           |
+| Candidate geometry (experimental)     | Done                | `packages/control/test/fixtures/c05-candidate/rig.contract.json`                                      |
+| Mannequin, before and after pictures  | Done                | Project files `research/c05/` (`comparison.png`, overlays, OpenPose images, animation key poses)      |
+| Consistency checks on the candidate   | **PASS** (10 of 10) | [Consistency checks](#consistency-checks). One visual check is for the owner.                         |
+| Consistency checks on the L1 test rig | **FAIL** (5 of 10)  | The same checks. Two are INCOMPLETE because L1 has no face points.                                    |
+| Migration impact                      | Done                | [Migration impact](#migration-impact)                                                                 |
+| Owner acceptance                      | **Preliminary**     | Accepted as an experimental reference for experiment C only. See [Owner decisions](#owner-decisions). |
 
 ## F1 analysis
 
 Data: the L1 test rig contract 0.2.0 and its Spine export (`packages/rig-runtime/test/fixtures/l1-owner/`).
 
-| Aspect           | L1 data                                                                                                                                                                     |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Near/far depth   | Only the draw order shows depth: far limbs (3–8) are behind `torso` (10), near legs (12–14) are in front of `hips` (11), the near arm (22–26) is in front of the head (17). |
-| Anatomical side  | Not in the contract. `near_far` names and the view `three_quarter_right` give it: with the face to the right, the subject's right side is near.                             |
-| Projected joints | Near shoulder x 580 and near hip x 550 are on the **right** of the far shoulder (445) and far hip (480). The animal ear bones are the same (near 560, far 480).             |
-| Face direction   | Not in the contract. The head joint is 6 px right of the chest. C0 used an assumed face template.                                                                           |
-| Front/back cues  | `skirt_front` right of `skirt_back`, `tail_1` and `hair_tail_1` on the left (back), `aim` and `muzzle` on the right. All agree with facing right.                           |
-| Animations       | `crouch_enter` bends the knees toward +x, and `shoot_stand` turns `upper_arm_near` to point at +x. Both agree with facing right.                                            |
+| Aspect           | L1 data                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Near/far depth   | Only the draw order shows depth: far limbs (3–8) are behind `torso` (10), near legs (12–14) are in front of `hips` (11), the near arm (22–26) is in front of the head (17).                                                                                                                                                                                        |
+| Anatomical side  | Not in the contract. `near_far` names and the view `three_quarter_right` give it: with the face to the right, the subject's right side is near.                                                                                                                                                                                                                    |
+| Projected joints | Near shoulder x 580 and near hip x 550 are on the **right** of the far shoulder (445) and far hip (480). The animal ear bones are the same (near 560, far 480).                                                                                                                                                                                                    |
+| Face direction   | Not in the contract. The head joint is 6 px right of the chest. C0 used an assumed face template.                                                                                                                                                                                                                                                                  |
+| Front/back cues  | `skirt_front` right of `skirt_back`, `tail_1` and `hair_tail_1` on the left (back), `aim` and `muzzle` on the right. All agree with facing right.                                                                                                                                                                                                                  |
+| Animations       | **Not verified.** The keys are local rotations and translations, so the same keys can apply, but the key pose sheet uses approximate forward kinematics (linear keys, rotate and translate only, no curves, constraints or deform). Some poses in the sheet are doubtful. Do not declare the animations compatible until a check on the real Spine runtime passes. |
 
 What is geometrically established (from the coordinates and the view definition):
 
@@ -130,6 +130,17 @@ If the owner adopts the candidate geometry:
 | C0 workflows                | Make new control images from the adopted contract (`aigg-control pose`).                                                                                                                                                                                                                                                                                         |
 
 ## Owner decisions
+
+**Owner review result (preliminary).** The owner accepts this direction as a preliminary reference for experiment C:
+
+- A front-visible three-quarter view that faces the right of the image.
+- The near limbs are on the left of the image in the neutral setup pose.
+- Seven head heights.
+- An initial yaw of 40°.
+- Arms slightly away from the torso.
+- Explicit face points.
+
+This approves the experimental geometry only. It is **not** the approval of production rig contract 0.3.0. The Spine master rig, the L1 and D26 fixtures, and the production contract do not change at this stage. Decisions 3 to 5 below stay open for production, and D17 stays open in the decision log.
 
 1. Accept or change the intended view: front-visible three-quarter view facing the right of the image as the meaning of `three_quarter_right` (related: D17, D3).
 2. Accept or change the reference body: 7 head heights, yaw 40°, arms slightly away from the torso, neutral stance.
