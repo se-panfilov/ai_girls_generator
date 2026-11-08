@@ -13,7 +13,7 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | ----------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `pose`      | `rig.contract.json`, optional `--size WxH`    | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                 |
 | `workflow`  | An OpenPose image, model file names, seeds    | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                         |
-| `overlay`   | `rig.contract.json`, a PNG, optional marks    | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`                                                 |
+| `overlay`   | `rig.contract.json`, a PNG, optional marks    | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`       |
 | `candidate` | A base `rig.contract.json`, optional `--yaw`  | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
 | `calibrate` | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
 | `bundle`    | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle (see below)                                                                                          |
@@ -78,6 +78,24 @@ The runner needs Node.js 22.12 or later on the GPU host (the development version
 
 The error is the distance in contract pixels divided by the body height (from the top of the `head` rectangle to the rig origin). The thresholds come from `tolerances` in the contract.
 Only the 13 body keypoints are scored. Missing keypoints give INCOMPLETE.
+
+Optional fields (all in format `aigg.pose-marks/0.1`):
+
+- `origin`: who made the marks and how, for example "visual estimate, not confirmed by the owner".
+- `points.<name>.confidence`: `high`, `medium`, or `low`. Use `low` for a joint that clothing or hair hides. A point without it is `unspecified` and counts as confident.
+- `points.<name>.note`: a short reason for the position.
+- `unmeasurable`: `{ "<name>": "<reason>" }` for keypoints that cannot be marked. They are not "missing". A scored keypoint here gives INCOMPLETE, not PASS.
+- `extent`: `{ "headTop": {x, y}, "ground": {x, y} }`, the visible top of the head (hair included) and the ground line, in image pixels. They give the composition check.
+
+The measurement then also has:
+
+- `confident`: the error summary for high and medium marks only.
+- `face`: the error of the marked face keypoints. They are not scored, because the face template is an assumption.
+- `alignment`: **diagnostic only**. The uniform scale and translation that move the marks nearest to the rig (least squares, no rotation), the error that remains after it, and `segments[].ratioScaleFree`.
+  It shows how much of the error is size and position of the whole figure. The result status never uses it. With marks, `overlay` also writes `aligned-diagnostic.png`: the moved rig skeleton over the unchanged image.
+- `composition`: the marked body height divided by the rig body height, and the offsets of the head top and the ground line in % of body height.
+
+The overlay draws each mark as a cross: white inside tolerance, red outside tolerance, yellow for a low-confidence mark outside tolerance. The tool never changes the input image.
 
 ## Dependencies and limits
 

@@ -1,0 +1,122 @@
+{
+  "format": "aigg.pose-marks/0.1",
+  "image": {
+    "width": 832,
+    "height": 1216,
+    "sha256": "bfea13b71db5082b8a92f3b0e66c8aea1a46bb925dec0051b16589ccb2db130d"
+  },
+  "markedBy": "Claude (AI agent), visual estimate",
+  "origin": "Visual estimate by an AI agent (Claude) on 2x zoomed crops with a 20 px grid. Not confirmed by the owner. Not a detector output.",
+  "points": {
+    "nose": {
+      "x": 457,
+      "y": 142,
+      "confidence": "medium",
+      "note": "Profile face. Nose tip on the face outline."
+    },
+    "r_eye": {
+      "x": 425,
+      "y": 127,
+      "confidence": "high",
+      "note": "Near eye, iris center."
+    },
+    "r_ear": {
+      "x": 367,
+      "y": 142,
+      "confidence": "high",
+      "note": "Near ear, center of the ear shell."
+    },
+    "neck": {
+      "x": 389,
+      "y": 259,
+      "confidence": "low",
+      "note": "Midpoint of the two shoulder marks, as the rig defines the neck keypoint."
+    },
+    "r_shoulder": {
+      "x": 292,
+      "y": 256,
+      "confidence": "low",
+      "note": "Jacket shoulder hides the joint. Estimated from the shoulder outline."
+    },
+    "l_shoulder": {
+      "x": 486,
+      "y": 262,
+      "confidence": "low",
+      "note": "Far shoulder, partly hidden by the torso and the jacket."
+    },
+    "r_elbow": {
+      "x": 272,
+      "y": 420,
+      "confidence": "low",
+      "note": "Inside the jacket sleeve. Estimated from the sleeve outline."
+    },
+    "l_elbow": {
+      "x": 520,
+      "y": 410,
+      "confidence": "low",
+      "note": "Far arm inside the sleeve. Estimated from the sleeve outline."
+    },
+    "r_wrist": {
+      "x": 284,
+      "y": 553,
+      "confidence": "medium",
+      "note": "Where the hand comes out of the cuff."
+    },
+    "l_wrist": {
+      "x": 514,
+      "y": 528,
+      "confidence": "medium",
+      "note": "Where the far hand comes out of the cuff."
+    },
+    "r_hip": {
+      "x": 352,
+      "y": 545,
+      "confidence": "low",
+      "note": "Jeans hide the pelvis. Estimated from the leg axis and the crotch line."
+    },
+    "l_hip": {
+      "x": 455,
+      "y": 545,
+      "confidence": "low",
+      "note": "Jeans hide the pelvis. Estimated from the leg axis and the crotch line."
+    },
+    "r_knee": {
+      "x": 350,
+      "y": 825,
+      "confidence": "low",
+      "note": "Rolled trouser cuff covers the knee."
+    },
+    "l_knee": {
+      "x": 425,
+      "y": 825,
+      "confidence": "low",
+      "note": "Rolled trouser cuff covers the knee."
+    },
+    "r_ankle": {
+      "x": 355,
+      "y": 1105,
+      "confidence": "low",
+      "note": "Inside a heeled boot. Estimated from the boot shaft and the sole."
+    },
+    "l_ankle": {
+      "x": 410,
+      "y": 1085,
+      "confidence": "low",
+      "note": "Inside a heeled boot. Estimated from the boot shaft and the sole."
+    }
+  },
+  "unmeasurable": {
+    "l_eye": "Far eye is hidden: the face is in near profile.",
+    "l_ear": "Far ear is hidden, as in the rig."
+  },
+  "extent": {
+    "headTop": {
+      "x": 390,
+      "y": 52
+    },
+    "ground": {
+      "x": 380,
+      "y": 1172
+    }
+  }
+}

@@ -3,10 +3,24 @@ import { type ControlContract, type Joint, parseControlContract, type Size } fro
 import { renderMannequin } from '@control/figure';
 import { extremeTime, parseAnimations, posedContract } from '@control/kinematics';
 import { candidateContract, referenceBody } from '@control/mannequin';
-import { measure, type Measurement, parseMarks } from '@control/measure';
+import { fitScaleTranslation, measure, type Measurement, parseMarks } from '@control/measure';
 import type { PlannedFile } from '@control/output';
 import { decodePng, encodePng, pixelHash, sha256 } from '@control/png';
-import { fitTransform, type Keypoint, type KeypointName, openPoseJson, poseLineRatio, renderOpenPose, type RigPose, rigPose, round, type SideMapping, toTarget, type Transform } from '@control/pose';
+import {
+  fitTransform,
+  type Keypoint,
+  type KeypointName,
+  openPoseJson,
+  poseLineRatio,
+  renderOpenPose,
+  type RigPose,
+  rigPose,
+  round,
+  type SideMapping,
+  toContract,
+  toTarget,
+  type Transform
+} from '@control/pose';
 import { fail, type Problem } from '@control/problems';
 import { type Color, Raster } from '@control/raster';
 import { drawSkeletonOverlay, referenceSvg, renderReference } from '@control/reference';
@@ -191,6 +205,7 @@ export function overlayCommand(options: OverlayOptions): CommandResult {
   }
   drawSkeletonOverlay(overlay, pose.keypoints, transform);
   let measurement: Measurement | null = null;
+  let aligned: Raster | null = null;
   if (options.marksBytes) {
     let value: unknown;
     try {
@@ -203,13 +218,35 @@ export function overlayCommand(options: OverlayOptions): CommandResult {
     if (marks.image.sha256 !== undefined && marks.image.sha256 !== sha256(options.imageBytes)) fail('E_MARKS_IMAGE', 'The marks are for another image (SHA-256 differs).');
     const expected = new Map<KeypointName, { x: number; y: number }>();
     for (const item of pose.keypoints) if (item.point) expected.set(item.name, item.point);
-    measurement = measure(expected, marks, transform, pose.bodyHeight, contract.tolerances);
+    const headTop = contract.points.get('head_top')?.position ?? { x: contract.rigOrigin.x, y: contract.rigOrigin.y - pose.bodyHeight };
+    measurement = measure(expected, marks, transform, pose.bodyHeight, contract.tolerances, { headTop, ground: contract.rigOrigin });
     const mark = Math.max(6, 10 * transform.scale);
     for (const joint of measurement.joints) {
       const a = toTarget(joint.expected, transform);
       const b = toTarget(joint.marked, transform);
       overlay.line(a, b, Math.max(2, mark / 4), [255, 0, 0, 230]);
-      cross(overlay, b.x, b.y, mark, joint.pass ? [255, 255, 255, 255] : [255, 0, 0, 255]);
+      // White: inside tolerance. Red: outside tolerance. Yellow: a low-confidence mark (the joint is hidden), outside tolerance.
+      const color: Color = joint.pass ? [255, 255, 255, 255] : joint.confidence === 'low' ? [255, 220, 0, 255] : [255, 0, 0, 255];
+      cross(overlay, b.x, b.y, mark, color);
+    }
+    const fit = measurement.alignment;
+    if (fit) {
+      // Diagnostic panel: the rig skeleton moved and scaled by the fitted alignment, over the unchanged image.
+      const names = measurement.joints.map((joint) => joint.name);
+      const fitResult = fitScaleTranslation(
+        names.map((name) => toContract(marks.points.get(name) as Joint, transform)),
+        names.map((name) => expected.get(name) as Joint)
+      );
+      if (fitResult) {
+        const moved = pose.keypoints.map((item) => (item.point ? { ...item, point: { x: (item.point.x - fitResult.t.x) / fitResult.s, y: (item.point.y - fitResult.t.y) / fitResult.s } } : item));
+        aligned = new Raster(size.width, size.height, [255, 255, 255, 255]);
+        aligned.draw(image, 0, 0);
+        drawSkeletonOverlay(aligned, moved, transform);
+        for (const joint of measurement.joints) {
+          const b = toTarget(joint.marked, transform);
+          cross(aligned, b.x, b.y, mark * 0.7, joint.confidence === 'low' ? [255, 220, 0, 255] : [255, 255, 255, 255]);
+        }
+      }
     }
   }
   const control = renderOpenPose(pose.keypoints, size, transform);
@@ -241,9 +278,12 @@ export function overlayCommand(options: OverlayOptions): CommandResult {
     keypoints: keypointReport(pose, transform).filter((item) => (item.contract as Keypoint['point']) !== null),
     files: [record(overlayFile, overlay), record(sheetFile, sheet)]
   };
+  const alignedFile: PlannedFile | null = aligned ? { name: 'aligned-diagnostic.png', bytes: encodePng(aligned) } : null;
+  if (alignedFile && aligned) result.files.push(record(alignedFile, aligned));
   const reportFile: PlannedFile = { name: 'overlay.json', bytes: json(result) };
   const status = measurement === null ? 'PASS' : measurement.status;
-  return { report: { status, command: 'overlay', ...result, files: [...result.files, record(reportFile)] }, files: [overlayFile, sheetFile, reportFile] };
+  const written = alignedFile ? [overlayFile, sheetFile, alignedFile, reportFile] : [overlayFile, sheetFile, reportFile];
+  return { report: { status, command: 'overlay', ...result, files: [...result.files, record(reportFile)] }, files: written };
 }
 
 /** `candidate`: the candidate rig contract of C0.5 from a base contract, as canonical JSON. */

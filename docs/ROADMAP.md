@@ -94,6 +94,7 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 Status: pilot C0 prepared the pose control images, ComfyUI workflows, and overlay tools. Inference is blocked (no GPU, no approved model). See [the C0 report](proposals/C0_RIG_GUIDED_GENERATION.md).
 C0.5 proposes a corrected reference geometry for the view. The owner accepted it as a preliminary reference for experiment C only. See [the C0.5 report](proposals/C05_REFERENCE_MANNEQUIN.md).
 The first generation uses an execution bundle (`aigg-control bundle`): the agent prepares it, the owner runs it on the GPU host, and the agent analyzes the images. See [the package README](../packages/control/README.md).
+C1 evaluated the first baseline and pose-guided pair (one seed). OpenPose kept the joint positions, but not the torso and foot orientation. This does not decide experiment C. See [the C1 report](proposals/C1_GEOMETRY_EVALUATION.md).
 
 ### D. Asset interchange
 
