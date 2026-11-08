@@ -97,7 +97,7 @@ The first generation uses an execution bundle (`aigg-control bundle`): the agent
 C1 evaluated the first baseline and pose-guided pair (one seed). OpenPose kept the joint positions, but not the torso and foot orientation. This does not decide experiment C. See [the C1 report](proposals/C1_GEOMETRY_EVALUATION.md).
 C2 prepares OpenPose only against OpenPose + depth (three seeds) with an approximate depth image of the C0.5 reference body. Run once. See [the C2 preparation](proposals/C2_PREPARATION.md).
 C2 ran (six images). The orientation gate failed in all six images. Detached hands were in 3 of 3 A images and 1 of 3 B images. See [the C2 failure analysis](proposals/C2_FAILURE_ANALYSIS.md).
-The owner approved a three-phase product strategy (Phase 1 Art Generation MVP, Phase 2 Spine Automation, Phase 3 Production Readiness) with template constraints (D27). The proposed roadmap, the early rig feasibility gate F0 and the next offline step T1a are in [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md#15-roadmap). The phase table is updated after the owner decides D27.
+The owner approved a three-phase product strategy (Phase 1 Art Generation MVP, Phase 2 Spine Automation, Phase 3 Production Readiness) with template constraints (D27). The proposed roadmap, the early rig feasibility gate F0 and the proposed offline step T1a are in [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md#15-roadmap). The phase table is updated after the owner decides D27.
 
 ### D. Asset interchange
 
