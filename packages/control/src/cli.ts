@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-import { basename } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
@@ -26,6 +28,11 @@ Commands:
   calibrate --before <rig.contract.json> --after <rig.contract.json> --out <dir> [--skeleton <skeleton.json>] [--size WxH]
       Write before and after mannequins, joint and slot overlays, OpenPose images, a comparison sheet,
       animation key poses (with --skeleton), consistency checks, and the migration table.
+
+  bundle --contract <C0.5 candidate rig.contract.json> --out <dir>
+      Write the experiment C execution bundle: run.sh, runner.mjs, bundle.json (model manifest), the OpenPose image,
+      one baseline and one pose-guided workflow (seed 1001), run-plan.json, README.md, and SHA256SUMS.
+      The owner copies it to the GPU host and runs it there. This command does not contact a server.
 
 Common options:
   --dry-run   Print the report and write nothing.
@@ -64,7 +71,8 @@ const allowed: Record<string, readonly string[]> = {
   workflow: ['pose-image', 'out', 'checkpoint', 'controlnet', 'checkpoint-sha256', 'controlnet-sha256', 'seeds', 'baseline-seed'],
   overlay: ['contract', 'image', 'out', 'mapping', 'marks'],
   candidate: ['base', 'out', 'yaw'],
-  calibrate: ['before', 'after', 'skeleton', 'size', 'out']
+  calibrate: ['before', 'after', 'skeleton', 'size', 'out'],
+  bundle: ['contract', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -136,6 +144,11 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       yaw = Number(values.yaw);
     }
     return { result: candidateCommand(bytes, yaw), dryRun, out, force };
+  }
+  if (command === 'bundle') {
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    const runnerBytes = readInput(join(dirname(fileURLToPath(import.meta.url)), 'runner.js'), 4 * 1024 * 1024, 'The compiled runner');
+    return { result: bundleCommand({ contractBytes, runnerBytes }), dryRun, out, force };
   }
   if (command === 'calibrate') {
     const beforeBytes = readInput(required(values.before, 'before'), maxContractBytes, 'The before contract');
