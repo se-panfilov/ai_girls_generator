@@ -179,6 +179,12 @@ describe('bundle', () => {
     const path = join(root, 'c0-pose-1001.api.json');
     writeFileSync(path, readFileSync(path, 'utf8').replace('"seed": 1001', '"seed": 1002'));
     expect(() => loadBundle(root, synthetic)).toThrow(/does not agree with bundle.json/);
+    const image = join(root, 'openpose-anatomical.png');
+    const copy = join(root, '..', 'copy.png');
+    writeFileSync(copy, readFileSync(image));
+    rmSync(image);
+    symlinkSync(copy, image);
+    expect(() => loadBundle(root, synthetic)).toThrow(/cannot be opened|does not agree/);
   });
 });
 

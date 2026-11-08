@@ -14,7 +14,24 @@
 // - The log and the reports contain no environment values, no tokens, and no query strings of download URLs.
 
 import { createHash, randomUUID } from 'node:crypto';
-import { closeSync, createReadStream, existsSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, statfsSync, writeFileSync, writeSync } from 'node:fs';
+import {
+  closeSync,
+  constants,
+  createReadStream,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statfsSync,
+  writeFileSync,
+  writeSync
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -132,16 +149,33 @@ const maxBundleFileBytes = 16 * 1024 * 1024;
 
 function readBundleFile(root: string, path: string): Buffer {
   if (!plainPath.test(path) || path.split('/').some((part) => part === '.' || part === '..')) fail('E_BUNDLE', `The bundle path ${show(path)} is not a plain relative path.`);
-  const full = join(root, path);
-  let info;
+  // One file descriptor for the type check, the size check and the read, so they see the same file. O_NOFOLLOW refuses a link.
+  let fd: number;
   try {
-    info = lstatSync(full);
-  } catch {
-    return fail('E_BUNDLE_INTEGRITY', `The bundle file ${path} is missing.`, 'Copy the complete bundle directory again.');
+    fd = openSync(join(root, path), constants.O_RDONLY | constants.O_NOFOLLOW);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return fail(
+      'E_BUNDLE_INTEGRITY',
+      code === 'ENOENT' ? `The bundle file ${path} is missing.` : `The bundle file ${path} cannot be opened (${show(code)}).`,
+      'Copy the complete bundle directory again.'
+    );
   }
-  if (!info.isFile()) fail('E_BUNDLE_INTEGRITY', `The bundle file ${path} is not a regular file.`);
-  if (info.size > maxBundleFileBytes) fail('E_BUNDLE_INTEGRITY', `The bundle file ${path} is too large.`);
-  return readFileSync(full);
+  try {
+    const info = fstatSync(fd);
+    if (!info.isFile()) fail('E_BUNDLE_INTEGRITY', `The bundle file ${path} is not a regular file.`);
+    const buffer = Buffer.alloc(maxBundleFileBytes + 1);
+    let length = 0;
+    for (;;) {
+      const count = readSync(fd, buffer, length, buffer.length - length, null);
+      if (count === 0) break;
+      length += count;
+      if (length > maxBundleFileBytes) fail('E_BUNDLE_INTEGRITY', `The bundle file ${path} is too large.`);
+    }
+    return buffer.subarray(0, length);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** Parses bundle.json and checks that the models are exactly the approved list and the runs are the approved runs. */
