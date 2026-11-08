@@ -208,7 +208,7 @@ describe('runner with a fake ComfyUI', () => {
     expect(pose['5']?.inputs.seed).toBe(1001);
     expect(existsSync(join(out, '.lock'))).toBe(false);
     expect(readFileSync(join(out, 'run.log'), 'utf8')).not.toMatch(/token|password|authorization/i);
-    expect(status(out).status).toBe('PASS');
+    expect(status(out, base.bundleRoot, synthetic).status).toBe('PASS');
 
     const again = await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl });
     expect(again.status).toBe('PASS');
@@ -226,22 +226,37 @@ describe('runner with a fake ComfyUI', () => {
 
     rmSync(join(out, 'pose-1001.png'));
     expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_RESULT_CHANGED');
-    expect(status(out)).toMatchObject({ status: 'FAIL', problems: ['pose-1001.png is missing'] });
+    expect(status(out, base.bundleRoot, synthetic)).toMatchObject({ status: 'FAIL', problems: ['pose-1001.png is missing'] });
 
     writeFileSync(join(out, 'pose-1001.png'), Buffer.concat([pose, Buffer.from([0])]));
     expect(await errorCode(execute({ ...base, command: 'run' }))).toBe('E_RESULT_CHANGED');
-    expect(status(out)).toMatchObject({ status: 'FAIL', problems: ['pose-1001.png has another SHA-256'] });
+    expect(status(out, base.bundleRoot, synthetic)).toMatchObject({ status: 'FAIL', problems: ['pose-1001.png has another SHA-256'] });
 
     writeFileSync(join(out, 'pose-1001.png'), pose);
     writeFileSync(join(out, 'SHA256SUMS'), `${'0'.repeat(64)}  baseline-1001.png\n`);
     expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_RESULT_CHANGED');
-    expect(status(out).status).toBe('FAIL');
+    expect(status(out, base.bundleRoot, synthetic).status).toBe('FAIL');
 
     writeFileSync(join(out, 'SHA256SUMS'), sums);
     expect((await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl })).status).toBe('PASS');
     expect(fake.prompts).toHaveLength(2);
     expect(downloads.calls).toHaveLength(2);
     expect(existsSync(join(out, '.lock'))).toBe(false);
+  });
+
+  it('status requires both bundle runs and does not take the run list from result.json', async () => {
+    const { out, base } = await setup();
+    const downloads = fakeDownloads();
+    expect((await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl })).status).toBe('PASS');
+    const result = JSON.parse(readFileSync(join(out, 'result.json'), 'utf8')) as { runs: { id: string; sha256: string }[] };
+    const baseline = result.runs.filter((run) => run.id === 'baseline-1001');
+    writeFileSync(join(out, 'result.json'), JSON.stringify({ ...result, runs: baseline }));
+    writeFileSync(join(out, 'SHA256SUMS'), `${baseline[0]?.sha256}  baseline-1001.png\n`);
+    rmSync(join(out, 'pose-1001.png'));
+    expect(status(out, base.bundleRoot, synthetic)).toMatchObject({
+      status: 'FAIL',
+      problems: expect.arrayContaining(['result.json lists 1 runs, 2 are expected', 'result.json has no valid entry for pose-1001.png']) as unknown
+    });
   });
 
   it('stops with E_SUBMISSION_AMBIGUOUS and never submits again when the answer to POST /prompt is lost', async () => {
@@ -254,7 +269,7 @@ describe('runner with a fake ComfyUI', () => {
     expect(typeof state.runs['baseline-1001']?.clientId).toBe('string');
     expect(typeof state.runs['baseline-1001']?.submissionStartedAt).toBe('string');
     expect(state.runs['baseline-1001']?.promptId).toBeUndefined();
-    expect(status(out)).toMatchObject({ status: 'INCOMPLETE', runs: [{ id: 'baseline-1001', submissionAmbiguous: true }] });
+    expect(status(out, base.bundleRoot, synthetic)).toMatchObject({ status: 'INCOMPLETE', runs: [{ id: 'baseline-1001', submissionAmbiguous: true }] });
 
     fake.mode.dropResponse = false;
     expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_SUBMISSION_AMBIGUOUS');
@@ -344,8 +359,11 @@ describe('runner CLI', () => {
     const usage = spawnSync(process.execPath, [distRunner, '--unknown'], { encoding: 'utf8' });
     expect(usage.status).toBe(2);
     expect(JSON.parse(usage.stdout)).toMatchObject({ status: 'ERROR', code: 'E_USAGE' });
+    // status reads the required runs from the bundle next to the runner, so it runs from a written bundle with the real model list.
+    const root = join(temporaryDirectory(), 'bundle');
+    writeFiles(root, bundleCommand({ contractBytes: candidateBytes(), runnerBytes: runnerBytes() }).files, true);
     const empty = temporaryDirectory();
-    const result = spawnSync(process.execPath, [distRunner, 'status', '--out', empty], { encoding: 'utf8' });
+    const result = spawnSync(process.execPath, [join(root, 'runner.mjs'), 'status', '--out', empty], { encoding: 'utf8' });
     expect(result.status).toBe(3);
     expect(JSON.parse(result.stdout)).toMatchObject({ status: 'INCOMPLETE' });
   });

@@ -897,15 +897,20 @@ function resultProblems(out: string, result: Record<string, unknown>, ids: reado
   return problems;
 }
 
-/** status: reads the results directory only. */
-export function status(out: string): Report {
+/** status: reads the results directory only. The required runs come from the checked bundle, never from result.json. */
+export function status(out: string, bundleRoot: string, approved: readonly ApprovedModel[] = approvedModels): Report {
+  const loaded = loadBundle(bundleRoot, approved);
   const full = resolve(out);
   const result = readJsonFile(join(full, 'result.json'));
   if (isRecord(result) && result.status === 'PASS') {
     const runs = Array.isArray(result.runs) ? result.runs.filter(isRecord) : [];
-    const ids = runs.map((run) => run.id).filter((id): id is string => typeof id === 'string' && /^[A-Za-z0-9-]+$/.test(id));
-    const problems = resultProblems(full, result, ids.length === runs.length ? ids : []);
-    const ok = problems.length === 0 && ids.length > 0;
+    const problems = resultProblems(
+      full,
+      result,
+      loaded.bundle.runs.map((run) => run.id)
+    );
+    if (result.bundleSha256 !== loaded.bundleSha256) problems.unshift('result.json belongs to another bundle');
+    const ok = problems.length === 0;
     return { status: ok ? 'PASS' : 'FAIL', command: 'status', results: full, runs: runs.map((run) => ({ id: run.id, file: run.file, sha256: run.sha256 })), ...(ok ? {} : { problems }) };
   }
   const state = readJsonFile(join(full, 'state.json'));
@@ -981,7 +986,7 @@ export async function main(argv: readonly string[], bundleRoot: string): Promise
     const command = positionals[0] ?? 'all';
     const out = values.out ?? join(bundleRoot, 'results');
     if (command === 'status') {
-      const report = status(out);
+      const report = status(out, bundleRoot);
       print(report);
       return report.status === 'PASS' ? 0 : report.status === 'INCOMPLETE' ? 3 : 1;
     }
