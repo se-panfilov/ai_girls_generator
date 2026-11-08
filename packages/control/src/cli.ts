@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { bundleCommand } from '@control/bundle';
-import { calibrateCommand, candidateCommand, type CommandResult, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
+import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
@@ -29,9 +29,14 @@ Commands:
       Write before and after mannequins, joint and slot overlays, OpenPose images, a comparison sheet,
       animation key poses (with --skeleton), consistency checks, and the migration table.
 
-  bundle --contract <C0.5 candidate rig.contract.json> --out <dir>
-      Write the experiment C execution bundle: run.sh, runner.mjs, bundle.json (model manifest), the OpenPose image,
-      one baseline and one pose-guided workflow (seed 1001), run-plan.json, README.md, and SHA256SUMS.
+  depth --contract <C0.5 candidate rig.contract.json> --out <dir> [--size WxH]
+      Write the approximate depth image of the C0.5 reference body (simple volumes), a shaded part view, a top view,
+      a preview sheet for review, and depth.json with the assumptions and the checks D1 to D7.
+
+  bundle --contract <C0.5 candidate rig.contract.json> --out <dir> [--experiment c1|c2]
+      Write an experiment C execution bundle: run.sh, runner.mjs, bundle.json (model manifest), the control images,
+      the workflows, run-plan.json, README.md, and SHA256SUMS. c1 (default): one baseline and one pose-guided run, seed 1001.
+      c2: OpenPose only and OpenPose + depth, seeds 1001, 1002, 1003 (six runs).
       The owner copies it to the GPU host and runs it there. This command does not contact a server.
 
 Common options:
@@ -61,6 +66,7 @@ const options = {
   after: { type: 'string' },
   skeleton: { type: 'string' },
   marks: { type: 'string' },
+  experiment: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -72,7 +78,8 @@ const allowed: Record<string, readonly string[]> = {
   overlay: ['contract', 'image', 'out', 'mapping', 'marks'],
   candidate: ['base', 'out', 'yaw'],
   calibrate: ['before', 'after', 'skeleton', 'size', 'out'],
-  bundle: ['contract', 'out']
+  depth: ['contract', 'out', 'size'],
+  bundle: ['contract', 'out', 'experiment']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -148,7 +155,13 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   if (command === 'bundle') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     const runnerBytes = readInput(join(dirname(fileURLToPath(import.meta.url)), 'runner.js'), 4 * 1024 * 1024, 'The compiled runner');
-    return { result: bundleCommand({ contractBytes, runnerBytes }), dryRun, out, force };
+    const experiment = values.experiment ?? 'c1';
+    if (experiment !== 'c1' && experiment !== 'c2') fail('E_USAGE', '--experiment must be c1 or c2.');
+    return { result: bundleCommand({ contractBytes, runnerBytes, experiment }), dryRun, out, force };
+  }
+  if (command === 'depth') {
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    return { result: depthCommand(contractBytes, values.size), dryRun, out, force };
   }
   if (command === 'calibrate') {
     const beforeBytes = readInput(required(values.before, 'before'), maxContractBytes, 'The before contract');

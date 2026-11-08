@@ -1,7 +1,10 @@
 // Experiment C runner. It runs on the GPU host (a Runpod Pod), next to ComfyUI.
 //
 // This module is self-contained: it imports only Node.js built-ins, so the build gives one file that the bundle copies as runner.mjs.
-// Scope: exactly the two approved model files, exactly the runs in the bundle (one baseline and one pose-guided run, seed 1001).
+// Scope: exactly the two approved model files, exactly the runs in the bundle.
+//   Format 0.1 (C1): one baseline and one pose-guided run with the same seed.
+//   Format 0.2 (C2): condition A (OpenPose) and condition B (OpenPose + depth) for each of three seeds. A and B of one seed must be
+//   the same graph except the depth nodes; the runner checks this before any request to ComfyUI.
 //
 // Trust boundaries and controls:
 // - The bundle is data from the repository. Each file is checked against bundle.json and against SHA256SUMS (run.sh) before use.
@@ -37,6 +40,8 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 export const bundleFormat = 'aigg.exp-c-bundle/0.1';
+export const bundleFormatC2 = 'aigg.exp-c-bundle/0.2';
+export const maxRuns = 6;
 export const resultFormat = 'aigg.exp-c-result/0.1';
 export const minimumNode = '22.12.0';
 export const comfyHost = '127.0.0.1';
@@ -133,13 +138,18 @@ export async function fileSha256(path: string): Promise<string> {
 
 // ---------------------------------------------------------------- bundle
 
-export type BundleRun = { readonly id: string; readonly kind: 'baseline' | 'pose'; readonly seed: number; readonly workflow: string; readonly saveNode: string };
+export type RunKind = 'baseline' | 'pose' | 'pose-depth';
+export type BundleRun = { readonly id: string; readonly kind: RunKind; readonly seed: number; readonly workflow: string; readonly saveNode: string };
+export type ControlRole = 'openpose' | 'depth';
+export type ControlImage = { readonly role: ControlRole; readonly path: string; readonly uploadName: string };
+/** The control images and union types that each run kind uses. */
+export const kindControls: Readonly<Record<RunKind, readonly ControlRole[]>> = { baseline: [], pose: ['openpose'], 'pose-depth': ['openpose', 'depth'] };
 export type BundleFile = { readonly path: string; readonly sha256: string };
 export type Bundle = {
   readonly format: string;
   readonly experiment: string;
   readonly models: readonly ApprovedModel[];
-  readonly controlImage: { readonly path: string; readonly uploadName: string };
+  readonly controlImages: readonly ControlImage[];
   readonly image: { readonly width: number; readonly height: number };
   readonly runs: readonly BundleRun[];
   readonly files: readonly BundleFile[];
@@ -178,30 +188,64 @@ function readBundleFile(root: string, path: string): Buffer {
   }
 }
 
+const uploadNamePattern = /^[A-Za-z0-9._-]{1,200}\.png$/;
+
+function parseRun(run: unknown, allowed: readonly RunKind[]): BundleRun {
+  if (!isRecord(run) || typeof run.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(run.id)) return fail('E_BUNDLE_RUNS', 'A run has no valid id.');
+  if (typeof run.kind !== 'string' || !(allowed as readonly string[]).includes(run.kind)) return fail('E_BUNDLE_RUNS', `Run ${run.id} has an unknown kind.`);
+  if (!Number.isSafeInteger(run.seed) || typeof run.workflow !== 'string' || typeof run.saveNode !== 'string') return fail('E_BUNDLE_RUNS', `Run ${run.id} is not complete.`);
+  return { id: run.id, kind: run.kind as RunKind, seed: run.seed as number, workflow: run.workflow, saveNode: run.saveNode };
+}
+
 /** Parses bundle.json and checks that the models are exactly the approved list and the runs are the approved runs. */
 export function parseBundle(value: unknown, approved: readonly ApprovedModel[] = approvedModels): Bundle {
   if (!isRecord(value)) return fail('E_BUNDLE', 'bundle.json is not a JSON object.');
-  if (value.format !== bundleFormat) fail('E_BUNDLE', `bundle.json format must be ${bundleFormat}.`);
+  if (value.format !== bundleFormat && value.format !== bundleFormatC2) fail('E_BUNDLE', `bundle.json format must be ${bundleFormat} or ${bundleFormatC2}.`);
+  const c2 = value.format === bundleFormatC2;
   if (typeof value.experiment !== 'string') fail('E_BUNDLE', 'bundle.json has no experiment name.');
   const models = value.models;
   if (!Array.isArray(models) || JSON.stringify(models) !== JSON.stringify(approved))
     fail('E_BUNDLE_MODELS', 'The models in bundle.json are not exactly the approved model files.', 'Only the two files approved for experiment C can be used. Build the bundle again.');
-  const control = value.controlImage;
-  if (!isRecord(control) || typeof control.path !== 'string' || typeof control.uploadName !== 'string' || !/^[A-Za-z0-9._-]{1,200}\.png$/.test(control.uploadName))
-    fail('E_BUNDLE', 'bundle.json controlImage is not valid.');
+  const controls: ControlImage[] = [];
+  if (c2) {
+    const list = value.controlImages;
+    if (!Array.isArray(list) || list.length !== 2) fail('E_BUNDLE', 'bundle.json controlImages must list the OpenPose and the depth image.');
+    for (const item of list as unknown[]) {
+      if (!isRecord(item) || (item.role !== 'openpose' && item.role !== 'depth') || typeof item.path !== 'string' || typeof item.uploadName !== 'string' || !uploadNamePattern.test(item.uploadName))
+        fail('E_BUNDLE', 'A control image entry in bundle.json is not valid.');
+      controls.push({ role: item.role, path: item.path, uploadName: item.uploadName });
+    }
+    if (new Set(controls.map((item) => item.role)).size !== 2 || new Set(controls.map((item) => item.uploadName)).size !== 2)
+      fail('E_BUNDLE', 'The control images must be one OpenPose and one depth image with different names.');
+  } else {
+    const control = value.controlImage;
+    if (!isRecord(control) || typeof control.path !== 'string' || typeof control.uploadName !== 'string' || !uploadNamePattern.test(control.uploadName))
+      fail('E_BUNDLE', 'bundle.json controlImage is not valid.');
+    controls.push({ role: 'openpose', path: control.path, uploadName: control.uploadName });
+  }
   const image = value.image;
   if (!isRecord(image) || !Number.isSafeInteger(image.width) || !Number.isSafeInteger(image.height)) fail('E_BUNDLE', 'bundle.json image size is not valid.');
   const runs = value.runs;
-  if (!Array.isArray(runs) || runs.length !== 2) fail('E_BUNDLE_RUNS', 'bundle.json must have exactly two runs: one baseline and one pose-guided run.');
-  const parsedRuns = (runs as unknown[]).map((run): BundleRun => {
-    if (!isRecord(run) || typeof run.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(run.id)) return fail('E_BUNDLE_RUNS', 'A run has no valid id.');
-    if (run.kind !== 'baseline' && run.kind !== 'pose') return fail('E_BUNDLE_RUNS', `Run ${run.id} has an unknown kind.`);
-    if (typeof run.seed !== 'number' || typeof run.workflow !== 'string' || typeof run.saveNode !== 'string') return fail('E_BUNDLE_RUNS', `Run ${run.id} is not complete.`);
-    return { id: run.id, kind: run.kind, seed: run.seed, workflow: run.workflow, saveNode: run.saveNode };
-  });
-  const kinds = parsedRuns.map((run) => run.kind).sort();
-  if (kinds[0] !== 'baseline' || kinds[1] !== 'pose') fail('E_BUNDLE_RUNS', 'The runs must be one baseline and one pose-guided run.');
-  if (parsedRuns[0]?.seed !== parsedRuns[1]?.seed) fail('E_BUNDLE_RUNS', 'The two runs must use the same seed.');
+  if (!Array.isArray(runs) || runs.length > maxRuns) return fail('E_BUNDLE_RUNS', `bundle.json must have a list of at most ${maxRuns} runs.`);
+  const parsedRuns = (runs as unknown[]).map((run) => parseRun(run, c2 ? ['pose', 'pose-depth'] : ['baseline', 'pose']));
+  if (new Set(parsedRuns.map((run) => run.id)).size !== parsedRuns.length) fail('E_BUNDLE_RUNS', 'Two runs have the same id.');
+  if (c2) {
+    // Exactly one condition A and one condition B for each of three different seeds.
+    const seeds = [...new Set(parsedRuns.map((run) => run.seed))];
+    if (parsedRuns.length !== 6 || seeds.length !== 3) fail('E_BUNDLE_RUNS', 'A C2 bundle must have six runs: conditions A and B for three seeds.');
+    for (const seed of seeds) {
+      const kinds = parsedRuns
+        .filter((run) => run.seed === seed)
+        .map((run) => run.kind)
+        .sort();
+      if (kinds.length !== 2 || kinds[0] !== 'pose' || kinds[1] !== 'pose-depth') fail('E_BUNDLE_RUNS', `Seed ${seed} must have one OpenPose run and one OpenPose + depth run.`);
+    }
+  } else {
+    if (parsedRuns.length !== 2) fail('E_BUNDLE_RUNS', 'bundle.json must have exactly two runs: one baseline and one pose-guided run.');
+    const kinds = parsedRuns.map((run) => run.kind).sort();
+    if (kinds[0] !== 'baseline' || kinds[1] !== 'pose') fail('E_BUNDLE_RUNS', 'The runs must be one baseline and one pose-guided run.');
+    if (parsedRuns[0]?.seed !== parsedRuns[1]?.seed) fail('E_BUNDLE_RUNS', 'The two runs must use the same seed.');
+  }
   const files = value.files;
   if (!Array.isArray(files) || files.length === 0) fail('E_BUNDLE', 'bundle.json has no file list.');
   const parsedFiles = (files as unknown[]).map((file): BundleFile => {
@@ -209,10 +253,10 @@ export function parseBundle(value: unknown, approved: readonly ApprovedModel[] =
     return { path: file.path, sha256: file.sha256 };
   });
   return {
-    format: bundleFormat,
+    format: c2 ? bundleFormatC2 : bundleFormat,
     experiment: value.experiment,
     models: approved,
-    controlImage: { path: control.path, uploadName: control.uploadName },
+    controlImages: controls,
     image: { width: image.width as number, height: image.height as number },
     runs: parsedRuns,
     files: parsedFiles
@@ -221,14 +265,21 @@ export function parseBundle(value: unknown, approved: readonly ApprovedModel[] =
 
 type Graph = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
 
-/** Checks a workflow graph: only allowed core nodes, the approved model names, one image per run, the run seed, and one save node. */
+const link = (value: unknown): string | null => (Array.isArray(value) && value.length === 2 && typeof value[0] === 'string' && Number.isSafeInteger(value[1]) ? value[0] : null);
+
+/**
+ * Checks a workflow graph: only allowed core nodes, the approved model names, the run seed, one image of the bundle size, one save node,
+ * and the control wiring of the run kind: each control application uses a union type node of its role and the control image of the same
+ * role, the applications form one chain from the prompts to the sampler, and no other image is loaded.
+ */
 export function checkWorkflow(value: unknown, run: BundleRun, bundle: Bundle): Graph {
   if (!isRecord(value)) return fail('E_WORKFLOW', `The workflow of run ${run.id} is not a JSON object.`);
   const graph = value as Graph;
   const checkpoint = bundle.models.find((model) => model.folder === 'checkpoints')?.file;
   const controlNet = bundle.models.find((model) => model.folder === 'controlnet')?.file;
   let samplers = 0;
-  let loads = 0;
+  const loads: string[] = [];
+  const applies: string[] = [];
   for (const [id, node] of Object.entries(graph)) {
     if (!isRecord(node) || typeof node.class_type !== 'string' || !isRecord(node.inputs)) fail('E_WORKFLOW', `Node ${show(id)} of run ${run.id} is not valid.`);
     if (!allowedNodeTypes.includes(node.class_type)) fail('E_WORKFLOW_NODE', `Run ${run.id} uses the node type ${show(node.class_type)}, which is not allowed.`);
@@ -241,19 +292,105 @@ export function checkWorkflow(value: unknown, run: BundleRun, bundle: Bundle): G
     }
     if (node.class_type === 'EmptyLatentImage' && (inputs.batch_size !== 1 || inputs.width !== bundle.image.width || inputs.height !== bundle.image.height))
       fail('E_WORKFLOW', `Run ${run.id} must make one image of ${bundle.image.width}x${bundle.image.height}.`);
-    if (node.class_type === 'LoadImage') {
-      loads += 1;
-      if (inputs.image !== bundle.controlImage.uploadName) fail('E_WORKFLOW', `Run ${run.id} loads an image other than the control image.`);
-    }
+    if (node.class_type === 'LoadImage') loads.push(id);
+    if (node.class_type === 'ControlNetApplyAdvanced') applies.push(id);
     if (node.class_type === 'SaveImage' && id !== run.saveNode) fail('E_WORKFLOW', `Run ${run.id} has a second save node.`);
   }
   if (samplers !== 1) fail('E_WORKFLOW', `Run ${run.id} must have exactly one sampler.`);
   if (graph[run.saveNode]?.class_type !== 'SaveImage') fail('E_WORKFLOW', `Run ${run.id} has no save node ${run.saveNode}.`);
-  if ((run.kind === 'pose') !== (loads === 1) || loads > 1) fail('E_WORKFLOW', `Run ${run.id} must load the control image only when it is the pose-guided run.`);
+  const roles = kindControls[run.kind];
+  if (loads.length !== roles.length || applies.length !== roles.length) fail('E_WORKFLOW', `Run ${run.id} (${run.kind}) must load and apply exactly ${roles.length} control image(s).`);
+  const seen: ControlRole[] = [];
+  for (const id of applies) {
+    const inputs = (graph[id] as Graph[string]).inputs;
+    const typeNode = graph[link(inputs.control_net) ?? ''];
+    const imageNode = graph[link(inputs.image) ?? ''];
+    if (typeNode?.class_type !== 'SetUnionControlNetType' || imageNode?.class_type !== 'LoadImage')
+      fail('E_WORKFLOW_CONTROL', `Control node ${id} of run ${run.id} must use a union type node and a loaded image.`);
+    if (graph[link(typeNode.inputs.control_net) ?? '']?.class_type !== 'ControlNetLoader')
+      fail('E_WORKFLOW_CONTROL', `The union type node of control ${id} in run ${run.id} must use the ControlNet loader.`);
+    const role = typeNode.inputs.type;
+    const control = bundle.controlImages.find((item) => item.role === role);
+    if (!control || !roles.includes(control.role)) fail('E_WORKFLOW_CONTROL', `Run ${run.id} uses the union type ${show(role)}, which is not allowed for ${run.kind}.`);
+    if (imageNode.inputs.image !== control.uploadName) fail('E_WORKFLOW_CONTROL', `Run ${run.id} applies ${control.role} control to an image other than ${control.uploadName}.`);
+    seen.push(control.role);
+  }
+  if ([...seen].sort().join() !== [...roles].sort().join()) fail('E_WORKFLOW_CONTROL', `Run ${run.id} must apply each of ${roles.join(', ') || 'no'} control once.`);
+  // The sampler conditioning must come through every control application, in one chain, back to two different prompts.
+  const sampler = Object.values(graph).find((node) => node.class_type === 'KSampler') as Graph[string];
+  const ends: string[] = [];
+  for (const [input, index] of [
+    ['positive', 0],
+    ['negative', 1]
+  ] as const) {
+    let ref = sampler.inputs[input];
+    let steps = 0;
+    for (;;) {
+      const id = link(ref);
+      const node = id === null ? undefined : graph[id];
+      if (node?.class_type !== 'ControlNetApplyAdvanced') break;
+      if ((ref as unknown[])[1] !== index) fail('E_WORKFLOW_CONTROL', `The ${input} conditioning of run ${run.id} uses the wrong output of control node ${id}.`);
+      ref = node.inputs[input];
+      steps += 1;
+      if (steps > applies.length) fail('E_WORKFLOW_CONTROL', `The ${input} conditioning of run ${run.id} has a loop.`);
+    }
+    const end = link(ref);
+    if (steps !== applies.length || end === null || graph[end]?.class_type !== 'CLIPTextEncode')
+      fail('E_WORKFLOW_CONTROL', `The ${input} conditioning of run ${run.id} does not pass through all control nodes to a prompt.`);
+    ends.push(end);
+  }
+  if (ends[0] === ends[1]) fail('E_WORKFLOW_CONTROL', `Run ${run.id} uses the same prompt for the positive and the negative conditioning.`);
   return graph;
 }
 
-export type LoadedBundle = { readonly root: string; readonly bundle: Bundle; readonly bundleSha256: string; readonly workflows: ReadonlyMap<string, Graph>; readonly controlImage: Buffer };
+/** A graph without node titles and with a neutral save prefix, for the comparison of the two conditions. */
+const comparable = (graph: Graph): string =>
+  JSON.stringify(
+    Object.keys(graph)
+      .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b))
+      .map((id) => {
+        const node = graph[id] as Graph[string];
+        const inputs = node.class_type === 'SaveImage' ? { ...node.inputs, filename_prefix: null } : node.inputs;
+        return [
+          id,
+          node.class_type,
+          Object.keys(inputs)
+            .sort()
+            .map((key) => [key, inputs[key]])
+        ];
+      })
+  );
+
+/**
+ * C2: condition B of a seed minus its depth nodes must be the same graph as condition A of that seed. So the only experimental difference
+ * is the depth control. The depth nodes are the depth control application, its union type node, and its image loader.
+ */
+export function checkPair(poseGraph: Graph, depthGraph: Graph, seed: number): void {
+  const copy: Graph = JSON.parse(JSON.stringify(depthGraph)) as Graph;
+  const depthApply = Object.entries(copy).find(([, node]) => node.class_type === 'ControlNetApplyAdvanced' && copy[link(node.inputs.control_net) ?? '']?.inputs.type === 'depth');
+  if (!depthApply) fail('E_WORKFLOW_PAIR', `Seed ${seed}: condition B has no depth control.`);
+  const [applyId, apply] = depthApply;
+  const typeId = link(apply.inputs.control_net) as string;
+  const imageId = link(apply.inputs.image) ?? '';
+  for (const node of Object.values(copy)) {
+    for (const [key, value] of Object.entries(node.inputs)) {
+      if (link(value) === applyId) node.inputs[key] = key === 'positive' ? apply.inputs.positive : key === 'negative' ? apply.inputs.negative : value;
+    }
+  }
+  const removed = new Set([applyId, typeId, imageId]);
+  const rest: Graph = Object.fromEntries(Object.entries(copy).filter(([id]) => !removed.has(id)));
+  for (const node of Object.values(rest))
+    for (const value of Object.values(node.inputs)) if (removed.has(link(value) ?? '')) fail('E_WORKFLOW_PAIR', `Seed ${seed}: another node uses the depth nodes.`);
+  if (comparable(rest) !== comparable(poseGraph)) fail('E_WORKFLOW_PAIR', `Seed ${seed}: conditions A and B differ in more than the depth control.`, 'Build the bundle again.');
+}
+
+export type LoadedBundle = {
+  readonly root: string;
+  readonly bundle: Bundle;
+  readonly bundleSha256: string;
+  readonly workflows: ReadonlyMap<string, Graph>;
+  readonly controlImages: ReadonlyMap<string, Buffer>;
+};
 
 /** Reads bundle.json, checks the SHA-256 of each listed file, and checks the workflows. */
 export function loadBundle(root: string, approved: readonly ApprovedModel[] = approvedModels): LoadedBundle {
@@ -282,10 +419,21 @@ export function loadBundle(root: string, approved: readonly ApprovedModel[] = ap
     }
     workflows.set(run.id, checkWorkflow(graph, run, bundle));
   }
-  const controlImage = need(bundle.controlImage.path);
-  const size = pngSize(controlImage);
-  if (size.width !== bundle.image.width || size.height !== bundle.image.height) fail('E_BUNDLE', 'The control image size does not agree with bundle.json.');
-  return { root, bundle, bundleSha256: sha256(raw), workflows, controlImage };
+  if (bundle.format === bundleFormatC2) {
+    for (const seed of new Set(bundle.runs.map((run) => run.seed))) {
+      const a = bundle.runs.find((run) => run.seed === seed && run.kind === 'pose') as BundleRun;
+      const b = bundle.runs.find((run) => run.seed === seed && run.kind === 'pose-depth') as BundleRun;
+      checkPair(workflows.get(a.id) as Graph, workflows.get(b.id) as Graph, seed);
+    }
+  }
+  const controlImages = new Map<string, Buffer>();
+  for (const control of bundle.controlImages) {
+    const bytes = need(control.path);
+    const size = pngSize(bytes);
+    if (size.width !== bundle.image.width || size.height !== bundle.image.height) fail('E_BUNDLE', `The ${control.role} control image size does not agree with bundle.json.`);
+    controlImages.set(control.uploadName, bytes);
+  }
+  return { root, bundle, bundleSha256: sha256(raw), workflows, controlImages };
 }
 
 /** Reads the width and height from the PNG header. */
@@ -530,14 +678,64 @@ export async function comfyInfo(comfy: Comfy): Promise<ComfyInfo> {
   };
 }
 
+export type NodeSpec = { readonly required: Record<string, unknown>; readonly optional: Record<string, unknown> };
+
+/** The input lists of one node type from /object_info. */
+export function nodeSpec(value: unknown): NodeSpec {
+  const input = isRecord(value) && isRecord(value.input) ? value.input : {};
+  return { required: isRecord(input.required) ? input.required : {}, optional: isRecord(input.optional) ? input.optional : {} };
+}
+
+/** The choices of a combo input in both /object_info forms: [[choices], options] and ["COMBO", { options: [choices] }]. Null when it is not a combo. */
+export function comboChoices(spec: unknown): unknown[] | null {
+  if (!Array.isArray(spec)) return null;
+  if (Array.isArray(spec[0])) return spec[0] as unknown[];
+  if (spec[0] === 'COMBO' && isRecord(spec[1]) && Array.isArray(spec[1].options)) return spec[1].options as unknown[];
+  return null;
+}
+
+/** Inputs whose fixed value must be one of the choices that ComfyUI lists. Model and image names are checked elsewhere. */
+const checkedCombos: Readonly<Record<string, readonly string[]>> = { KSampler: ['sampler_name', 'scheduler'], SetUnionControlNetType: ['type'] };
+
+/** Each graph input must be a known input of its node type, each required input must be given, and fixed combo values must be listed. */
+export function checkGraphInputs(graph: Graph, specs: ReadonlyMap<string, NodeSpec>, runId: string): void {
+  for (const [id, node] of Object.entries(graph)) {
+    const spec = specs.get(node.class_type);
+    if (!spec) fail('E_COMFYUI_NODE', `ComfyUI gave no input list for ${node.class_type}.`);
+    for (const key of Object.keys(node.inputs))
+      if (!(key in spec.required) && !(key in spec.optional))
+        fail(
+          'E_COMFYUI_INPUT',
+          `Run ${runId}: node ${id} (${node.class_type}) has the input ${show(key)}, which this ComfyUI does not know.`,
+          'The workflow does not fit this ComfyUI version. Nothing was generated.'
+        );
+    for (const key of Object.keys(spec.required))
+      if (!(key in node.inputs))
+        fail(
+          'E_COMFYUI_INPUT',
+          `Run ${runId}: node ${id} (${node.class_type}) has no value for the required input ${show(key)}.`,
+          'The workflow does not fit this ComfyUI version. Nothing was generated.'
+        );
+    for (const key of checkedCombos[node.class_type] ?? []) {
+      const choices = comboChoices(spec.required[key] ?? spec.optional[key]);
+      if (!choices || !choices.includes(node.inputs[key]))
+        fail('E_COMFYUI_CHOICE', `Run ${runId}: ${node.class_type} does not offer ${key} = ${show(node.inputs[key])} in this ComfyUI.`, 'Nothing was generated. Report the ComfyUI version.');
+    }
+  }
+}
+
 /** Checks that ComfyUI has every node type of the workflows, and, after the models are in place, that it lists the approved files. */
 export async function checkComfyNodes(comfy: Comfy, loaded: LoadedBundle, modelsVisible: boolean): Promise<void> {
   const types = new Set<string>();
   for (const graph of loaded.workflows.values()) for (const node of Object.values(graph)) types.add(node.class_type);
+  const specs = new Map<string, NodeSpec>();
   for (const type of [...types].sort()) {
     const info = await comfyJson(comfy, `/object_info/${encodeURIComponent(type)}`);
     if (!isRecord(info) || !isRecord(info[type])) fail('E_COMFYUI_NODE', `ComfyUI has no node type ${type}.`, 'Use a current ComfyUI version. Do not install custom nodes for this experiment.');
+    specs.set(type, nodeSpec(info[type]));
   }
+  // Do not assume that the graphs fit this ComfyUI version: check the input names and the fixed choices before any generation.
+  for (const [runId, graph] of loaded.workflows) checkGraphInputs(graph, specs, runId);
   if (!modelsVisible) return;
   for (const [type, input, model] of [
     ['CheckpointLoaderSimple', 'ckpt_name', loaded.bundle.models.find((item) => item.folder === 'checkpoints')],
@@ -545,25 +743,26 @@ export async function checkComfyNodes(comfy: Comfy, loaded: LoadedBundle, models
   ] as const) {
     const info = await comfyJson(comfy, `/object_info/${type}`);
     const required = isRecord(info) && isRecord(info[type]) && isRecord(info[type].input) && isRecord(info[type].input.required) ? info[type].input.required : {};
-    const choices = Array.isArray(required[input]) && Array.isArray(required[input][0]) ? (required[input][0] as unknown[]) : [];
+    const choices = comboChoices(required[input]) ?? [];
     if (!model || !choices.includes(model.file))
       fail('E_COMFYUI_MODEL_NOT_VISIBLE', `ComfyUI does not list ${model?.file ?? 'the model'} for ${type}.`, 'Give --models-dir as the models folder that this ComfyUI uses.');
   }
 }
 
-/** Uploads the control image under its fixed name and reads it back to check the bytes. */
-export async function uploadControlImage(comfy: Comfy, loaded: LoadedBundle, log: Logger): Promise<void> {
-  const name = loaded.bundle.controlImage.uploadName;
-  const form = new FormData();
-  form.append('image', new Blob([new Uint8Array(loaded.controlImage)], { type: 'image/png' }), name);
-  form.append('type', 'input');
-  form.append('overwrite', 'true');
-  const answer = await comfyJson(comfy, '/upload/image', { method: 'POST', body: form });
-  if (!isRecord(answer) || answer.name !== name || (answer.subfolder !== undefined && answer.subfolder !== ''))
-    fail('E_COMFYUI_UPLOAD', `ComfyUI stored the control image as ${show(isRecord(answer) ? answer.name : answer)}, not ${name}.`);
-  const back = await comfyBytes(comfy, `/view?${new URLSearchParams({ filename: name, type: 'input', subfolder: '' }).toString()}`, 16 * 1024 * 1024);
-  if (sha256(back) !== sha256(loaded.controlImage)) fail('E_COMFYUI_UPLOAD', 'The control image in ComfyUI is not the same as the bundle file.');
-  log.event('control.uploaded', { name, sha256: sha256(back) });
+/** Uploads each control image under its fixed name and reads it back to check the bytes. */
+export async function uploadControlImages(comfy: Comfy, loaded: LoadedBundle, log: Logger): Promise<void> {
+  for (const [name, bytes] of loaded.controlImages) {
+    const form = new FormData();
+    form.append('image', new Blob([new Uint8Array(bytes)], { type: 'image/png' }), name);
+    form.append('type', 'input');
+    form.append('overwrite', 'true');
+    const answer = await comfyJson(comfy, '/upload/image', { method: 'POST', body: form });
+    if (!isRecord(answer) || answer.name !== name || (answer.subfolder !== undefined && answer.subfolder !== ''))
+      fail('E_COMFYUI_UPLOAD', `ComfyUI stored the control image as ${show(isRecord(answer) ? answer.name : answer)}, not ${name}.`);
+    const back = await comfyBytes(comfy, `/view?${new URLSearchParams({ filename: name, type: 'input', subfolder: '' }).toString()}`, 16 * 1024 * 1024);
+    if (sha256(back) !== sha256(bytes)) fail('E_COMFYUI_UPLOAD', `The control image ${name} in ComfyUI is not the same as the bundle file.`);
+    log.event('control.uploaded', { name, sha256: sha256(back) });
+  }
 }
 
 // ---------------------------------------------------------------- state and runs
@@ -851,7 +1050,7 @@ export async function execute(options: ExecuteOptions): Promise<Report> {
     const state = readState(out, loaded.bundleSha256);
     saveState(out, state);
     const startedAt = new Date().toISOString();
-    if (loaded.bundle.runs.some((run) => !state.runs[run.id]?.promptId && !state.runs[run.id]?.submissionStartedAt)) await uploadControlImage(comfy, loaded, log);
+    if (loaded.bundle.runs.some((run) => !state.runs[run.id]?.promptId && !state.runs[run.id]?.submissionStartedAt)) await uploadControlImages(comfy, loaded, log);
     const runs = [];
     for (const run of loaded.bundle.runs) {
       const output = await runOne(loaded, run, state, { comfy, out, timeoutMs: options.timeoutMs, pollMs: options.pollMs ?? 2000, log });

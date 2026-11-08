@@ -99,3 +99,53 @@ export function poseWorkflow(settings: GenerationSettings, size: Size, seed: num
   sampler.inputs.negative = ['11', 1];
   return graph;
 }
+
+/**
+ * Fixed C2 prompt, the same for both conditions. Changes against C0 (owner decisions after C1): no `looking to the side`; the whole body,
+ * the torso and the feet turn to the right; a test outfit that shows the joints (fitted top, short sleeves, shorts, low shoes).
+ * The negative prompt adds a near-profile head and clothing that hides joints. The character is an adult; explicit content and minors are excluded.
+ */
+export const c2Prompt = {
+  positive:
+    '1girl, original, safe, adult woman, mature female, solo, full body, standing, three-quarter view, facing right, ' +
+    'body turned to the right, torso turned to the right, feet pointing to the right, head turned the same way as the body, ' +
+    'arms slightly away from the body, empty hands, visible hands, visible feet, short hair, black hair, ' +
+    'fitted t-shirt, short sleeves, shorts, bare knees, sneakers, plain white background, simple background, ' +
+    'masterpiece, high score, great score, absurdres',
+  negative:
+    'lowres, bad anatomy, bad hands, text, error, missing finger, extra digits, fewer digits, cropped, worst quality, low quality, low score, bad score, average score, ' +
+    'signature, watermark, username, blurry, nsfw, explicit, nude, child, loli, aged down, multiple views, from behind, out of frame, cropped feet, ' +
+    'profile, looking back, oversized clothes, jacket, long sleeves, boots, high heels'
+} as const;
+
+/** The depth control of condition B: union type, strength and the active part of the sampling (fractions of the steps). */
+export const c2Depth = { type: 'depth', strength: 0.5, startPercent: 0, endPercent: 0.5 } as const;
+
+/**
+ * Condition B: the pose-guided workflow plus a second union ControlNet application in depth mode, chained after the pose application.
+ * Nodes 1 to 11 are the same as in `poseWorkflow`. Node 12 loads the depth image, node 13 sets the union type, node 14 applies it to the
+ * conditioning that node 11 gives. The sampler then uses the output of node 14. Nothing else changes.
+ */
+export function poseDepthWorkflow(settings: GenerationSettings, size: Size, seed: number, prefix: string, poseImage: string, depthImage: string): Record<string, Node> {
+  if (!/^[A-Za-z0-9._-]{1,200}\.png$/.test(depthImage) || depthImage === poseImage) fail('E_WORKFLOW_IMAGE_NAME', 'The depth image must be a plain .png file name, other than the pose image.');
+  const graph = poseWorkflow(settings, size, seed, prefix, poseImage);
+  graph['12'] = { class_type: 'LoadImage', inputs: { image: depthImage }, _meta: { title: 'Depth image' } };
+  graph['13'] = { class_type: 'SetUnionControlNetType', inputs: { control_net: ['9', 0], type: c2Depth.type }, _meta: { title: 'Union type depth' } };
+  graph['14'] = {
+    class_type: 'ControlNetApplyAdvanced',
+    inputs: {
+      positive: ['11', 0],
+      negative: ['11', 1],
+      control_net: ['13', 0],
+      image: ['12', 0],
+      strength: c2Depth.strength,
+      start_percent: c2Depth.startPercent,
+      end_percent: c2Depth.endPercent
+    },
+    _meta: { title: 'Apply depth control' }
+  };
+  const sampler = graph['5'] as Node;
+  sampler.inputs.positive = ['14', 0];
+  sampler.inputs.negative = ['14', 1];
+  return graph;
+}
