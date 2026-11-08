@@ -95,6 +95,7 @@ Status: pilot C0 prepared the pose control images, ComfyUI workflows, and overla
 C0.5 proposes a corrected reference geometry for the view. The owner accepted it as a preliminary reference for experiment C only. See [the C0.5 report](proposals/C05_REFERENCE_MANNEQUIN.md).
 The first generation uses an execution bundle (`aigg-control bundle`): the agent prepares it, the owner runs it on the GPU host, and the agent analyzes the images. See [the package README](../packages/control/README.md).
 C1 evaluated the first baseline and pose-guided pair (one seed). OpenPose kept the joint positions, but not the torso and foot orientation. This does not decide experiment C. See [the C1 report](proposals/C1_GEOMETRY_EVALUATION.md).
+C2 prepares OpenPose only against OpenPose + depth (three seeds) with an approximate depth image of the C0.5 reference body. Not run yet. See [the C2 preparation](proposals/C2_PREPARATION.md).
 
 ### D. Asset interchange
 

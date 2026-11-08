@@ -16,7 +16,8 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `overlay`   | `rig.contract.json`, a PNG, optional marks    | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`       |
 | `candidate` | A base `rig.contract.json`, optional `--yaw`  | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
 | `calibrate` | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
-| `bundle`    | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle (see below)                                                                                          |
+| `depth`     | The C0.5 candidate `rig.contract.json`        | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
+| `bundle`    | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -66,7 +67,25 @@ the OpenPose image, one baseline and one pose-guided workflow (seed 1001), `run-
 
 On the Pod, `sh run.sh --models-dir <ComfyUI models folder>` checks the bundle and ComfyUI at `127.0.0.1:8188`, downloads only the two approved model files from pinned revisions with a SHA-256 check,
 runs the two workflows once, and writes the images, `SHA256SUMS`, `result.json`, and `run.log`. `sh run.sh status` reads the results directory. See [SECURITY.md](SECURITY.md) for the controls.
-The runner needs Node.js 22.12 or later on the GPU host (the development version is in `.nvmrc`). It refuses any other model list, more runs, or a second submission of a recorded prompt.
+The runner needs Node.js 22.12 or later on the GPU host (the development version is in `.nvmrc`). It refuses any other model list, other runs, or a second submission of a recorded prompt. Before any download it checks every node input and the union types against the live ComfyUI (`/object_info`).
+
+## Approximate depth image (C2)
+
+`depth` renders the C0.5 reference body (`referenceBody` in `src/mannequin.ts`) as simple volumes: one smooth torso with elliptic sections, ellipsoids for the head and the nose, capsules for the neck, limbs, hands and feet.
+Each pixel casts 2 x 2 orthographic rays at the reference yaw (40 degrees). The nearest surface wins, so near limbs cover far limbs. Near is bright, far is dark, the background is black.
+It is a **relative depth approximation, not a physical 3D model**: no hair, no clothing, no fingers, no breasts, no face detail except a small nose. The values that `referenceBody` does not give are in `depthAssumptions` (`src/depth.ts`) and in `depth.json`.
+
+Checks: D1 joints and D2 face points of the volumes project onto the contract within 1 px (the C0.5 candidate is not changed); D3 the face and D4 the feet turn to the image right and to the camera;
+D5 the near limbs are nearer than the far limbs; D6 the near limbs cover more pixels; D7 every part is visible. The preview sheet shows the depth, the OpenPose image, both together, the shaded volumes, the C0.5 flat mannequin, and a top view.
+
+```sh
+node packages/control/dist/src/cli.js depth --contract packages/control/test/fixtures/c05-candidate/rig.contract.json --out /tmp/c2-depth
+node packages/control/dist/src/cli.js bundle --experiment c2 --contract packages/control/test/fixtures/c05-candidate/rig.contract.json --out /tmp/exp-c2-bundle
+```
+
+The C2 bundle (format `aigg.exp-c-bundle/0.2`) has six runs: condition A (OpenPose) and condition B (OpenPose + depth) for the seeds 1001, 1002 and 1003, both control images, and its own README with the Runpod steps.
+The runner accepts only these six runs (fixed seeds, run ids, and workflow files). Other seeds give `E_BUNDLE_RUNS` before any request to ComfyUI. The runner does not stop or terminate the GPU host; the spend limit and the teardown are owner actions.
+The runner refuses a C2 bundle in which A and B of a seed differ in more than the depth nodes. See [the C2 preparation report](../../docs/proposals/C2_PREPARATION.md).
 
 ## Measurement
 

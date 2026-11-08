@@ -9,7 +9,7 @@ import { bundleCommand } from '@control/bundle';
 import { writeFiles } from '@control/output';
 import { encodePng } from '@control/png';
 import { Raster } from '@control/raster';
-import { type ApprovedModel, approvedModels, execute, type ExecuteOptions, type FetchFunction, loadBundle, parseBundle, RunnerError, sha256, status } from '@control/runner';
+import { type ApprovedModel, approvedModels, c2Runs, execute, type ExecuteOptions, type FetchFunction, loadBundle, parseBundle, RunnerError, sha256, status } from '@control/runner';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { temporaryDirectory } from './helpers';
@@ -46,17 +46,70 @@ type Fake = {
   server: Server;
   port: number;
   prompts: unknown[];
+  /** Every request path that reached the fake ComfyUI. */
+  requests: string[];
   history: Map<string, unknown>;
   input: Map<string, Buffer>;
   modelsDir: string;
-  mode: { error: boolean; lose: boolean; dropResponse: boolean; missingNode: string | null };
+  mode: { error: boolean; lose: boolean; dropResponse: boolean; missingNode: string | null; comboForm: boolean; unionTypes: string[]; renameInput: boolean };
 };
 
+/**
+ * Input lists of the core nodes, in the shape of ComfyUI /object_info. Written for these tests from the inputs that the workflows use;
+ * not copied from ComfyUI. `comboForm` gives the newer ["COMBO", { options }] form of choice inputs.
+ */
+function nodeSpecs(type: string, list: (folder: string) => string[], comboForm: boolean, unionTypes: readonly string[]): Record<string, unknown> | null {
+  const combo = (choices: readonly unknown[]): unknown[] => (comboForm ? ['COMBO', { options: choices }] : [choices, {}]);
+  const specs: Record<string, Record<string, unknown>> = {
+    CheckpointLoaderSimple: { required: { ckpt_name: combo(list('checkpoints')) } },
+    CLIPTextEncode: { required: { text: ['STRING', {}], clip: ['CLIP'] } },
+    EmptyLatentImage: { required: { width: ['INT', {}], height: ['INT', {}], batch_size: ['INT', {}] } },
+    KSampler: {
+      required: {
+        model: ['MODEL'],
+        seed: ['INT', {}],
+        steps: ['INT', {}],
+        cfg: ['FLOAT', {}],
+        sampler_name: combo(['euler', 'euler_ancestral']),
+        scheduler: combo(['normal', 'karras']),
+        positive: ['CONDITIONING'],
+        negative: ['CONDITIONING'],
+        latent_image: ['LATENT'],
+        denoise: ['FLOAT', {}]
+      }
+    },
+    VAEDecode: { required: { samples: ['LATENT'], vae: ['VAE'] } },
+    SaveImage: { required: { images: ['IMAGE'], filename_prefix: ['STRING', {}] } },
+    LoadImage: { required: { image: combo([]) } },
+    ControlNetLoader: { required: { control_net_name: combo(list('controlnet')) } },
+    SetUnionControlNetType: { required: { control_net: ['CONTROL_NET'], type: combo(['auto', ...unionTypes]) } },
+    ControlNetApplyAdvanced: {
+      required: {
+        positive: ['CONDITIONING'],
+        negative: ['CONDITIONING'],
+        control_net: ['CONTROL_NET'],
+        image: ['IMAGE'],
+        strength: ['FLOAT', {}],
+        start_percent: ['FLOAT', {}],
+        end_percent: ['FLOAT', {}]
+      },
+      optional: { vae: ['VAE'] }
+    }
+  };
+  return specs[type] ?? null;
+}
 const outputImage = encodePng(new Raster(832, 1216, [10, 20, 30, 255]));
 
 /** A minimal fake ComfyUI API on 127.0.0.1 with the endpoints that the runner uses. */
 async function fakeComfy(modelsDir: string): Promise<Fake> {
-  const fake: Omit<Fake, 'server' | 'port'> = { prompts: [], history: new Map(), input: new Map(), modelsDir, mode: { error: false, lose: false, dropResponse: false, missingNode: null } };
+  const fake: Omit<Fake, 'server' | 'port'> = {
+    prompts: [],
+    requests: [],
+    history: new Map(),
+    input: new Map(),
+    modelsDir,
+    mode: { error: false, lose: false, dropResponse: false, missingNode: null, comboForm: false, unionTypes: ['openpose', 'depth', 'canny/lineart/anime_lineart/mlsd'], renameInput: false }
+  };
   const send = (response: ServerResponse, code: number, value: unknown): void => {
     response.writeHead(code, { 'content-type': 'application/json' });
     response.end(JSON.stringify(value));
@@ -70,13 +123,22 @@ async function fakeComfy(modelsDir: string): Promise<Fake> {
   const server = createServer((request, response) => {
     void (async () => {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+      fake.requests.push(url.pathname);
       if (url.pathname === '/system_stats')
         return send(response, 200, { system: { comfyui_version: '0.3.test', python_version: '3.12', pytorch_version: '2.test' }, devices: [{ name: 'Fake GPU', type: 'cuda', vram_total: 1 }] });
       if (url.pathname.startsWith('/object_info/')) {
         const type = decodeURIComponent(url.pathname.slice('/object_info/'.length));
         if (type === fake.mode.missingNode) return send(response, 200, {});
-        const required = type === 'CheckpointLoaderSimple' ? { ckpt_name: [list('checkpoints')] } : type === 'ControlNetLoader' ? { control_net_name: [list('controlnet')] } : {};
-        return send(response, 200, { [type]: { input: { required } } });
+        const spec = nodeSpecs(type, list, fake.mode.comboForm, fake.mode.unionTypes);
+        if (!spec) return send(response, 200, {});
+        // A ComfyUI version that renamed an input of the control application node.
+        if (fake.mode.renameInput && type === 'ControlNetApplyAdvanced') {
+          const required = { ...(spec.required as Record<string, unknown>) };
+          delete required.end_percent;
+          required.end = ['FLOAT', {}];
+          return send(response, 200, { [type]: { input: { ...spec, required } } });
+        }
+        return send(response, 200, { [type]: { input: spec } });
       }
       if (url.pathname === '/upload/image' && request.method === 'POST') {
         const form = await new Request('http://127.0.0.1/upload', {
@@ -129,10 +191,10 @@ afterEach(async () => {
 });
 
 /** A written bundle for the synthetic models, an empty ComfyUI models folder, and a fake ComfyUI. */
-async function setup(): Promise<{ root: string; modelsDir: string; out: string; fake: Fake; base: Omit<ExecuteOptions, 'command'> }> {
+async function setup(experiment: 'c1' | 'c2' = 'c1'): Promise<{ root: string; modelsDir: string; out: string; fake: Fake; base: Omit<ExecuteOptions, 'command'> }> {
   const work = temporaryDirectory();
   const root = join(work, 'bundle');
-  writeFiles(root, bundleCommand({ contractBytes: candidateBytes(), runnerBytes: runnerBytes(), approved: synthetic }).files, true);
+  writeFiles(root, bundleCommand({ contractBytes: candidateBytes(), runnerBytes: runnerBytes(), approved: synthetic, experiment }).files, true);
   const modelsDir = join(work, 'models');
   mkdirSync(join(modelsDir, 'checkpoints'), { recursive: true });
   mkdirSync(join(modelsDir, 'controlnet'), { recursive: true });
@@ -366,5 +428,159 @@ describe('runner CLI', () => {
     const result = spawnSync(process.execPath, [join(root, 'runner.mjs'), 'status', '--out', empty], { encoding: 'utf8' });
     expect(result.status).toBe(3);
     expect(JSON.parse(result.stdout)).toMatchObject({ status: 'INCOMPLETE' });
+  });
+});
+
+describe('experiment C2 bundle and runner', () => {
+  type Graph = Record<string, { class_type: string; inputs: Record<string, unknown> }>;
+  const build = (): ReturnType<typeof bundleCommand> => bundleCommand({ contractBytes: candidateBytes(), runnerBytes: runnerBytes(), approved: synthetic, experiment: 'c2' });
+  const graphOf = (result: ReturnType<typeof bundleCommand>, name: string): Graph => JSON.parse((result.files.find((file) => file.name === name)?.bytes ?? Buffer.alloc(0)).toString('utf8')) as Graph;
+
+  it('is deterministic, has six runs, and differs between A and B only in the depth nodes', () => {
+    const first = build();
+    expect(build().files.map((file) => sha256(file.bytes))).toEqual(first.files.map((file) => sha256(file.bytes)));
+    const manifest = JSON.parse((first.files.find((file) => file.name === 'bundle.json')?.bytes ?? Buffer.alloc(0)).toString('utf8')) as {
+      format: string;
+      runs: { kind: string; seed: number }[];
+      controlImages: { role: string }[];
+    };
+    expect(manifest.format).toBe('aigg.exp-c-bundle/0.2');
+    expect(manifest.runs.map((run) => [run.kind, run.seed])).toEqual([
+      ['pose', 1001],
+      ['pose-depth', 1001],
+      ['pose', 1002],
+      ['pose-depth', 1002],
+      ['pose', 1003],
+      ['pose-depth', 1003]
+    ]);
+    expect(manifest.controlImages.map((item) => item.role)).toEqual(['openpose', 'depth']);
+    const a = graphOf(first, 'c2-a-1002.api.json');
+    const b = graphOf(first, 'c2-b-1002.api.json');
+    expect(Object.keys(b).filter((id) => !(id in a))).toEqual(['12', '13', '14']);
+    expect(b['13']?.inputs.type).toBe('depth');
+    expect(b['14']?.inputs).toMatchObject({ positive: ['11', 0], negative: ['11', 1], strength: 0.5, start_percent: 0, end_percent: 0.5 });
+    expect(b['5']?.inputs).toMatchObject({ positive: ['14', 0], negative: ['14', 1], seed: 1002 });
+    expect(a['2']?.inputs.text).toBe(b['2']?.inputs.text);
+    expect(String(a['2']?.inputs.text)).not.toMatch(/looking to the side/);
+    // The OpenPose image is the same file as in C1.
+    const c1 = bundleCommand({ contractBytes: candidateBytes(), runnerBytes: runnerBytes(), approved: synthetic });
+    const pose = (result: ReturnType<typeof bundleCommand>): string => sha256(result.files.find((file) => file.name === 'openpose-anatomical.png')?.bytes ?? Buffer.alloc(0));
+    expect(pose(first)).toBe(pose(c1));
+  });
+
+  const tamper = (change: (graph: Graph) => void, file = 'c2-b-1001.api.json'): string => {
+    const root = join(temporaryDirectory(), 'bundle');
+    const result = build();
+    const files = result.files.map((item) => {
+      if (item.name !== file) return item;
+      const graph = graphOf(result, file);
+      change(graph);
+      return { name: item.name, bytes: Buffer.from(`${JSON.stringify(graph, null, 2)}\n`) };
+    });
+    // Rebuild the manifest hashes so that only the graph check can refuse the change.
+    const manifest = JSON.parse((files.find((item) => item.name === 'bundle.json')?.bytes ?? Buffer.alloc(0)).toString('utf8')) as { files: { path: string; sha256: string }[] };
+    manifest.files = manifest.files.map((entry) => ({ ...entry, sha256: sha256(files.find((item) => item.name === entry.path)?.bytes ?? Buffer.alloc(0)) }));
+    writeFiles(root, [...files.filter((item) => item.name !== 'bundle.json'), { name: 'bundle.json', bytes: Buffer.from(JSON.stringify(manifest)) }], true);
+    try {
+      loadBundle(root, synthetic);
+      return 'NO_ERROR';
+    } catch (error) {
+      return error instanceof RunnerError ? error.code : 'OTHER';
+    }
+  };
+
+  it('refuses a C2 bundle where A and B differ in more than the depth control', () => {
+    expect(tamper(() => undefined)).toBe('NO_ERROR');
+    expect(tamper((graph) => ((graph['5'] as Graph[string]).inputs.cfg = 6))).toBe('E_WORKFLOW_PAIR');
+    expect(tamper((graph) => ((graph['11'] as Graph[string]).inputs.strength = 0.9))).toBe('E_WORKFLOW_PAIR');
+    expect(tamper((graph) => ((graph['2'] as Graph[string]).inputs.text = 'other prompt'))).toBe('E_WORKFLOW_PAIR');
+  });
+
+  it('refuses wrong control wiring', () => {
+    expect(tamper((graph) => ((graph['13'] as Graph[string]).inputs.type = 'canny/lineart/anime_lineart/mlsd'))).toBe('E_WORKFLOW_CONTROL');
+    expect(tamper((graph) => ((graph['12'] as Graph[string]).inputs.image = 'openpose-anatomical.png'))).toBe('E_WORKFLOW_CONTROL');
+    expect(tamper((graph) => ((graph['5'] as Graph[string]).inputs.positive = ['11', 0]))).toBe('E_WORKFLOW_CONTROL');
+    expect(tamper((graph) => ((graph['5'] as Graph[string]).inputs.negative = ['14', 0]))).toBe('E_WORKFLOW_CONTROL');
+    expect(tamper((graph) => delete graph['14'])).toBe('E_WORKFLOW');
+    expect(tamper((graph) => ((graph['11'] as Graph[string]).inputs.control_net = ['13', 0]), 'c2-a-1001.api.json')).toBe('E_WORKFLOW_CONTROL');
+  });
+
+  it('refuses a C2 bundle with other seeds before any request to ComfyUI or any download', async () => {
+    // A consistent bundle (valid hashes, A and B pairs, matching sampler seeds) for the seeds 2001 to 2003 instead of 1001 to 1003.
+    const { root, fake, base } = await setup('c2');
+    const reseed = (text: string): string => text.replace(/100([123])/g, '200$1');
+    const manifestPath = join(root, 'bundle.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { runs: { workflow: string }[]; files: { path: string; sha256: string }[] };
+    for (const run of manifest.runs) {
+      const graph = readFileSync(join(root, run.workflow), 'utf8');
+      writeFileSync(join(root, reseed(run.workflow)), reseed(graph));
+    }
+    const changed = JSON.parse(reseed(JSON.stringify(manifest))) as typeof manifest;
+    changed.files = changed.files.map((entry) => ({ ...entry, sha256: sha256(readFileSync(join(root, entry.path))) }));
+    writeFileSync(manifestPath, JSON.stringify(changed));
+    expect(changed.runs.map((run) => run.workflow)).toContain('c2-b-2002.api.json');
+    const downloads = fakeDownloads();
+    for (const command of ['check', 'all'] as const) expect(await errorCode(execute({ ...base, command, fetchImpl: downloads.fetchImpl }))).toBe('E_BUNDLE_RUNS');
+    expect(fake.requests).toHaveLength(0);
+    expect(downloads.calls).toHaveLength(0);
+    expect(fake.prompts).toHaveLength(0);
+  });
+
+  it('refuses a C2 bundle with a missing, repeated, or extra seed', () => {
+    const runs = c2Runs();
+    const bundleWith = (list: unknown[]): unknown => {
+      const root = join(temporaryDirectory(), 'bundle');
+      writeFiles(root, build().files, true);
+      return { ...(JSON.parse(readFileSync(join(root, 'bundle.json'), 'utf8')) as Record<string, unknown>), runs: list };
+    };
+    const code = (list: unknown[]): string => {
+      try {
+        parseBundle(bundleWith(list), synthetic);
+        return 'NO_ERROR';
+      } catch (error) {
+        return error instanceof RunnerError ? error.code : 'OTHER';
+      }
+    };
+    expect(code(runs)).toBe('NO_ERROR');
+    expect(code(runs.slice(0, 4))).toBe('E_BUNDLE_RUNS');
+    expect(code([...runs.slice(0, 4), { ...runs[0], id: 'a-openpose-1001x' }, runs[5]])).toBe('E_BUNDLE_RUNS');
+    expect(code(runs.map((run) => (run.seed === 1003 ? { ...run, seed: 1004 } : run)))).toBe('E_BUNDLE_RUNS');
+    expect(code([runs[1], runs[0], ...runs.slice(2)])).toBe('E_BUNDLE_RUNS');
+  });
+
+  it('runs the six workflows once with both control images and keeps the repeat protection', async () => {
+    const { out, fake, base } = await setup('c2');
+    const downloads = fakeDownloads();
+    const report = await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl });
+    expect(report.status).toBe('PASS');
+    expect(fake.prompts).toHaveLength(6);
+    expect([...fake.input.keys()].sort()).toEqual(['depth-c05.png', 'openpose-anatomical.png']);
+    const sums = readFileSync(join(out, 'SHA256SUMS'), 'utf8').trim().split('\n');
+    expect(sums).toHaveLength(6);
+    expect(status(out, base.bundleRoot, synthetic).status).toBe('PASS');
+    expect((await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl })).note).toMatch(/Nothing was run again/);
+    expect(fake.prompts).toHaveLength(6);
+  });
+
+  it('accepts the COMBO form of /object_info and stops before any download when ComfyUI has no depth union type', async () => {
+    const combo = await setup('c2');
+    combo.fake.mode.comboForm = true;
+    expect((await execute({ ...combo.base, command: 'check' })).status).toBe('INCOMPLETE');
+
+    const { fake, base } = await setup('c2');
+    fake.mode.unionTypes = ['openpose'];
+    const downloads = fakeDownloads();
+    expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_COMFYUI_CHOICE');
+    expect(downloads.calls).toHaveLength(0);
+    expect(fake.prompts).toHaveLength(0);
+  });
+
+  it('stops before any download when a node input is unknown to ComfyUI', async () => {
+    const { fake, base } = await setup('c2');
+    fake.mode.unionTypes = ['openpose', 'depth'];
+    const downloads = fakeDownloads();
+    fake.mode.renameInput = true;
+    expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_COMFYUI_INPUT');
+    expect(downloads.calls).toHaveLength(0);
   });
 });

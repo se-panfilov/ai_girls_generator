@@ -1,5 +1,6 @@
 import { consistencyChecks } from '@control/consistency';
 import { type ControlContract, type Joint, parseControlContract, type Size } from '@control/contract';
+import { cameraOf, depthAssumptions, depthChecks, depthImage, depthPrimitives, partImage, renderDepthSamples, topView } from '@control/depth';
 import { renderMannequin } from '@control/figure';
 import { extremeTime, parseAnimations, posedContract } from '@control/kinematics';
 import { candidateContract, referenceBody } from '@control/mannequin';
@@ -440,4 +441,54 @@ export function calibrateCommand(options: CalibrateOptions): CommandResult {
   files.push(reportFile);
   const failedAfter = report.after.checks.filter((check) => check.status === 'FAIL').length;
   return { report: { status: failedAfter === 0 ? 'PASS' : 'FAIL', command: 'calibrate', ...report, files: [...records, record(reportFile)] }, files };
+}
+
+/** `depth`: the approximate depth image of the C0.5 reference body for experiment C2, the consistency checks, and a preview sheet for review. */
+export function depthCommand(contractBytes: Buffer, sizeText: string | undefined): CommandResult {
+  const contract = parseContractBytes(contractBytes);
+  if (!contract.rigId.endsWith('_c05_candidate')) fail('E_CONTRACT_NOT_CANDIDATE', `The contract ${contract.rigId} is not the C0.5 candidate. The depth image uses the C0.5 reference body.`);
+  const size = parseSize(sizeText ?? '832x1216', contract);
+  const transform = fitTransform(contract.canvas, size);
+  const render = renderDepthSamples(contract, size, transform);
+  const checks = depthChecks(contract, render);
+  const depth = depthImage(render);
+  const parts = partImage(render);
+  const top = topView(size, cameraOf(contract).yawDegrees);
+  const pose = rigPose(contract, 'anatomical');
+  const openPose = renderOpenPose(pose.keypoints, size, transform);
+  const combined = new Raster(size.width, size.height, [0, 0, 0, 255]);
+  combined.draw(depth, 0, 0);
+  drawSkeletonOverlay(combined, pose.keypoints, transform, 200);
+  const flat = renderMannequin(contract, size, transform, { joints: true, slots: false, background: [255, 255, 255, 255] });
+  const sheet = sheetOf(
+    [
+      [depth, openPose, combined],
+      [parts, flat, top]
+    ],
+    16
+  );
+  const files: PlannedFile[] = [
+    { name: 'depth-c05.png', bytes: encodePng(depth) },
+    { name: 'depth-parts.png', bytes: encodePng(parts) },
+    { name: 'depth-top-view.png', bytes: encodePng(top) },
+    { name: 'depth-preview.png', bytes: encodePng(sheet) }
+  ];
+  const failed = checks.filter((check) => check.status === 'FAIL');
+  const result = {
+    format: 'aigg.depth/0.1',
+    tool: toolName,
+    contract: contractReport(contract, contractBytes),
+    referenceBody: { version: referenceBody.version, heads: referenceBody.heads, yawDegrees: referenceBody.yawDegrees },
+    note: 'Approximate relative depth from simple volumes (a smooth torso volume with elliptic sections, ellipsoids, and capsules). Not a physically accurate 3D model. No hair, clothing, fingers, or face detail except a small nose.',
+    camera: { ...cameraOf(contract), projection: 'orthographic', transform: { scale: round(transform.scale), offsetX: round(transform.offsetX), offsetY: round(transform.offsetY) } },
+    depthRange: { nearHeadUnits: round(render.zNear), farHeadUnits: round(render.zFar) },
+    assumptions: depthAssumptions,
+    primitives: depthPrimitives(),
+    checks,
+    preview:
+      'Rows from top left: depth image, OpenPose image, OpenPose over depth; shaded volumes (near blue, far orange), C0.5 flat mannequin, top view (camera at the bottom, red line = facing direction).',
+    files: files.map((file, index) => record(file, [depth, parts, top, sheet][index]))
+  };
+  const reportFile: PlannedFile = { name: 'depth.json', bytes: json(result) };
+  return { report: { status: failed.length === 0 ? 'PASS' : 'FAIL', command: 'depth', ...result, files: [...result.files, record(reportFile)] }, files: [...files, reportFile] };
 }
