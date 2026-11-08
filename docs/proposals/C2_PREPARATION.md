@@ -122,17 +122,18 @@ Details are in the bundle `README.md` and in [the package README](../../packages
 - Node.js only on the host (`runner.mjs`, built-ins). `run.sh` only checks `SHA256SUMS` and Node.js.
 - Only the two approved files, from pinned revisions, with SHA-256 checks after download.
 - Only the local ComfyUI API (`127.0.0.1:8188`). No public HTTP port. No credentials in the bundle.
+- The runner accepts only the six approved runs: seeds 1001, 1002, 1003, each with condition A and condition B, with fixed run ids and workflow files (`E_BUNDLE_RUNS`). This check runs before any request to ComfyUI.
 - `check` before the download compares every node input, the union types, and the sampler choices with the live ComfyUI.
 - Each submission is recorded before it is sent. A lost answer gives `E_SUBMISSION_AMBIGUOUS`. A completed run is never generated again. No automatic retry or extra generation.
 - The agent has no access to the owner's computer, the Pod, or SSH keys.
 
 ### Cost
 
-| Item  | Estimate                                                                                                      |
-| ----- | ------------------------------------------------------------------------------------------------------------- |
-| GPU   | Runpod RTX A5000 24 GB On-Demand, about $0.27 per hour (an estimate; check the current price before the run)  |
-| Time  | Pod start and ComfyUI 5 to 10 min, model download 5 to 15 min, six images 2 to 5 min, copy and teardown 5 min |
-| Total | 20 to 40 min, **below $1** including disk. The budget limit is $5. The stop limit for C2 is $3.               |
+| Item  | Estimate                                                                                                                                                                                               |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GPU   | Runpod RTX A5000 24 GB On-Demand, about $0.27 per hour (an estimate; check the current price before the run)                                                                                           |
+| Time  | Pod start and ComfyUI 5 to 10 min, model download 5 to 15 min, six images 2 to 5 min, copy and teardown 5 min                                                                                          |
+| Total | 20 to 40 min, **below $1** including disk. The budget limit is $5. The stop limit for C2 is $3. The owner enforces the limits; the bundle does not stop the Pod (see [Stop criteria](#stop-criteria)). |
 
 ## Evaluation
 
@@ -175,6 +176,10 @@ Stop and report to the owner, with no new generation, when:
 - B passes the gate in 0 of 3 images.
 - The joints of B conflict with OpenPose (for example, the depth silhouette pulls a limb away from its OpenPose position by more than the 2.5 % limit).
 - The spend for C2 goes above $3.
+
+**Who enforces each criterion.** The runner stops by itself only on its own errors (`E_COMFYUI_*`, `E_BUNDLE_*`, `E_WORKFLOW_*`, generation and submission errors). It never starts a generation again. It does not stop, terminate, or pay for the Pod.
+The spend limit, the Pod teardown, and the visual criteria (content rules, orientation gate, joint conflict) need **actions by the owner**: watch the Runpod balance and the elapsed time, look at the images, and terminate the Pod.
+Nothing in the bundle terminates a Runpod Pod automatically. A Pod that the owner does not terminate continues to cost money.
 
 ## Limits
 

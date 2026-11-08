@@ -84,6 +84,7 @@ node packages/control/dist/src/cli.js bundle --experiment c2 --contract packages
 ```
 
 The C2 bundle (format `aigg.exp-c-bundle/0.2`) has six runs: condition A (OpenPose) and condition B (OpenPose + depth) for the seeds 1001, 1002 and 1003, both control images, and its own README with the Runpod steps.
+The runner accepts only these six runs (fixed seeds, run ids, and workflow files). Other seeds give `E_BUNDLE_RUNS` before any request to ComfyUI. The runner does not stop or terminate the GPU host; the spend limit and the teardown are owner actions.
 The runner refuses a C2 bundle in which A and B of a seed differ in more than the depth nodes. See [the C2 preparation report](../../docs/proposals/C2_PREPARATION.md).
 
 ## Measurement

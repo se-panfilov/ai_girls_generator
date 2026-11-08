@@ -2,7 +2,7 @@ import { type CommandResult, depthCommand, parseContractBytes, poseCommand, tool
 import type { PlannedFile } from '@control/output';
 import { sha256 } from '@control/png';
 import { fail } from '@control/problems';
-import { type ApprovedModel, approvedModels, bundleFormat, bundleFormatC2, minimumNode } from '@control/runner';
+import { type ApprovedModel, approvedModels, bundleFormat, bundleFormatC2, c2RunIdA, c2RunIdB, c2Runs, c2Seeds, minimumNode } from '@control/runner';
 import { c0Defaults, c2Depth, c2Prompt, type GenerationSettings, poseDepthWorkflow, poseWorkflow, unionControlType } from '@control/workflow';
 
 // The experiment C execution bundle: a flat directory that the owner copies to the GPU host and starts with one command.
@@ -150,12 +150,11 @@ export function bundleCommand(options: BundleOptions): CommandResult {
 
 // ---------------------------------------------------------------- experiment C2
 
-export const c2Seeds = [1001, 1002, 1003] as const;
 export const c2DepthImage = 'depth-c05.png';
 const c2Experiment = 'C2: OpenPose only (A) against OpenPose + depth (B), seeds 1001 to 1003, C0.5 candidate';
 
-const runIdA = (seed: number): string => `a-openpose-${seed}`;
-const runIdB = (seed: number): string => `b-openpose-depth-${seed}`;
+const runIdA = c2RunIdA;
+const runIdB = c2RunIdB;
 
 function c2Readme(models: readonly ApprovedModel[]): string {
   const rows = models.map((model) => `| \`${model.file}\` | \`${model.repository}\` at \`${model.revision}\` | ${model.size} | \`${model.sha256}\` |`).join('\n');
@@ -227,6 +226,16 @@ The runner reports PASS only after all six images and \`SHA256SUMS\` are written
 - After an interruption, the same command continues with the recorded prompts. A prompt that ComfyUI lost gives \`E_PROMPT_LOST\`. A new run is the owner's decision.
 - A generation error (\`E_GENERATION_FAILED\`) stops the runner. The runs before it keep their images. Do not start again without a decision.
 - Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE.
+- The runner accepts only the six runs above (seeds ${c2Seeds.join(', ')}, conditions A and B). Another seed or run list gives \`E_BUNDLE_RUNS\` before any request to ComfyUI.
+
+## Owner actions: cost and stop
+
+The runner stops only on its own errors. **It does not stop, terminate, or pay for the Pod, and nothing in this bundle terminates a Runpod Pod automatically.**
+These limits need your action:
+
+- Spend: the expected cost is below $1. Watch the Runpod balance and the elapsed time. If the spend for C2 goes above $3, terminate the Pod.
+- Visual stop: look at the images. If an image breaks the content rules (explicit content, a character that does not look adult), stop and report it. Do not run again.
+- Teardown: terminate the Pod after step 10, and also after any stop. A Pod that you do not terminate continues to cost money.
 `;
 }
 
@@ -249,14 +258,13 @@ function c2BundleCommand(options: BundleOptions): CommandResult {
   const size = { width, height };
   const settings: GenerationSettings = { checkpoint: checkpoint.file, controlNet: controlNet.file, positive: c2Prompt.positive, negative: c2Prompt.negative, ...c0Defaults };
   const workflows: PlannedFile[] = [];
-  const runs: { id: string; kind: 'pose' | 'pose-depth'; seed: number; workflow: string; saveNode: string }[] = [];
-  for (const seed of c2Seeds) {
-    const a = `c2-a-${seed}.api.json`;
-    const b = `c2-b-${seed}.api.json`;
-    workflows.push({ name: a, bytes: json(poseWorkflow(settings, size, seed, `c2_a_openpose_${seed}`, bundleControlImage)) });
-    workflows.push({ name: b, bytes: json(poseDepthWorkflow(settings, size, seed, `c2_b_openpose_depth_${seed}`, bundleControlImage, c2DepthImage)) });
-    runs.push({ id: runIdA(seed), kind: 'pose', seed, workflow: a, saveNode: '7' });
-    runs.push({ id: runIdB(seed), kind: 'pose-depth', seed, workflow: b, saveNode: '7' });
+  const runs = c2Runs();
+  for (const run of runs) {
+    const graph =
+      run.kind === 'pose'
+        ? poseWorkflow(settings, size, run.seed, `c2_a_openpose_${run.seed}`, bundleControlImage)
+        : poseDepthWorkflow(settings, size, run.seed, `c2_b_openpose_depth_${run.seed}`, bundleControlImage, c2DepthImage);
+    workflows.push({ name: run.workflow, bytes: json(graph) });
   }
   const plan = {
     format: 'aigg.run-plan/0.2',

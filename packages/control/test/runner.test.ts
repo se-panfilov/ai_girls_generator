@@ -9,7 +9,7 @@ import { bundleCommand } from '@control/bundle';
 import { writeFiles } from '@control/output';
 import { encodePng } from '@control/png';
 import { Raster } from '@control/raster';
-import { type ApprovedModel, approvedModels, execute, type ExecuteOptions, type FetchFunction, loadBundle, parseBundle, RunnerError, sha256, status } from '@control/runner';
+import { type ApprovedModel, approvedModels, c2Runs, execute, type ExecuteOptions, type FetchFunction, loadBundle, parseBundle, RunnerError, sha256, status } from '@control/runner';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { temporaryDirectory } from './helpers';
@@ -46,6 +46,8 @@ type Fake = {
   server: Server;
   port: number;
   prompts: unknown[];
+  /** Every request path that reached the fake ComfyUI. */
+  requests: string[];
   history: Map<string, unknown>;
   input: Map<string, Buffer>;
   modelsDir: string;
@@ -102,6 +104,7 @@ const outputImage = encodePng(new Raster(832, 1216, [10, 20, 30, 255]));
 async function fakeComfy(modelsDir: string): Promise<Fake> {
   const fake: Omit<Fake, 'server' | 'port'> = {
     prompts: [],
+    requests: [],
     history: new Map(),
     input: new Map(),
     modelsDir,
@@ -120,6 +123,7 @@ async function fakeComfy(modelsDir: string): Promise<Fake> {
   const server = createServer((request, response) => {
     void (async () => {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+      fake.requests.push(url.pathname);
       if (url.pathname === '/system_stats')
         return send(response, 200, { system: { comfyui_version: '0.3.test', python_version: '3.12', pytorch_version: '2.test' }, devices: [{ name: 'Fake GPU', type: 'cuda', vram_total: 1 }] });
       if (url.pathname.startsWith('/object_info/')) {
@@ -499,6 +503,49 @@ describe('experiment C2 bundle and runner', () => {
     expect(tamper((graph) => ((graph['5'] as Graph[string]).inputs.negative = ['14', 0]))).toBe('E_WORKFLOW_CONTROL');
     expect(tamper((graph) => delete graph['14'])).toBe('E_WORKFLOW');
     expect(tamper((graph) => ((graph['11'] as Graph[string]).inputs.control_net = ['13', 0]), 'c2-a-1001.api.json')).toBe('E_WORKFLOW_CONTROL');
+  });
+
+  it('refuses a C2 bundle with other seeds before any request to ComfyUI or any download', async () => {
+    // A consistent bundle (valid hashes, A and B pairs, matching sampler seeds) for the seeds 2001 to 2003 instead of 1001 to 1003.
+    const { root, fake, base } = await setup('c2');
+    const reseed = (text: string): string => text.replace(/100([123])/g, '200$1');
+    const manifestPath = join(root, 'bundle.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { runs: { workflow: string }[]; files: { path: string; sha256: string }[] };
+    for (const run of manifest.runs) {
+      const graph = readFileSync(join(root, run.workflow), 'utf8');
+      writeFileSync(join(root, reseed(run.workflow)), reseed(graph));
+    }
+    const changed = JSON.parse(reseed(JSON.stringify(manifest))) as typeof manifest;
+    changed.files = changed.files.map((entry) => ({ ...entry, sha256: sha256(readFileSync(join(root, entry.path))) }));
+    writeFileSync(manifestPath, JSON.stringify(changed));
+    expect(changed.runs.map((run) => run.workflow)).toContain('c2-b-2002.api.json');
+    const downloads = fakeDownloads();
+    for (const command of ['check', 'all'] as const) expect(await errorCode(execute({ ...base, command, fetchImpl: downloads.fetchImpl }))).toBe('E_BUNDLE_RUNS');
+    expect(fake.requests).toHaveLength(0);
+    expect(downloads.calls).toHaveLength(0);
+    expect(fake.prompts).toHaveLength(0);
+  });
+
+  it('refuses a C2 bundle with a missing, repeated, or extra seed', () => {
+    const runs = c2Runs();
+    const bundleWith = (list: unknown[]): unknown => {
+      const root = join(temporaryDirectory(), 'bundle');
+      writeFiles(root, build().files, true);
+      return { ...(JSON.parse(readFileSync(join(root, 'bundle.json'), 'utf8')) as Record<string, unknown>), runs: list };
+    };
+    const code = (list: unknown[]): string => {
+      try {
+        parseBundle(bundleWith(list), synthetic);
+        return 'NO_ERROR';
+      } catch (error) {
+        return error instanceof RunnerError ? error.code : 'OTHER';
+      }
+    };
+    expect(code(runs)).toBe('NO_ERROR');
+    expect(code(runs.slice(0, 4))).toBe('E_BUNDLE_RUNS');
+    expect(code([...runs.slice(0, 4), { ...runs[0], id: 'a-openpose-1001x' }, runs[5]])).toBe('E_BUNDLE_RUNS');
+    expect(code(runs.map((run) => (run.seed === 1003 ? { ...run, seed: 1004 } : run)))).toBe('E_BUNDLE_RUNS');
+    expect(code([runs[1], runs[0], ...runs.slice(2)])).toBe('E_BUNDLE_RUNS');
   });
 
   it('runs the six workflows once with both control images and keeps the repeat protection', async () => {

@@ -3,7 +3,7 @@
 // This module is self-contained: it imports only Node.js built-ins, so the build gives one file that the bundle copies as runner.mjs.
 // Scope: exactly the two approved model files, exactly the runs in the bundle.
 //   Format 0.1 (C1): one baseline and one pose-guided run with the same seed.
-//   Format 0.2 (C2): condition A (OpenPose) and condition B (OpenPose + depth) for each of three seeds. A and B of one seed must be
+//   Format 0.2 (C2): condition A (OpenPose) and condition B (OpenPose + depth) for exactly the seeds 1001, 1002, 1003. A and B of one seed must be
 //   the same graph except the depth nodes; the runner checks this before any request to ComfyUI.
 //
 // Trust boundaries and controls:
@@ -42,6 +42,19 @@ import { parseArgs } from 'node:util';
 export const bundleFormat = 'aigg.exp-c-bundle/0.1';
 export const bundleFormatC2 = 'aigg.exp-c-bundle/0.2';
 export const maxRuns = 6;
+
+/** The approved C2 seeds. The runner accepts a C2 bundle only with exactly these seeds. */
+export const c2Seeds = [1001, 1002, 1003] as const;
+export const c2RunIdA = (seed: number): string => `a-openpose-${seed}`;
+export const c2RunIdB = (seed: number): string => `b-openpose-depth-${seed}`;
+
+/** The approved C2 runs, in order: for each seed, condition A (OpenPose) and then condition B (OpenPose + depth). */
+export function c2Runs(): BundleRun[] {
+  return c2Seeds.flatMap((seed): BundleRun[] => [
+    { id: c2RunIdA(seed), kind: 'pose', seed, workflow: `c2-a-${seed}.api.json`, saveNode: '7' },
+    { id: c2RunIdB(seed), kind: 'pose-depth', seed, workflow: `c2-b-${seed}.api.json`, saveNode: '7' }
+  ]);
+}
 export const resultFormat = 'aigg.exp-c-result/0.1';
 export const minimumNode = '22.12.0';
 export const comfyHost = '127.0.0.1';
@@ -230,16 +243,10 @@ export function parseBundle(value: unknown, approved: readonly ApprovedModel[] =
   const parsedRuns = (runs as unknown[]).map((run) => parseRun(run, c2 ? ['pose', 'pose-depth'] : ['baseline', 'pose']));
   if (new Set(parsedRuns.map((run) => run.id)).size !== parsedRuns.length) fail('E_BUNDLE_RUNS', 'Two runs have the same id.');
   if (c2) {
-    // Exactly one condition A and one condition B for each of three different seeds.
-    const seeds = [...new Set(parsedRuns.map((run) => run.seed))];
-    if (parsedRuns.length !== 6 || seeds.length !== 3) fail('E_BUNDLE_RUNS', 'A C2 bundle must have six runs: conditions A and B for three seeds.');
-    for (const seed of seeds) {
-      const kinds = parsedRuns
-        .filter((run) => run.seed === seed)
-        .map((run) => run.kind)
-        .sort();
-      if (kinds.length !== 2 || kinds[0] !== 'pose' || kinds[1] !== 'pose-depth') fail('E_BUNDLE_RUNS', `Seed ${seed} must have one OpenPose run and one OpenPose + depth run.`);
-    }
+    // The approved C2 runs exactly: seeds 1001, 1002, 1003, each with condition A and condition B, with fixed ids and workflow files.
+    const expected = JSON.stringify(c2Runs());
+    if (JSON.stringify(parsedRuns) !== expected)
+      fail('E_BUNDLE_RUNS', `A C2 bundle must have exactly the approved six runs: conditions A and B for the seeds ${c2Seeds.join(', ')}.`, 'Build the bundle again.');
   } else {
     if (parsedRuns.length !== 2) fail('E_BUNDLE_RUNS', 'bundle.json must have exactly two runs: one baseline and one pose-guided run.');
     const kinds = parsedRuns.map((run) => run.kind).sort();
