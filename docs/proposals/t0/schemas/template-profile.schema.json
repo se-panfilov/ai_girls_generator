@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/template-profile.schema.json",
+  "title": "Template profile (PROPOSAL aigg.template-profile/0.1, NONAUTHORITATIVE)",
+  "description": "PROPOSAL from the T0 ADR. The geometry of one view of one rig version, derived by code from the rig contract and the Spine export. It never defines bones, slots, draw order or pivots. It only copies them for checks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "templateId", "revision", "status", "rig", "view", "canvas", "derivation", "orientation", "assets", "anchors", "parts", "variants", "approvals"],
+  "properties": {
+    "schema": { "const": "aigg.template-profile/0.1" },
+    "templateId": { "$ref": "common.schema.json#/$defs/id" },
+    "revision": { "$ref": "common.schema.json#/$defs/revision" },
+    "status": { "$ref": "common.schema.json#/$defs/lifecycle" },
+    "rig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rigId", "contractVersion", "contractSha256", "spineExport"],
+      "properties": {
+        "rigId": { "$ref": "common.schema.json#/$defs/id" },
+        "contractVersion": { "$ref": "common.schema.json#/$defs/semver" },
+        "contractSha256": { "$ref": "common.schema.json#/$defs/sha256" },
+        "spineExport": {
+          "description": "null only for status prototype: no master rig export matches this geometry.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["editorVersion", "skeletonSha256", "animationSetId"],
+              "properties": {
+                "editorVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+                "skeletonSha256": { "$ref": "common.schema.json#/$defs/sha256" },
+                "animationSetId": { "$ref": "common.schema.json#/$defs/id" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "view": { "type": "object", "additionalProperties": false, "required": ["id", "sideNaming"], "properties": { "id": { "const": "three_quarter_right" }, "sideNaming": { "const": "near_far" } } },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "generation", "fit"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 64, "maximum": 8192 },
+        "height": { "type": "integer", "minimum": 64, "maximum": 8192 },
+        "generation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["width", "height"],
+          "properties": { "width": { "type": "integer", "minimum": 64, "maximum": 4096 }, "height": { "type": "integer", "minimum": 64, "maximum": 4096 } }
+        },
+        "fit": { "const": "uniform_scale_centered" }
+      }
+    },
+    "derivation": {
+      "description": "How to make the template again. The same inputs give the same bytes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "toolVersion", "command", "inputs", "manualEdits"],
+      "properties": {
+        "tool": { "const": "@aigg/control" },
+        "toolVersion": { "$ref": "common.schema.json#/$defs/semver" },
+        "command": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "sha256"],
+            "properties": { "role": { "enum": ["rig_contract", "spine_skeleton", "reference_body"] }, "sha256": { "$ref": "common.schema.json#/$defs/sha256" } }
+          }
+        },
+        "manualEdits": { "description": "true if a human changed derived images. Then the images are canonical binary data and need storage (D15).", "type": "boolean" }
+      }
+    },
+    "orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["yawDegrees", "faceDirection", "nearSideInImage", "footDirection"],
+      "properties": {
+        "yawDegrees": { "type": "number", "minimum": 0, "maximum": 90 },
+        "faceDirection": { "const": "image_right" },
+        "nearSideInImage": { "const": "image_left" },
+        "footDirection": { "const": "image_right" }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "image"],
+        "properties": {
+          "role": { "enum": ["contour_lineart", "silhouette", "region_map", "depth", "overlay_preview", "masks_sheet", "visibility_sheet"] },
+          "image": { "$ref": "common.schema.json#/$defs/imageAsset" }
+        }
+      }
+    },
+    "anchors": {
+      "description": "Positions in contract space, copied from the contract for checks. Ids are existing bone or point ids.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "x", "y"],
+        "properties": { "id": { "$ref": "common.schema.json#/$defs/id" }, "kind": { "enum": ["bone", "point"] }, "x": { "type": "number" }, "y": { "type": "number" } }
+      }
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot", "bone", "drawOrder", "required", "attachmentRect", "visibleMask", "coverageMask", "jointOverlaps", "hiddenArea"],
+        "properties": {
+          "slot": { "$ref": "common.schema.json#/$defs/id" },
+          "bone": { "$ref": "common.schema.json#/$defs/id" },
+          "drawOrder": { "type": "integer", "minimum": 0 },
+          "required": { "type": "boolean" },
+          "attachmentRect": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y", "w", "h"],
+            "properties": { "x": { "type": "integer" }, "y": { "type": "integer" }, "w": { "type": "integer", "minimum": 1 }, "h": { "type": "integer", "minimum": 1 } }
+          },
+          "visibleMask": { "description": "Pixels of this part that are visible in the reference pose (setup pose).", "$ref": "common.schema.json#/$defs/imageAsset" },
+          "coverageMask": {
+            "description": "Pixels of this part, in its setup-pose position, that become visible in at least one sampled pose of the shared animation set (posed by spine-core on a matching Spine export), plus the joint overlaps. null when not computed, for example in a static prototype (T1a).",
+            "oneOf": [{ "type": "null" }, { "$ref": "common.schema.json#/$defs/imageAsset" }]
+          },
+          "jointOverlaps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["childBone", "radiusPx"],
+              "properties": { "childBone": { "$ref": "common.schema.json#/$defs/id" }, "radiusPx": { "type": "number", "minimum": 0 } }
+            }
+          },
+          "hiddenArea": {
+            "description": "paint_required: coverageMask minus visibleMask is not empty. none: fully visible in all sampled poses. not_computed: no coverage mask yet.",
+            "enum": ["paint_required", "none", "not_computed"]
+          }
+        }
+      }
+    },
+    "variants": { "description": "Body archetype variants. Empty until the owner decides D7 and the variant tolerances.", "type": "array", "maxItems": 0 },
+    "approvals": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/approval" } }
+  }
+}

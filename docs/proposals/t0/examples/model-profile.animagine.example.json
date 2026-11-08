@@ -1,0 +1,20 @@
+{
+  "schema": "aigg.model-profile/0.1",
+  "modelId": "animagine_xl_4_0",
+  "revision": 1,
+  "kind": "checkpoint",
+  "family": "sdxl",
+  "file": {
+    "name": "animagine-xl-4.0.safetensors",
+    "sha256": "1d5b43ff75b6ab598502d4c779d2fbfa3dceca51c60c3b609640a60772333916",
+    "sizeBytes": 6938434056,
+    "format": "safetensors",
+    "repository": "cagliostrolab/animagine-xl-4.0",
+    "commit": "2b7c1b397761bf5bd3cc42e5b39ec99314a75a96"
+  },
+  "license": { "id": "CreativeML Open RAIL++-M", "label": "open weights", "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/LICENSE.md" },
+  "approval": { "status": "approved", "scopes": ["experiment_c"] },
+  "capabilities": ["text_to_image", "image_to_image", "inpaint"],
+  "compatibility": { "baseFamilies": ["sdxl"], "requiresModels": [] },
+  "runtime": { "providers": ["comfyui", "mock"], "notes": "Approved for experiment C only. Values copied from docs/MODEL_LICENSES.md." }
+}

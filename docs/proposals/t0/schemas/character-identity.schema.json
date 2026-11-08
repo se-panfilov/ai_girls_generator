@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/character-identity.schema.json",
+  "title": "Character identity (PROPOSAL aigg.character-identity/0.1, NONAUTHORITATIVE)",
+  "description": "PROPOSAL from the T0 ADR. The design of one character, independent of the style, the model and the rig. It is not character.json. character.json describes the finished parts of one package. An identity revision changes only when the person changes. Appearance variants are separate aigg.appearance-variant records that refer to one identity revision, so a new variant does not change the identity digest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "characterId", "revision", "status", "adult", "description", "traits", "asymmetry", "references", "approvedConcept", "relations", "approvals"],
+  "properties": {
+    "schema": { "const": "aigg.character-identity/0.1" },
+    "characterId": { "$ref": "common.schema.json#/$defs/id" },
+    "revision": { "$ref": "common.schema.json#/$defs/revision" },
+    "status": { "$ref": "common.schema.json#/$defs/lifecycle" },
+    "adult": { "const": true },
+    "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "traits": {
+      "description": "Distinctive traits. locked: a variant must keep the trait. Not locked: a variant can change it.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["trait", "value", "locked"],
+        "properties": {
+          "trait": { "enum": ["face", "eyes", "hair", "skin", "body", "outfit", "accessory", "palette", "silhouette", "other"] },
+          "value": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "locked": { "type": "boolean" }
+        }
+      }
+    },
+    "asymmetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asymmetric", "details"],
+      "properties": { "asymmetric": { "type": "boolean" }, "details": { "type": "string", "maxLength": 500 } }
+    },
+    "references": {
+      "description": "Identity images. Never used as style references.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assetId", "sha256", "rights"],
+        "properties": { "assetId": { "$ref": "common.schema.json#/$defs/id" }, "sha256": { "$ref": "common.schema.json#/$defs/sha256" }, "rights": { "$ref": "common.schema.json#/$defs/rights" } }
+      }
+    },
+    "approvedConcept": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sha256", "job"],
+          "properties": { "sha256": { "$ref": "common.schema.json#/$defs/sha256" }, "job": { "$ref": "common.schema.json#/$defs/recordRef" } }
+        }
+      ]
+    },
+    "relations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relatedTo"],
+      "properties": {
+        "relatedTo": {
+          "description": "A different person with an explicit resemblance objective, for example a visual family. Not identity.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["character", "relation", "note"],
+            "properties": { "character": { "$ref": "common.schema.json#/$defs/recordRef" }, "relation": { "const": "resemblance" }, "note": { "type": "string", "maxLength": 500 } }
+          }
+        }
+      }
+    },
+    "approvals": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/approval" } }
+  }
+}

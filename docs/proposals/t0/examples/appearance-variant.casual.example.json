@@ -1,0 +1,13 @@
+{
+  "schema": "aigg.appearance-variant/0.1",
+  "variantId": "casual",
+  "revision": 1,
+  "status": "draft",
+  "identity": { "id": "example_ranger", "revision": 1, "digest": "8dabb11cad09d1fd36f9a095eb97b33633079678f68e7435a93928d7d1e47043" },
+  "label": "Casual clothes",
+  "changes": [
+    { "trait": "outfit", "value": "White fitted t-shirt, denim shorts, sneakers" },
+    { "trait": "hair", "value": "Short silver bob with a low ponytail" }
+  ],
+  "approvals": []
+}

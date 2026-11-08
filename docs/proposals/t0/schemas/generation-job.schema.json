@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/generation-job.schema.json",
+  "title": "Generation job (PROPOSAL aigg.generation-job/0.1, NONAUTHORITATIVE)",
+  "description": "PROPOSAL from the T0 ADR. The build manifest of one character package. Every input is pinned by id, revision and digest. A job names exactly one model for each role and has no fallback.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "jobId", "purpose", "rig", "template", "style", "styleBinding", "identity", "appearanceVariant", "models", "aliases", "policy", "stages", "output"],
+  "properties": {
+    "schema": { "const": "aigg.generation-job/0.1" },
+    "jobId": { "$ref": "common.schema.json#/$defs/id" },
+    "purpose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "scope"],
+      "properties": {
+        "kind": { "enum": ["experiment", "production"] },
+        "scope": { "description": "Must be in the approval scopes of every model of the job.", "$ref": "common.schema.json#/$defs/id" }
+      }
+    },
+    "rig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rigId", "contractVersion", "contractSha256", "skeletonSha256"],
+      "properties": {
+        "rigId": { "$ref": "common.schema.json#/$defs/id" },
+        "contractVersion": { "$ref": "common.schema.json#/$defs/semver" },
+        "contractSha256": { "$ref": "common.schema.json#/$defs/sha256" },
+        "skeletonSha256": {
+          "description": "null only with a prototype template. Then the job cannot have purpose production.",
+          "oneOf": [{ "type": "null" }, { "$ref": "common.schema.json#/$defs/sha256" }]
+        }
+      }
+    },
+    "template": { "$ref": "common.schema.json#/$defs/recordRef" },
+    "style": { "$ref": "common.schema.json#/$defs/recordRef" },
+    "styleBinding": { "$ref": "common.schema.json#/$defs/recordRef" },
+    "identity": { "$ref": "common.schema.json#/$defs/recordRef" },
+    "appearanceVariant": {
+      "description": "The appearance variant record that this job builds. Its identity reference must equal the identity of the job.",
+      "$ref": "common.schema.json#/$defs/recordRef"
+    },
+    "models": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "model", "fileSha256"],
+        "properties": {
+          "role": { "enum": ["checkpoint", "control", "style_adapter", "image_encoder", "lora", "decomposition", "segmentation"] },
+          "model": { "$ref": "common.schema.json#/$defs/recordRef" },
+          "fileSha256": { "$ref": "common.schema.json#/$defs/sha256" }
+        }
+      }
+    },
+    "aliases": {
+      "description": "Channel names that a person used (for example style production). The resolver writes the pinned record here. Later alias changes do not change the job.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "channel", "resolvedTo"],
+        "properties": {
+          "kind": { "enum": ["template", "style", "style_binding"] },
+          "channel": { "enum": ["test", "production", "experimental", "other"] },
+          "resolvedTo": { "$ref": "common.schema.json#/$defs/recordRef" }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fallback", "maxAttemptsPerStage", "onFailure", "execution"],
+      "properties": {
+        "fallback": { "const": "forbidden" },
+        "maxAttemptsPerStage": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "onFailure": { "const": "stop_and_report" },
+        "execution": { "description": "owner_runs_bundle: the agent prepares a bundle, the owner runs it, the agent analyzes the evidence.", "enum": ["owner_runs_bundle", "mock"] }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stageId", "kind", "requires"],
+        "properties": {
+          "stageId": { "$ref": "common.schema.json#/$defs/id" },
+          "kind": { "enum": ["specification", "concept", "production_design", "partition", "part_completion", "cleanup", "assembly", "validation", "preview", "approval"] },
+          "requires": { "type": "array", "uniqueItems": true, "items": { "$ref": "common.schema.json#/$defs/capability" } },
+          "adapter": { "enum": ["comfyui", "mock", "node"] },
+          "workflowTemplate": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "sha256"],
+            "properties": { "id": { "$ref": "common.schema.json#/$defs/id" }, "sha256": { "$ref": "common.schema.json#/$defs/sha256" } }
+          },
+          "conditioning": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["capability", "source", "strength", "startPercent", "endPercent"],
+              "properties": {
+                "capability": { "$ref": "common.schema.json#/$defs/capability" },
+                "source": {
+                  "description": "A template asset role, or a part mask, or the output of an earlier stage.",
+                  "type": "string",
+                  "pattern": "^(template:[a-z_]+|mask:[a-z0-9_]+|stage:[a-z0-9_]+)$"
+                },
+                "strength": { "type": "number", "minimum": 0, "maximum": 2 },
+                "startPercent": { "type": "number", "minimum": 0, "maximum": 1 },
+                "endPercent": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          },
+          "prompt": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["positive", "negative"],
+            "properties": { "positive": { "type": "string", "maxLength": 2000 }, "negative": { "type": "string", "maxLength": 2000 } }
+          },
+          "seeds": { "type": "array", "maxItems": 16, "items": { "type": "integer", "minimum": 0, "maximum": 4294967295 } },
+          "humanGate": { "enum": ["concept_selection", "template_approval", "layer_cleanup", "final_approval"] }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageDir", "characterId", "overwrite"],
+      "properties": { "packageDir": { "$ref": "common.schema.json#/$defs/relativePath" }, "characterId": { "$ref": "common.schema.json#/$defs/id" }, "overwrite": { "const": false } }
+    }
+  }
+}

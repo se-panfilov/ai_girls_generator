@@ -1,0 +1,124 @@
+{
+  "schema": "aigg.template-profile/0.1",
+  "templateId": "humanoid_girl_c05_proto",
+  "revision": 1,
+  "status": "prototype",
+  "rig": {
+    "rigId": "humanoid_girl_v1_c05_candidate",
+    "contractVersion": "0.3.0",
+    "contractSha256": "17e730691f7efc3e33dde993c46a3e250650152790cbbad89429af8a1977675e",
+    "spineExport": null
+  },
+  "view": { "id": "three_quarter_right", "sideNaming": "near_far" },
+  "canvas": { "width": 1024, "height": 1536, "generation": { "width": 832, "height": 1216 }, "fit": "uniform_scale_centered" },
+  "derivation": {
+    "tool": "@aigg/control",
+    "toolVersion": "0.6.0",
+    "command": "template",
+    "inputs": [
+      { "role": "rig_contract", "sha256": "17e730691f7efc3e33dde993c46a3e250650152790cbbad89429af8a1977675e" },
+      { "role": "reference_body", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0001" }
+    ],
+    "manualEdits": false
+  },
+  "orientation": { "yawDegrees": 40, "faceDirection": "image_right", "nearSideInImage": "image_left", "footDirection": "image_right" },
+  "assets": [
+    {
+      "role": "contour_lineart",
+      "image": { "file": "contour-lineart.png", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0002", "width": 832, "height": 1216, "colorSpace": "srgb", "alpha": "none" }
+    },
+    {
+      "role": "region_map",
+      "image": { "file": "region-map.png", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0003", "width": 1024, "height": 1536, "colorSpace": "srgb", "alpha": "none" }
+    },
+    {
+      "role": "visibility_sheet",
+      "image": { "file": "visibility-sheet.png", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0004", "width": 2048, "height": 1536, "colorSpace": "srgb", "alpha": "none" }
+    }
+  ],
+  "anchors": [
+    { "id": "chest", "kind": "bone", "x": 512, "y": 622 },
+    { "id": "upper_arm_near", "kind": "bone", "x": 394, "y": 507 },
+    { "id": "forearm_near", "kind": "bone", "x": 337, "y": 719 },
+    { "id": "face_nose", "kind": "point", "x": 575, "y": 374 }
+  ],
+  "parts": [
+    {
+      "slot": "forearm_far",
+      "bone": "forearm_far",
+      "drawOrder": 4,
+      "required": true,
+      "attachmentRect": { "x": 643, "y": 686, "w": 119, "h": 252 },
+      "visibleMask": {
+        "file": "masks/forearm_far.visible.png",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0010",
+        "width": 1024,
+        "height": 1536,
+        "colorSpace": "srgb",
+        "alpha": "straight"
+      },
+      "coverageMask": {
+        "file": "masks/forearm_far.coverage.png",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0011",
+        "width": 1024,
+        "height": 1536,
+        "colorSpace": "srgb",
+        "alpha": "straight"
+      },
+      "jointOverlaps": [{ "childBone": "hand_far", "radiusPx": 24 }],
+      "hiddenArea": "paint_required"
+    },
+    {
+      "slot": "torso",
+      "bone": "chest",
+      "drawOrder": 10,
+      "required": true,
+      "attachmentRect": { "x": 347, "y": 435, "w": 330, "h": 347 },
+      "visibleMask": {
+        "file": "masks/torso.visible.png",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0012",
+        "width": 1024,
+        "height": 1536,
+        "colorSpace": "srgb",
+        "alpha": "straight"
+      },
+      "coverageMask": {
+        "file": "masks/torso.coverage.png",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0013",
+        "width": 1024,
+        "height": 1536,
+        "colorSpace": "srgb",
+        "alpha": "straight"
+      },
+      "jointOverlaps": [],
+      "hiddenArea": "paint_required"
+    },
+    {
+      "slot": "forearm_near",
+      "bone": "forearm_near",
+      "drawOrder": 23,
+      "required": true,
+      "attachmentRect": { "x": 289, "y": 686, "w": 81, "h": 252 },
+      "visibleMask": {
+        "file": "masks/forearm_near.visible.png",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0014",
+        "width": 1024,
+        "height": 1536,
+        "colorSpace": "srgb",
+        "alpha": "straight"
+      },
+      "coverageMask": {
+        "file": "masks/forearm_near.coverage.png",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0015",
+        "width": 1024,
+        "height": 1536,
+        "colorSpace": "srgb",
+        "alpha": "straight"
+      },
+      "jointOverlaps": [{ "childBone": "hand_near", "radiusPx": 24 }],
+      "hiddenArea": "paint_required"
+    }
+  ],
+  "variants": [],
+  "approvals": []
+}

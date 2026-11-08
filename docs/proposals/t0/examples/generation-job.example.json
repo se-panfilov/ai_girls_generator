@@ -1,0 +1,55 @@
+{
+  "schema": "aigg.generation-job/0.1",
+  "jobId": "example_ranger_t3_lineart_1",
+  "purpose": { "kind": "experiment", "scope": "experiment_c" },
+  "rig": { "rigId": "humanoid_girl_v1_c05_candidate", "contractVersion": "0.3.0", "contractSha256": "17e730691f7efc3e33dde993c46a3e250650152790cbbad89429af8a1977675e", "skeletonSha256": null },
+  "template": { "id": "humanoid_girl_c05_proto", "revision": 1, "digest": "d62d3cfa4c589caf5f81ff47d3b3c65346c350039c988738c68b2bac20701181" },
+  "style": { "id": "example_clean_cel", "revision": 1, "digest": "d246d3f90e92e3e2d62ab588723f272a78be0ffb1a4a47cd2ee911630fadf9d9" },
+  "styleBinding": { "id": "example_clean_cel_sdxl_prompt", "revision": 1, "digest": "5659b4bb39733aad7355acbdb75a92f14cffa773866f6b3d88997f54ee030ff4" },
+  "identity": { "id": "example_ranger", "revision": 1, "digest": "8dabb11cad09d1fd36f9a095eb97b33633079678f68e7435a93928d7d1e47043" },
+  "appearanceVariant": { "id": "base", "revision": 1, "digest": "49fe7adb0d7eb33f55037e98a15aa1d4a62dbbd78b7586ad25e1a7f62c3109c0" },
+  "models": [
+    {
+      "role": "checkpoint",
+      "model": { "id": "animagine_xl_4_0", "revision": 1, "digest": "dc8fa42dde6141a8bd53cf110c262a472b4c24e2ac885c7da41a5ed0fd599818" },
+      "fileSha256": "1d5b43ff75b6ab598502d4c779d2fbfa3dceca51c60c3b609640a60772333916"
+    },
+    {
+      "role": "control",
+      "model": { "id": "xinsir_union_promax", "revision": 1, "digest": "966379638b2a10e678b71c5e5085073e6ce08a341a6fc84a2a3a8f535e390dd6" },
+      "fileSha256": "9fae2e50cb431bfcbe05822b59ec2228df545ef27f711dea8949e9f4ed9f7cdc"
+    }
+  ],
+  "aliases": [{ "kind": "style", "channel": "test", "resolvedTo": { "id": "example_clean_cel", "revision": 1, "digest": "d246d3f90e92e3e2d62ab588723f272a78be0ffb1a4a47cd2ee911630fadf9d9" } }],
+  "policy": { "fallback": "forbidden", "maxAttemptsPerStage": 1, "onFailure": "stop_and_report", "execution": "owner_runs_bundle" },
+  "stages": [
+    { "stageId": "spec", "kind": "specification", "requires": [], "adapter": "node" },
+    {
+      "stageId": "design",
+      "kind": "production_design",
+      "requires": ["text_to_image", "control_lineart"],
+      "adapter": "comfyui",
+      "workflowTemplate": { "id": "sdxl_lineart_v1", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0201" },
+      "conditioning": [{ "capability": "control_lineart", "source": "template:contour_lineart", "strength": 0.6, "startPercent": 0, "endPercent": 0.8 }],
+      "prompt": { "positive": "1girl, adult, solo, full body, standing, short silver hair, green eyes, dark green jacket, short sleeves, shorts, boots", "negative": "child, nsfw, extra arms" },
+      "seeds": [1001],
+      "humanGate": "concept_selection"
+    },
+    { "stageId": "split", "kind": "partition", "requires": [], "adapter": "node" },
+    {
+      "stageId": "complete",
+      "kind": "part_completion",
+      "requires": ["inpaint"],
+      "adapter": "comfyui",
+      "workflowTemplate": { "id": "sdxl_part_inpaint_v1", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0202" },
+      "conditioning": [],
+      "seeds": [1001]
+    },
+    { "stageId": "cleanup", "kind": "cleanup", "requires": [], "humanGate": "layer_cleanup" },
+    { "stageId": "assemble", "kind": "assembly", "requires": [], "adapter": "node" },
+    { "stageId": "validate", "kind": "validation", "requires": [], "adapter": "node" },
+    { "stageId": "preview", "kind": "preview", "requires": [], "adapter": "node" },
+    { "stageId": "approve", "kind": "approval", "requires": [], "humanGate": "final_approval" }
+  ],
+  "output": { "packageDir": "characters/example_ranger", "characterId": "example_ranger", "overwrite": false }
+}

@@ -1,0 +1,20 @@
+{
+  "schema": "aigg.model-profile/0.1",
+  "modelId": "xinsir_union_promax",
+  "revision": 1,
+  "kind": "controlnet",
+  "family": "sdxl",
+  "file": {
+    "name": "diffusion_pytorch_model_promax.safetensors",
+    "sha256": "9fae2e50cb431bfcbe05822b59ec2228df545ef27f711dea8949e9f4ed9f7cdc",
+    "sizeBytes": 2513342408,
+    "format": "safetensors",
+    "repository": "xinsir/controlnet-union-sdxl-1.0",
+    "commit": "801a4a3fa3d4c936f4feea95b98607bc6726f80c"
+  },
+  "license": { "id": "Apache-2.0", "label": "open weights", "url": "https://www.apache.org/licenses/LICENSE-2.0" },
+  "approval": { "status": "approved", "scopes": ["experiment_c"] },
+  "capabilities": ["control_openpose", "control_depth", "control_lineart", "control_canny"],
+  "compatibility": { "baseFamilies": ["sdxl"], "requiresModels": [] },
+  "runtime": { "providers": ["comfyui", "mock"], "notes": "Approved for experiment C only. ComfyUI 0.35.0 core nodes apply one control type per pass (C2 analysis, F2)." }
+}

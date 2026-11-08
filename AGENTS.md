@@ -7,7 +7,7 @@ Keep package-specific requirements in package documentation and common rules her
 
 ## Project status
 
-The repository is at the draft stage. No pipeline package exists yet.
+The repository is at the draft stage. Two experimental packages exist (`@aigg/control` and `@aigg/rig-runtime`). No production pipeline exists yet.
 The documents in `docs/` are drafts. Many design choices are still open in [the decision log](docs/DECISIONS.md).
 Do not implement an open decision as if it were accepted. Ask, or implement the part that does not depend on it.
 
