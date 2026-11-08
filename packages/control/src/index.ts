@@ -24,4 +24,5 @@ export {
 export { ControlError, type Problem } from '@control/problems';
 export { ellipsePolygon, Raster } from '@control/raster';
 export { referenceSvg, renderReference } from '@control/reference';
+export { templateCommand, type TemplateOptions } from '@control/template';
 export { baselineWorkflow, c0Defaults, c0Prompt, type GenerationSettings, poseWorkflow } from '@control/workflow';

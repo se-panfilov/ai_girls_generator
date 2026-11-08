@@ -205,14 +205,14 @@ export function toCamera(point: Vec, yawDegrees: number): { x: number; y: number
   return { x: point.l * Math.cos(yaw) + point.f * Math.sin(yaw), y: point.up, z: -point.l * Math.sin(yaw) + point.f * Math.cos(yaw) };
 }
 
-function fromCamera(x: number, y: number, z: number, yawDegrees: number): Vec {
+export function fromCamera(x: number, y: number, z: number, yawDegrees: number): Vec {
   const yaw = (yawDegrees * Math.PI) / 180;
   return { l: x * Math.cos(yaw) - z * Math.sin(yaw), up: y, f: x * Math.sin(yaw) + z * Math.cos(yaw) };
 }
 
-type Box = { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number };
+export type Box = { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number };
 
-function cameraBox(primitive: Primitive, yaw: number): Box {
+export function cameraBox(primitive: Primitive, yaw: number): Box {
   if (primitive.kind === 'loft') {
     const reach = Math.max(...primitive.sections.map((section) => Math.max(section.w, section.d)));
     const first = primitive.sections[0] as Section;

@@ -65,14 +65,39 @@ export function checkOutputDirectory(path: string, force: boolean): boolean {
   return false;
 }
 
-/** Writes the planned files. The caller checks the directory first. */
+/**
+ * Writes the planned files. The caller checks the directory first.
+ * A name can have subdirectories separated by `/`. Each part must be a plain name (no `.`, `..`, or leading dot).
+ * An existing subdirectory must be a real directory, not a symbolic link. All names and subdirectories are checked before the first write.
+ */
 export function writeFiles(path: string, files: readonly PlannedFile[], create: boolean): void {
   const full = resolve(path);
-  if (create) mkdirSync(full);
+  const directories = new Set<string>();
   for (const file of files) {
-    if (basename(file.name) !== file.name || file.name.startsWith('.')) fail('E_OUTPUT', `The file name ${file.name} is not a plain name.`);
+    const parts = file.name.split('/');
+    if (parts.some((part) => part === '' || basename(part) !== part || part.startsWith('.'))) fail('E_OUTPUT', `The file name ${file.name} is not a plain relative name.`);
+    for (let depth = 1; depth < parts.length; depth += 1) directories.add(parts.slice(0, depth).join('/'));
+  }
+  const sorted = [...directories].sort((a, b) => a.split('/').length - b.split('/').length || (a < b ? -1 : 1));
+  const missing: string[] = [];
+  if (!create) {
+    for (const directory of sorted) {
+      let info;
+      try {
+        info = lstatSync(join(full, directory));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        missing.push(directory);
+        continue;
+      }
+      if (info.isSymbolicLink() || !info.isDirectory()) fail('E_OUTPUT', `The output subdirectory ${directory} is not a real directory.`);
+    }
+  }
+  if (create) mkdirSync(full);
+  for (const directory of create ? sorted : missing) mkdirSync(join(full, directory));
+  for (const file of files) {
     const target = join(full, file.name);
-    const temporary = join(full, `.${file.name}.${randomUUID()}.tmp`);
+    const temporary = join(dirname(target), `.${basename(target)}.${randomUUID()}.tmp`);
     writeFileSync(temporary, file.bytes, { flag: 'wx' });
     try {
       renameSync(temporary, target);

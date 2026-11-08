@@ -157,6 +157,12 @@ const unionRect = (a: Rect, b: Rect): Rect => {
 };
 
 /**
+ * Height (head units) of the lowest point of the pelvis: the bottom of the torso volume in depth.ts (first section 3.3 minus the bottom cap 0.15).
+ * depth.ts imports this file, so the value is repeated here. A test checks that the two values agree.
+ */
+export const pelvisBottomUp = 3.15;
+
+/**
  * Attachment rectangles for the candidate. A body segment covers its pivot, the child pivot, its projected radius, and the joint overlap.
  * Hair, ears, tail, skirt, accessory and weapon rectangles are generous placeholders around the matching landmarks.
  */
@@ -187,7 +193,20 @@ export function candidateRects(joints: ReadonlyMap<string, Joint>, projection: B
   const chestHalf = projectedHalfWidth(radii.chest.w, radii.chest.d, yaw) * u;
   const pelvisHalf = projectedHalfWidth(radii.pelvis.w, radii.pelvis.d, yaw) * u;
   rects.set('torso', boundsOf([j('neck'), j('spine'), { x: j('chest').x - chestHalf, y: j('chest').y }, { x: j('chest').x + chestHalf, y: j('chest').y }], 0.25 * u));
-  rects.set('hips', boundsOf([j('spine'), j('thigh_near'), j('thigh_far'), { x: j('hips').x - pelvisHalf, y: j('hips').y }, { x: j('hips').x + pelvisHalf, y: j('hips').y }], 0.3 * u));
+  rects.set(
+    'hips',
+    boundsOf(
+      [
+        j('spine'),
+        j('thigh_near'),
+        j('thigh_far'),
+        { x: j('hips').x - pelvisHalf, y: j('hips').y },
+        { x: j('hips').x + pelvisHalf, y: j('hips').y },
+        projection.project({ up: pelvisBottomUp, left: 0, forward: 0 })
+      ],
+      0.3 * u
+    )
+  );
   rects.set('neck', boundsOf([j('neck'), j('head')], radii.neck.w * u + overlapPx));
   const headTop = projection.project(referenceBody.landmarks.head_top);
   const headHalf = projectedHalfWidth(radii.head.w, radii.head.d, yaw) * u;

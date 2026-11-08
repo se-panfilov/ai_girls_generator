@@ -8,7 +8,8 @@ import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, m
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
-import { ControlError, fail } from '@control/problems';
+import { ControlError, fail, isRecord } from '@control/problems';
+import { templateCommand } from '@control/template';
 
 const help = `Usage: aigg-control <command> [options]
 
@@ -38,6 +39,11 @@ Commands:
       the workflows, run-plan.json, README.md, and SHA256SUMS. c1 (default): one baseline and one pose-guided run, seed 1001.
       c2: OpenPose only and OpenPose + depth, seeds 1001, 1002, 1003 (six runs).
       The owner copies it to the GPU host and runs it there. This command does not contact a server.
+
+  template --contract <C0.5 candidate rig.contract.json> --out <dir> [--size WxH]
+      Write the T1a static template of the C0.5 prototype: template.json, contour-lineart.png, region-map.png,
+      masks/<slot>.visible.png, overlay-sheet.png, review.md, and mock-package/ (flat parts and character.json).
+      Prototype only: it does not show that the parts animate correctly. The default size is the contract generation resolution.
 
 Common options:
   --dry-run   Print the report and write nothing.
@@ -79,7 +85,8 @@ const allowed: Record<string, readonly string[]> = {
   candidate: ['base', 'out', 'yaw'],
   calibrate: ['before', 'after', 'skeleton', 'size', 'out'],
   depth: ['contract', 'out', 'size'],
-  bundle: ['contract', 'out', 'experiment']
+  bundle: ['contract', 'out', 'experiment'],
+  template: ['contract', 'out', 'size']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -158,6 +165,12 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
     const experiment = values.experiment ?? 'c1';
     if (experiment !== 'c1' && experiment !== 'c2') fail('E_USAGE', '--experiment must be c1 or c2.');
     return { result: bundleCommand({ contractBytes, runnerBytes, experiment }), dryRun, out, force };
+  }
+  if (command === 'template') {
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    const packageJson: unknown = JSON.parse(readInput(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json'), 64 * 1024, 'The package metadata').toString('utf8'));
+    if (!isRecord(packageJson) || typeof packageJson.version !== 'string') fail('E_INPUT', 'The package metadata has no version.');
+    return { result: templateCommand({ contractBytes, toolVersion: packageJson.version, ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
   }
   if (command === 'depth') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');

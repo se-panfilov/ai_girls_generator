@@ -374,17 +374,17 @@ Native Spine sequence attachments worked in the D26 spike with spine-core 4.3.13
 
 ## 13. Implemented and planned
 
-| Capability                                                     | State                                              |
-| -------------------------------------------------------------- | -------------------------------------------------- |
-| Shared skeleton, runtime skins, D22 absent parts, atlas checks | Implemented (`@aigg/rig-runtime`), structural only |
-| Part modules, atomic change, atlas cache                       | Implemented as draft (D23 open)                    |
-| Control images, overlays, pose marks, C0.5 candidate, depth    | Implemented (`@aigg/control`)                      |
-| Execution bundle, runner, evidence check                       | Implemented for experiment C only                  |
-| Static template (T1a)                                          | Planned, not started                               |
-| Coverage tool on spine-core (T1b)                              | Optional research, not started                     |
-| W concept, L layering, M assembly with real art                | Planned (Phase 1 experiments), not started         |
-| Records and resolver                                           | Unapproved design, implementation deferred         |
-| Spine automation                                               | Phase 2, not started                               |
+| Capability                                                     | State                                                |
+| -------------------------------------------------------------- | ---------------------------------------------------- |
+| Shared skeleton, runtime skins, D22 absent parts, atlas checks | Implemented (`@aigg/rig-runtime`), structural only   |
+| Part modules, atomic change, atlas cache                       | Implemented as draft (D23 open)                      |
+| Control images, overlays, pose marks, C0.5 candidate, depth    | Implemented (`@aigg/control`)                        |
+| Execution bundle, runner, evidence check                       | Implemented for experiment C only                    |
+| Static template (T1a)                                          | Implemented as a prototype (`aigg-control template`) |
+| Coverage tool on spine-core (T1b)                              | Optional research, not started                       |
+| W concept, L layering, M assembly with real art                | Planned (Phase 1 experiments), not started           |
+| Records and resolver                                           | Unapproved design, implementation deferred           |
+| Spine automation                                               | Phase 2, not started                                 |
 
 ## 14. Decisions and dependency gates
 
@@ -481,7 +481,7 @@ What needs what:
 
 ## 16. T1a specification
 
-**Proposed scope, not started.** Minimal, static, offline. No GPU, no model, no network, no animation, no coverage masks, no change of the master rig, contracts, existing commands or fixtures.
+**Implemented** in `@aigg/control` 0.6.0 as `aigg-control template` (prototype). Section 16.7 lists the implementation notes and deviations. Minimal, static, offline. No GPU, no model, no network, no animation, no coverage masks, no change of the master rig, contracts, existing commands or fixtures.
 
 ### 16.1 Purpose
 
@@ -489,7 +489,7 @@ Make a static 3/4 template of the C0.5 prototype geometry and flat mock parts fo
 
 ### 16.2 Inputs
 
-- `packages/control/test/fixtures/c05-candidate/rig.contract.json` (SHA-256 `17e73069…675e`) as a **prototype** fixture.
+- `packages/control/test/fixtures/c05-candidate/rig.contract.json` as a **prototype** fixture. T1a changed its hips rectangle (see 16.7): the SHA-256 is now `2e5868b5…5d6f`. The C1 and C2 records name the earlier file, `17e73069…675e`.
 - `referenceBody` in `packages/control/src/mannequin.ts`.
 - No Spine export. No animation data.
 
@@ -527,6 +527,16 @@ Tests, format, lint, typecheck, build and `check:config` pass. Pictures and `rev
 ### 16.6 Not in T1a
 
 Coverage masks, animation sampling, forward kinematics, Spine exports, the record schemas, the resolver, model runs, hand-edited template images, and any change to `character.json`, the rig contract, the master rig, D statuses or existing package behaviour.
+
+### 16.7 Implementation notes and deviations
+
+- The geometry source is the volume set of the `depth` command (the C0.5 reference body). Visibility follows the slot draw order, as Spine draws the setup pose.
+- The reference body has no volume for hair, ears, tail, skirt, accessory, weapon and `hand_near_front`. These slots have no mask. The required `hair_back` and `hair_front` get a hatched placeholder frame in the mock package, not a shape.
+- The first T1a run failed check M1 ("each visible mask is inside the attachment rectangle") for two slots. The owner approved this correction:
+  - Neck: the neck volume starts inside the torso. The depth image hides that part, but T1a uses the draw order (neck over torso), so the part showed as a neck tube on the chest. Now a neck-volume hit below the neck joint belongs to the `torso` slot, as the torso volume is split at the spine joint. The depth image, the contract and the draw order do not change.
+  - Hips: the lowest point of the pelvis (the crotch, 3.15 head units) is a visible surface below the hip joints, and the hips rectangle rule did not include it. The candidate generator now includes this point with the same 0.3 head-unit margin as the other points. In the candidate fixture only `hips.attachmentRect.h` changes, from 232 to 303.
+  - M1 now passes on the fixture. A test with the earlier hips rectangle checks that M1 still finds the problem.
+- T1a-06 runs the real `parseCharacter` source of `@aigg/rig-runtime` in a child Node.js process, because `@aigg/control` has no dependency on `@aigg/rig-runtime`.
 
 ## 17. Audit disposition
 

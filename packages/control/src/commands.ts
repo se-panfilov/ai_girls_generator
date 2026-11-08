@@ -33,9 +33,9 @@ export const maxContractBytes = 1024 * 1024;
 export type FileRecord = { readonly name: string; readonly sha256: string; readonly pixelSha256?: string };
 export type CommandResult = { readonly report: Record<string, unknown>; readonly files: readonly PlannedFile[] };
 
-const json = (value: unknown): Buffer => Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
+export const json = (value: unknown): Buffer => Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
 
-function record(file: PlannedFile, raster?: Raster): FileRecord {
+export function record(file: PlannedFile, raster?: Raster): FileRecord {
   return raster ? { name: file.name, sha256: sha256(file.bytes), pixelSha256: pixelHash(raster) } : { name: file.name, sha256: sha256(file.bytes) };
 }
 
@@ -68,7 +68,7 @@ function keypointReport(pose: RigPose, transform: Transform): Record<string, unk
   }));
 }
 
-function contractReport(contract: ControlContract, bytes: Buffer): Record<string, unknown> {
+export function contractReport(contract: ControlContract, bytes: Buffer): Record<string, unknown> {
   return { rigId: contract.rigId, contractVersion: contract.contractVersion, sha256: sha256(bytes), view: contract.view, sideNaming: contract.sideNaming, canvas: contract.canvas };
 }
 
@@ -323,7 +323,7 @@ function label(raster: Raster, color: Color): void {
   );
 }
 
-function sheetOf(rows: readonly (readonly Raster[])[], gap: number): Raster {
+export function sheetOf(rows: readonly (readonly Raster[])[], gap: number): Raster {
   const cellWidth = Math.max(...rows.flat().map((item) => item.width));
   const cellHeight = Math.max(...rows.flat().map((item) => item.height));
   const columns = Math.max(...rows.map((row) => row.length));
