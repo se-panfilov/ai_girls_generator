@@ -27,17 +27,28 @@ export const notModeledSlots: readonly string[] = ['hair_back', 'hair_front', 'h
 /** Height (head units) where the torso volume changes from the `hips` slot to the `torso` slot: the `spine` joint, the child joint of the hips bone. */
 const torsoSplitUp = referenceBody.landmarks.spine.up;
 
-/** The slot of a volume hit. The torso volume belongs to two slots, split at the spine joint height. The nose belongs to the head. */
+/**
+ * Height (head units) below which a hit on the neck volume belongs to the `torso` slot: the `neck` joint, the pivot of the neck bone.
+ * The neck volume starts inside the torso (depthAssumptions.neck). The depth image hides that part, because the nearest surface wins.
+ * Here the draw order decides (neck over torso), so without this split the hidden part shows as a neck tube on the chest.
+ */
+const neckSplitUp = referenceBody.landmarks.neck.up;
+
+/**
+ * The slot of a volume hit. The torso volume belongs to two slots, split at the spine joint height. The neck volume below the neck joint
+ * belongs to the torso. The nose belongs to the head.
+ */
 export function slotOfVolume(primitiveId: string, up: number): string {
   if (primitiveId === 'torso') return up >= torsoSplitUp ? 'torso' : 'hips';
+  if (primitiveId === 'neck') return up >= neckSplitUp ? 'neck' : 'torso';
   if (primitiveId === 'nose') return 'head';
   return primitiveId;
 }
 
-/** Slot ids that the volumes fill, in a fixed order. */
+/** Slot ids that the volumes fill, in a fixed order. A volume is named by the slot of its top part. */
 export function modeledSlots(): string[] {
   const ids = new Set<string>(['torso', 'hips']);
-  for (const primitive of depthPrimitives()) ids.add(slotOfVolume(primitive.id, primitive.kind === 'loft' ? torsoSplitUp : 0));
+  for (const primitive of depthPrimitives()) ids.add(slotOfVolume(primitive.id, Infinity));
   return [...ids];
 }
 
@@ -713,6 +724,7 @@ export function templateCommand(options: TemplateOptions): { report: Record<stri
     assumptions: [
       'Geometry comes from simple volumes (capsules, ellipsoids, one torso volume with elliptic sections). No hair, clothing, fingers, ears, or face detail except a small nose.',
       `The torso volume is split between the torso and hips slots at the spine joint height (${torsoSplitUp} head units).`,
+      `The neck volume below the neck joint height (${neckSplitUp} head units) is inside the torso and belongs to the torso slot.`,
       'Visibility follows the slot draw order, as Spine draws the setup pose. drawOrderConflicts lists pixels where another slot is nearer in 3D.',
       'Slots without a volume have no mask. A required one gets a hatched placeholder frame in the mock package.'
     ],
@@ -793,6 +805,7 @@ function reviewText(
     '',
     '- The body is simple volumes: capsules for limbs, hands and feet, ellipsoids for the head and nose, one smooth torso volume. No fingers, no breasts, no clothing.',
     '- The torso volume is split between `torso` and `hips` at the spine joint height. The real seam position is a design choice for the artist.',
+    '- The neck volume below the neck joint is inside the torso and belongs to `torso`. The neck part starts at the neck joint.',
     `- These slots have no reference volume and no mask: ${notModeled.map((slot) => `\`${slot.id}\``).join(', ')}.`,
     `- Required slots without a volume get a hatched placeholder frame in the mock package, not a shape: ${placeholders.join(', ') || 'none'}.`,
     '- Masks are sampled at pixel centers. Borders can differ by one pixel from another renderer.',

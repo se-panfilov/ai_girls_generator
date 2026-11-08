@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parseContractBytes } from '@control/commands';
-import { cameraOf } from '@control/depth';
+import { cameraOf, depthAssumptions } from '@control/depth';
+import { pelvisBottomUp } from '@control/mannequin';
 import { decodePng, sha256 } from '@control/png';
 import { fitTransform, toContract, toTarget } from '@control/pose';
 import { ControlError } from '@control/problems';
@@ -124,7 +125,7 @@ describe('T1a-03 masks and region ownership', () => {
     }
   });
 
-  it('reports every mask pixel outside its attachment rectangle, and only the known hips and neck finding has such pixels', () => {
+  it('keeps every mask pixel inside the attachment rectangle of its slot (geometry check M1 passes on the fixture)', () => {
     const { transform } = manifest().coordinates;
     const outside: string[] = [];
     for (const slot of manifest().slots.filter((item) => item.visibleMask)) {
@@ -138,13 +139,38 @@ describe('T1a-03 masks and region ownership', () => {
       }
       if (count > 0) outside.push(slot.slot);
     }
-    // Finding of this geometry: the hips volume goes below the hips rectangle and the neck (drawn over the torso) below the neck rectangle.
-    expect(outside).toEqual(['hips', 'neck']);
-    const m1 = manifest().checks.find((check) => check.id === 'M1');
-    expect(m1?.status).toBe('FAIL');
-    expect(m1?.detail).toContain('hips');
-    expect(m1?.detail).toContain('neck');
-    expect(result().report.status).toBe('FAIL');
+    expect(outside).toEqual([]);
+    expect(manifest().checks.find((check) => check.id === 'M1')?.status).toBe('PASS');
+    expect(result().report.status).toBe('PASS');
+  });
+
+  it('detects mask pixels outside a rectangle (tool check): a hips rectangle without the lowest pelvis point fails M1', () => {
+    const changed = candidate();
+    const hips = (changed.slots as { id: string; attachmentRect: { h: number } }[]).find((slot) => slot.id === 'hips');
+    if (!hips) throw new Error('The fixture has no hips slot.');
+    hips.attachmentRect.h = 232;
+    const run = templateCommand({ contractBytes: bytesOf(changed), size, toolVersion });
+    const m1 = run.report.checks as { id: string; status: string; detail: string }[];
+    expect(m1.find((check) => check.id === 'M1')).toMatchObject({ status: 'FAIL', detail: expect.stringContaining('hips (1248 contract px)') as unknown });
+    expect(m1.find((check) => check.id === 'M1')?.detail).not.toContain('neck');
+    expect(run.report.status).toBe('FAIL');
+  });
+
+  it('starts the neck region at the neck joint: no neck pixel below it', () => {
+    const { transform } = manifest().coordinates;
+    const neckJoint = parseContractBytes(candidateBytes()).bones.get('neck')?.joint;
+    if (!neckJoint) throw new Error('The fixture has no neck joint.');
+    const mask = raster('masks/neck.visible.png');
+    let below = 0;
+    for (let p = 0; p < mask.width * mask.height; p += 1) {
+      if (mask.data[p * 4] === 255 && toContract({ x: 0, y: Math.floor(p / mask.width) + 0.5 }, transform).y > neckJoint.y + 1) below += 1;
+    }
+    expect(below).toBe(0);
+  });
+
+  it('uses the same lowest pelvis point for the hips rectangle as the torso volume', () => {
+    const torso = depthAssumptions.torso;
+    expect((torso.sections[0]?.up ?? Number.NaN) - torso.bottomCap).toBeCloseTo(pelvisBottomUp, 9);
   });
 });
 
@@ -283,7 +309,7 @@ describe('T1a-07 input immutability', () => {
     const root = temporaryDirectory();
     expect(runCli(['--contract', fixturePath, '--out', join(root, 'out'), '--size', '208x312']).report.command).toBe('template');
     expect(sha256(candidateBytes())).toBe(before);
-    expect(before).toBe('17e730691f7efc3e33dde993c46a3e250650152790cbbad89429af8a1977675e');
+    expect(before).toBe('2e5868b5e416600bb9266ed92a90e939bfd0d0ac20146aa438504c91ec1e5d6f');
   });
 });
 
@@ -296,11 +322,11 @@ describe('T1a-08 output safety and dry run', () => {
     const dry = runCli([...small, '--out', out, '--dry-run']);
     expect(dry.report.written).toBe(false);
     expect(existsSync(out)).toBe(false);
-    expect(runCli([...small, '--out', out]).status).toBe(1);
+    expect(runCli([...small, '--out', out]).status).toBe(0);
     expect(existsSync(join(out, 'mock-package', 'parts', 'torso.png'))).toBe(true);
     const again = runCli([...small, '--out', out]);
     expect([again.status, again.report.code]).toEqual([2, 'E_OUTPUT_EXISTS']);
-    expect(runCli([...small, '--out', out, '--force']).status).toBe(1);
+    expect(runCli([...small, '--out', out, '--force']).status).toBe(0);
   });
 
   it('refuses symbolic links for the output directory and its subdirectories, and never writes through a file link', () => {

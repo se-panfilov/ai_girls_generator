@@ -489,7 +489,7 @@ Make a static 3/4 template of the C0.5 prototype geometry and flat mock parts fo
 
 ### 16.2 Inputs
 
-- `packages/control/test/fixtures/c05-candidate/rig.contract.json` (SHA-256 `17e73069…675e`) as a **prototype** fixture.
+- `packages/control/test/fixtures/c05-candidate/rig.contract.json` as a **prototype** fixture. T1a changed its hips rectangle (see 16.7): the SHA-256 is now `2e5868b5…5d6f`. The C1 and C2 records name the earlier file, `17e73069…675e`.
 - `referenceBody` in `packages/control/src/mannequin.ts`.
 - No Spine export. No animation data.
 
@@ -532,7 +532,10 @@ Coverage masks, animation sampling, forward kinematics, Spine exports, the recor
 
 - The geometry source is the volume set of the `depth` command (the C0.5 reference body). Visibility follows the slot draw order, as Spine draws the setup pose.
 - The reference body has no volume for hair, ears, tail, skirt, accessory, weapon and `hand_near_front`. These slots have no mask. The required `hair_back` and `hair_front` get a hatched placeholder frame in the mock package, not a shape.
-- The C0.5 data does not meet "each visible mask is inside the attachment rectangle" for two slots: the `hips` volume goes below the hips rectangle, and the `neck` volume (drawn over the torso) goes below the neck rectangle. The command reports this as check M1 (FAIL) and does not clip the masks. A correction changes the candidate rectangles or the volume assumptions, and needs an owner decision.
+- The first T1a run failed check M1 ("each visible mask is inside the attachment rectangle") for two slots. The owner approved this correction:
+  - Neck: the neck volume starts inside the torso. The depth image hides that part, but T1a uses the draw order (neck over torso), so the part showed as a neck tube on the chest. Now a neck-volume hit below the neck joint belongs to the `torso` slot, as the torso volume is split at the spine joint. The depth image, the contract and the draw order do not change.
+  - Hips: the lowest point of the pelvis (the crotch, 3.15 head units) is a visible surface below the hip joints, and the hips rectangle rule did not include it. The candidate generator now includes this point with the same 0.3 head-unit margin as the other points. In the candidate fixture only `hips.attachmentRect.h` changes, from 232 to 303.
+  - M1 now passes on the fixture. A test with the earlier hips rectangle checks that M1 still finds the problem.
 - T1a-06 runs the real `parseCharacter` source of `@aigg/rig-runtime` in a child Node.js process, because `@aigg/control` has no dependency on `@aigg/rig-runtime`.
 
 ## 17. Audit disposition
