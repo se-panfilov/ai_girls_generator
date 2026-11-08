@@ -92,7 +92,8 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 | Fail       | Below 40 % inside tolerance.                                                                                                                                            |
 
 Status: pilot C0 prepared the pose control images, ComfyUI workflows, and overlay tools. Inference is blocked (no GPU, no approved model). See [the C0 report](proposals/C0_RIG_GUIDED_GENERATION.md).
-C0.5 proposes a corrected reference geometry for the view (candidate, not accepted). See [the C0.5 report](proposals/C05_REFERENCE_MANNEQUIN.md).
+C0.5 proposes a corrected reference geometry for the view. The owner accepted it as a preliminary reference for experiment C only. See [the C0.5 report](proposals/C05_REFERENCE_MANNEQUIN.md).
+The first generation uses an execution bundle (`aigg-control bundle`): the agent prepares it, the owner runs it on the GPU host, and the agent analyzes the images. See [the package README](../packages/control/README.md).
 
 ### D. Asset interchange
 

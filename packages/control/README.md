@@ -9,14 +9,14 @@ It does not run a model, does not contact a server, and does not detect keypoint
 
 Build first: `npm run build --workspace @aigg/control`. Then run `node packages/control/dist/src/cli.js <command>` from the root.
 
-| Command    | Input                                      | Output                                                                                         |
-| ---------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `pose`     | `rig.contract.json`, optional `--size WxH` | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`         |
-| `workflow` | An OpenPose image, model file names, seeds | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json` |
-| `overlay`  | `rig.contract.json`, a PNG, optional marks | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`         |
-
-| `candidate` | A base `rig.contract.json`, optional `--yaw` | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below) |
+| Command     | Input                                         | Output                                                                                                                                 |
+| ----------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `pose`      | `rig.contract.json`, optional `--size WxH`    | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                 |
+| `workflow`  | An OpenPose image, model file names, seeds    | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                         |
+| `overlay`   | `rig.contract.json`, a PNG, optional marks    | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`                                                 |
+| `candidate` | A base `rig.contract.json`, optional `--yaw`  | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
 | `calibrate` | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
+| `bundle`    | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle (see below)                                                                                          |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -52,6 +52,22 @@ The contract canvas is scaled uniformly into the target size and centered. The p
   With `--skeleton`, it poses both contracts at the most extreme key of each animation (forward kinematics, linear keys, rotate and translate only).
 - Face keypoints come from contract points `face_nose`, `face_eye_<side>` and `face_ear_<side>` when they exist. Otherwise the face template is used.
 
+## Experiment C execution bundle
+
+The owner runs experiment C on a rented GPU host. The agent prepares the bundle, the owner runs it, and the agent analyzes the images.
+
+```sh
+npm run build --workspace @aigg/control
+node packages/control/dist/src/cli.js bundle --contract packages/control/test/fixtures/c05-candidate/rig.contract.json --out /tmp/exp-c-bundle
+```
+
+The bundle is a flat directory: `run.sh` (thin wrapper), `runner.mjs` (compiled from `src/runner.ts`, Node.js built-ins only), `bundle.json` (model manifest, runs, file hashes),
+the OpenPose image, one baseline and one pose-guided workflow (seed 1001), `run-plan.json`, `README.md` (the steps on the Pod), and `SHA256SUMS`. The build is deterministic.
+
+On the Pod, `sh run.sh --models-dir <ComfyUI models folder>` checks the bundle and ComfyUI at `127.0.0.1:8188`, downloads only the two approved model files from pinned revisions with a SHA-256 check,
+runs the two workflows once, and writes the images, `SHA256SUMS`, `result.json`, and `run.log`. `sh run.sh status` reads the results directory. See [SECURITY.md](SECURITY.md) for the controls.
+The runner needs Node.js 22.12 or later on the GPU host (the development version is in `.nvmrc`). It refuses any other model list, more runs, or a second submission of a recorded prompt.
+
 ## Measurement
 
 `overlay --marks marks.json` compares keypoints that a person marked on the image with the rig. The tool does not find keypoints itself.
@@ -65,5 +81,5 @@ Only the 13 body keypoints are scored. Missing keypoints give INCOMPLETE.
 
 ## Dependencies and limits
 
-No runtime dependencies. PNG files are written and read with `node:zlib`, because only 8-bit RGB and RGBA control images are necessary. See [SECURITY.md](SECURITY.md).
+No runtime dependencies. PNG files are written and read with `node:zlib`, because only 8-bit RGB and RGBA control images are necessary. The experiment C runner uses only Node.js built-ins (`fetch`, `node:fs`, `node:crypto`). See [SECURITY.md](SECURITY.md).
 Supported view: `three_quarter_right` with `near_far` side names. Other views stop with `E_VIEW_UNSUPPORTED`.

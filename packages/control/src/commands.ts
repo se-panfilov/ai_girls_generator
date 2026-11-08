@@ -140,7 +140,7 @@ export function workflowCommand(options: WorkflowOptions): CommandResult {
     format: 'aigg.run-plan/0.1',
     tool: toolName,
     runStatus: 'NOT RUN',
-    approval: 'The models are Candidate entries in docs/MODEL_LICENSES.md, not Approved. Do not run this plan before the owner approves the exact files and the hardware or cost.',
+    approval: 'Use only model files with an approved status in docs/MODEL_LICENSES.md, for the scope that the registry gives. The owner starts each paid run.',
     models: {
       checkpoint: { file: options.checkpoint, sha256: options.checkpointSha256 ?? null },
       controlNet: { file: options.controlNet, sha256: options.controlNetSha256 ?? null, unionType: unionControlType }
