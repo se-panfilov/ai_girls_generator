@@ -2,16 +2,12 @@
   "schema": "aigg.generation-job/0.1",
   "jobId": "example_ranger_t3_lineart_1",
   "purpose": { "kind": "experiment", "scope": "experiment_c" },
-  "rig": {
-    "rigId": "humanoid_girl_v1_c05_candidate",
-    "contractVersion": "0.3.0",
-    "contractSha256": "17e730691f7efc3e33dde993c46a3e250650152790cbbad89429af8a1977675e",
-    "skeletonSha256": null
-  },
+  "rig": { "rigId": "humanoid_girl_v1_c05_candidate", "contractVersion": "0.3.0", "contractSha256": "17e730691f7efc3e33dde993c46a3e250650152790cbbad89429af8a1977675e", "skeletonSha256": null },
   "template": { "id": "humanoid_girl_c05_proto", "revision": 1, "digest": "d62d3cfa4c589caf5f81ff47d3b3c65346c350039c988738c68b2bac20701181" },
   "style": { "id": "example_clean_cel", "revision": 1, "digest": "d246d3f90e92e3e2d62ab588723f272a78be0ffb1a4a47cd2ee911630fadf9d9" },
   "styleBinding": { "id": "example_clean_cel_sdxl_prompt", "revision": 1, "digest": "5659b4bb39733aad7355acbdb75a92f14cffa773866f6b3d88997f54ee030ff4" },
-  "identity": { "id": "example_ranger", "revision": 1, "digest": "4ce4e3074d4bbb0b3da2ef2f31b16d18e5f61bcfb40b238f5ead8e0d39c824f0" },
+  "identity": { "id": "example_ranger", "revision": 1, "digest": "cb9140a22cdd5b9965ad998c43651745edf13dc64f560f10fc2701a34c48f491" },
+  "appearanceVariant": "base",
   "models": [
     {
       "role": "checkpoint",
@@ -35,10 +31,7 @@
       "adapter": "comfyui",
       "workflowTemplate": { "id": "sdxl_lineart_v1", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0201" },
       "conditioning": [{ "capability": "control_lineart", "source": "template:contour_lineart", "strength": 0.6, "startPercent": 0, "endPercent": 0.8 }],
-      "prompt": {
-        "positive": "1girl, adult, solo, full body, standing, short silver hair, green eyes, dark green jacket, short sleeves, shorts, boots",
-        "negative": "child, nsfw, extra arms"
-      },
+      "prompt": { "positive": "1girl, adult, solo, full body, standing, short silver hair, green eyes, dark green jacket, short sleeves, shorts, boots", "negative": "child, nsfw, extra arms" },
       "seeds": [1001],
       "humanGate": "concept_selection"
     },

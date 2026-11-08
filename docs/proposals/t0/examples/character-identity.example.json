@@ -15,6 +15,18 @@
   "asymmetry": { "asymmetric": true, "details": "Scar on the near cheek. The scar changes sides when the character is mirrored (decision D12 is open)." },
   "references": [],
   "approvedConcept": null,
-  "relations": { "variantOf": null, "relatedTo": [] },
+  "appearanceVariants": [
+    { "variantId": "base", "label": "Field uniform", "status": "draft", "changes": [] },
+    {
+      "variantId": "casual",
+      "label": "Casual clothes",
+      "status": "draft",
+      "changes": [
+        { "trait": "outfit", "value": "White fitted t-shirt, denim shorts, sneakers" },
+        { "trait": "hair", "value": "Short silver bob with a low ponytail" }
+      ]
+    }
+  ],
+  "relations": { "relatedTo": [] },
   "approvals": []
 }

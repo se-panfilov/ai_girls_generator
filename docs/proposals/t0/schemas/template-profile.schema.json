@@ -37,15 +37,7 @@
         }
       }
     },
-    "view": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "sideNaming"],
-      "properties": {
-        "id": { "const": "three_quarter_right" },
-        "sideNaming": { "const": "near_far" }
-      }
-    },
+    "view": { "type": "object", "additionalProperties": false, "required": ["id", "sideNaming"], "properties": { "id": { "const": "three_quarter_right" }, "sideNaming": { "const": "near_far" } } },
     "canvas": {
       "type": "object",
       "additionalProperties": false,
@@ -57,10 +49,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["width", "height"],
-          "properties": {
-            "width": { "type": "integer", "minimum": 64, "maximum": 4096 },
-            "height": { "type": "integer", "minimum": 64, "maximum": 4096 }
-          }
+          "properties": { "width": { "type": "integer", "minimum": 64, "maximum": 4096 }, "height": { "type": "integer", "minimum": 64, "maximum": 4096 } }
         },
         "fit": { "const": "uniform_scale_centered" }
       }
@@ -81,16 +70,10 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["role", "sha256"],
-            "properties": {
-              "role": { "enum": ["rig_contract", "spine_skeleton", "reference_body"] },
-              "sha256": { "$ref": "common.schema.json#/$defs/sha256" }
-            }
+            "properties": { "role": { "enum": ["rig_contract", "spine_skeleton", "reference_body"] }, "sha256": { "$ref": "common.schema.json#/$defs/sha256" } }
           }
         },
-        "manualEdits": {
-          "description": "true if a human changed derived images. Then the images are canonical binary data and need storage (D15).",
-          "type": "boolean"
-        }
+        "manualEdits": { "description": "true if a human changed derived images. Then the images are canonical binary data and need storage (D15).", "type": "boolean" }
       }
     },
     "orientation": {
@@ -124,12 +107,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "kind", "x", "y"],
-        "properties": {
-          "id": { "$ref": "common.schema.json#/$defs/id" },
-          "kind": { "enum": ["bone", "point"] },
-          "x": { "type": "number" },
-          "y": { "type": "number" }
-        }
+        "properties": { "id": { "$ref": "common.schema.json#/$defs/id" }, "kind": { "enum": ["bone", "point"] }, "x": { "type": "number" }, "y": { "type": "number" } }
       }
     },
     "parts": {
@@ -148,20 +126,12 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["x", "y", "w", "h"],
-            "properties": {
-              "x": { "type": "integer" },
-              "y": { "type": "integer" },
-              "w": { "type": "integer", "minimum": 1 },
-              "h": { "type": "integer", "minimum": 1 }
-            }
+            "properties": { "x": { "type": "integer" }, "y": { "type": "integer" }, "w": { "type": "integer", "minimum": 1 }, "h": { "type": "integer", "minimum": 1 } }
           },
-          "visibleMask": {
-            "description": "Pixels of this part that are visible in the reference pose (setup pose).",
-            "$ref": "common.schema.json#/$defs/imageAsset"
-          },
+          "visibleMask": { "description": "Pixels of this part that are visible in the reference pose (setup pose).", "$ref": "common.schema.json#/$defs/imageAsset" },
           "coverageMask": {
-            "description": "Pixels of this part, in its setup-pose position, that become visible in at least one sampled pose of the shared animation set, plus the joint overlaps. The part must be painted here.",
-            "$ref": "common.schema.json#/$defs/imageAsset"
+            "description": "Pixels of this part, in its setup-pose position, that become visible in at least one sampled pose of the shared animation set (posed by spine-core on a matching Spine export), plus the joint overlaps. null when not computed, for example in a static prototype (T1a).",
+            "oneOf": [{ "type": "null" }, { "$ref": "common.schema.json#/$defs/imageAsset" }]
           },
           "jointOverlaps": {
             "type": "array",
@@ -169,24 +139,17 @@
               "type": "object",
               "additionalProperties": false,
               "required": ["childBone", "radiusPx"],
-              "properties": {
-                "childBone": { "$ref": "common.schema.json#/$defs/id" },
-                "radiusPx": { "type": "number", "minimum": 0 }
-              }
+              "properties": { "childBone": { "$ref": "common.schema.json#/$defs/id" }, "radiusPx": { "type": "number", "minimum": 0 } }
             }
           },
           "hiddenArea": {
-            "description": "paint_required: coverageMask minus visibleMask is not empty. none: the part is fully visible in all sampled poses.",
-            "enum": ["paint_required", "none"]
+            "description": "paint_required: coverageMask minus visibleMask is not empty. none: fully visible in all sampled poses. not_computed: no coverage mask yet.",
+            "enum": ["paint_required", "none", "not_computed"]
           }
         }
       }
     },
-    "variants": {
-      "description": "Body archetype variants. Empty until the owner decides D7 and the variant tolerances.",
-      "type": "array",
-      "maxItems": 0
-    },
+    "variants": { "description": "Body archetype variants. Empty until the owner decides D7 and the variant tolerances.", "type": "array", "maxItems": 0 },
     "approvals": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/approval" } }
   }
 }

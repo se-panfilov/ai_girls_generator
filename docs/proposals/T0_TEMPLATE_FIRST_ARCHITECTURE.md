@@ -21,7 +21,7 @@ Status marks follow [the writing rules](../WRITING.md#status-marks): **Accepted*
 11. [Decisions and dependencies](#11-decisions-and-dependencies)
 12. [Long-term risks](#12-long-term-risks)
 13. [Delivery plan](#13-delivery-plan)
-14. [T1 specification](#14-t1-specification)
+14. [T1a specification](#14-t1a-specification)
 15. [Sources and verification](#15-sources-and-verification)
 16. [Documents that this change makes stale](#16-documents-that-this-change-makes-stale)
 
@@ -44,18 +44,18 @@ What the evidence shows: 2D pose control holds joint positions, but not the 3D t
 
 The owner gave these directions in the T0 task. The table maps each one to its status in this repository.
 
-| #   | Owner direction                                                                   | Status in this document                                                                                                                                     |
-| --- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| O1  | Main direction D: generation from an approved geometry template bound to the rig. | **Accepted intent** (strategic). Proposed open decision D27 holds the details.                                                                              |
-| O2  | Style reference (A) is the main candidate for art consistency.                    | **Accepted intent** as a candidate. It needs new weights and a custom node or a new adapter (see [R3](#r3-style-reference-needs-new-execution-components)). |
-| O3  | Style LoRA (B) is a later pluggable strategy.                                     | **Accepted intent.** The binding format reserves it. No training now.                                                                                       |
-| O4  | Declarative switching of models and art profiles without source changes.          | **Accepted intent** with a limit (see [R4](#r4-declarative-switching-is-not-unreviewed-switching)).                                                         |
-| O5  | One style for all characters, different personality and appearance.               | **Accepted intent.** Style and identity are separate records.                                                                                               |
-| O6  | Later: variants of one character (clothes, hair, details).                        | **Accepted intent.** Planned (V1). Conflict with D23 and D25 boundaries (see [R5](#r5-outfit-variants-cross-module-and-equipment-boundaries)).              |
-| O7  | Different specialized models at different stages are permitted.                   | **Accepted intent.** Each model still needs registry approval (D9).                                                                                         |
-| O8  | Keep one shared Spine skeleton and animation set, PNG parts + `character.json`.   | **Accepted** (existing owner requirements).                                                                                                                 |
-| O9  | Keep `@aigg/control`, `@aigg/rig-runtime`, checks, masks, provenance, bundles.    | **Accepted.** The plan adds narrow parts to them.                                                                                                           |
-| O10 | C0.5 is not an approved production rig.                                           | **Accepted** (owner decision on C0.5). Templates from C0.5 have the status `prototype`.                                                                     |
+| #   | Owner direction                                                                   | Status in this document                                                                                                                                                  |
+| --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| O1  | Main direction D: generation from an approved geometry template bound to the rig. | **Accepted intent** (strategic). Proposed open decision D27 holds the details.                                                                                           |
+| O2  | Style reference (A) is the main candidate for art consistency.                    | **Accepted intent** as a candidate. It needs new weights and a custom node or a new adapter (see [R3](#r3-style-reference-needs-new-execution-components)).              |
+| O3  | Style LoRA (B) is a later pluggable strategy.                                     | **Accepted intent.** The binding format reserves it. No training now.                                                                                                    |
+| O4  | Declarative switching of models and art profiles without source changes.          | **Accepted intent** with a limit (see [R4](#r4-declarative-switching-is-not-unreviewed-switching)).                                                                      |
+| O5  | One style for all characters, different personality and appearance.               | **Accepted intent.** Style and identity are separate records.                                                                                                            |
+| O6  | Later: variants of one character (clothes, hair, details).                        | **Accepted intent.** Planned (V1) as appearance variants of one identity, separate from equipment (see [R5](#r5-outfit-variants-cross-module-and-equipment-boundaries)). |
+| O7  | Different specialized models at different stages are permitted.                   | **Accepted intent.** Each model still needs registry approval (D9).                                                                                                      |
+| O8  | Keep one shared Spine skeleton and animation set, PNG parts + `character.json`.   | **Accepted** (existing owner requirements).                                                                                                                              |
+| O9  | Keep `@aigg/control`, `@aigg/rig-runtime`, checks, masks, provenance, bundles.    | **Accepted.** The plan adds narrow parts to them.                                                                                                                        |
+| O10 | C0.5 is not an approved production rig.                                           | **Accepted** (owner decision on C0.5). Templates from C0.5 have the status `prototype`.                                                                                  |
 
 Proposed decision (D27, open until the owner closes it): the production-art stage changes from "prompt with pose control" to "template-guided design, then deterministic partition into rig parts, then targeted completion of hidden areas". Prompt-only generation stays for concept exploration and as a comparison baseline.
 
@@ -77,8 +77,10 @@ The owner asked for a critical check. Each item states the problem, its evidence
 ### R3. Style reference needs new execution components
 
 - **Verified.** The ComfyUI 0.35.0 core node list has no IP-Adapter node. It has `CLIPVisionEncode` and `StyleModelApply` (style model files, not IP-Adapter).
-- **Verified.** The SDXL IP-Adapter weights are in `h94/IP-Adapter` (model card license tag `apache-2.0`). The base SDXL adapter uses the OpenCLIP ViT-bigG-14 image encoder (1844.9 M parameters). The Plus variants use OpenCLIP ViT-H-14. The model card lists `.bin` files. The diffusers guide loads `.safetensors` names for the Plus variants. The file list was not checked.
-- **Effect.** Strategy A needs: a custom node (a human decision under AGENTS.md) or a separate diffusers process behind a new adapter (a human decision), an adapter weight file and an image encoder file (registry approvals, D9), and possibly pickle-based `.bin` files (forbidden without a human decision). The image encoder license must be checked separately from the adapter license.
+- **Verified.** The SDXL IP-Adapter weights are in `h94/IP-Adapter` (model card license tag `apache-2.0`). The base SDXL adapter uses the OpenCLIP ViT-bigG-14 image encoder (1844.9 M parameters). The Plus variants use OpenCLIP ViT-H-14.
+- **Not verified.** The model card text names `.bin` files. The diffusers guide loads `.safetensors` names for the Plus variants. So `safetensors` variants can exist. The Files tab of the repository was not read. Maintained ComfyUI custom nodes for IP-Adapter can also exist. No custom node was reviewed for this document.
+- **Effect.** Strategy A needs new execution components: a reviewed custom node or a separate diffusers process behind a new adapter, an adapter weight file and an image encoder file. Pickle-based `.bin` files are not unavoidable. The first choice is a `safetensors` file. A `.bin` file is used only after a separate human decision.
+- **Approvals.** Each new weight file, image encoder, custom node or other extension needs a separate owner approval and a registry entry (D9). The image encoder license is checked separately from the adapter license. This document approves nothing.
 - **Alternative.** Keep A as the main candidate, but put the cheapest measurement first: a prompt-only binding with a fixed style vocabulary on the approved checkpoint (`none` baseline). Animagine XL 4.0 already has a strong anime style. If three different characters already look consistent enough, A is not needed for v1. If not, A goes to the S1 style proof with the components above. This orders the work by cost. It does not remove A.
 
 ### R4. Declarative switching is not unreviewed switching
@@ -89,7 +91,15 @@ The owner asked for a critical check. Each item states the problem, its evidence
 ### R5. Outfit variants cross module and equipment boundaries
 
 - **Problem.** An outfit change in the 3/4 cutout touches the torso, both arms (sleeves on each segment) and the legs (trousers, boots). Under the proposed D23 groups these are four modules. Under D25, removable clothes and armor are **equipment**, not appearance. So "a new outfit of the same character" has no single owner in the current model.
-- **Alternative.** Proposed open decision D29: in v1, clothing that is drawn on the body is appearance, and an outfit variant is a new character identity revision with `variantOf`, which produces a complete new package (all modules). Equipment (D25) stays for removable items in v2+. This needs no module change now and keeps the D23 atomic multi-part rule.
+- **Alternative.** Proposed open decision D29: three different concepts, with minimal semantics and no new infrastructure.
+
+| Concept             | Meaning                                                                                                  | Where it is recorded                                                                                     | Result                                                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Identity change     | The person changes: a locked trait (face, eyes, body) changes, or a different person is made             | A new identity revision only to correct the approved design. A different person gets a new `characterId` | All variants are made again or checked again                                                                                         |
+| Appearance variant  | The same person with other drawn-on clothes, hair or expression. Only traits with `locked: false` change | `appearanceVariants` in the same identity revision: `variantId`, label, status, changed traits           | One normal character package for each variant. `character.json` does not change. The build record names the identity and the variant |
+| Removable equipment | An item that is put on or taken off at run time (weapon, helmet, armor)                                  | Not in the identity and not in a variant. D25 (v2+)                                                      | Not drawn into the parts of any variant                                                                                              |
+
+An identity has one default variant (`base`). A variant is a set of complete parts for every slot, so the D23 atomic multi-part rule holds without a change. Later, D23 module manifests can combine modules of variants of the same identity. That needs no new runtime, because module swap already exists as a draft.
 
 ### R6. Shared base body (D7) and "different appearance"
 
@@ -140,7 +150,7 @@ Equipment (D25) stays a separate future concern. It is not in this architecture.
 | Component               | Kind                           | Responsibility                                                                                          | Status                                     |
 | ----------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | Rig registration        | Data + existing code           | Rig contract, Spine export, `rig.generated.json` check                                                  | Partly implemented (`@aigg/rig-runtime`)   |
-| Template builder        | Node.js code (`@aigg/control`) | Derive the template profile, masks, line art, coverage masks, previews from the rig                     | Planned (T1)                               |
+| Template builder        | Node.js code (`@aigg/control`) | Derive the template, masks, line art and previews (T1a). Coverage masks with spine-core (T1b, T2)       | Planned (T1a, T1b)                         |
 | Record registry         | JSON data files                | Template, style, binding, identity, model profile, workflow template records with revisions and digests | Planned (P2)                               |
 | Resolver and planner    | Pure Node.js code              | Resolve aliases, pin digests, negotiate capabilities, write a resolved job and a stage plan             | Planned (P3)                               |
 | Generator adapters      | Node.js code                   | `mock` for tests, `comfyui` through the existing bundle pattern                                         | Bundle exists for experiment C only        |
@@ -192,7 +202,9 @@ ModelProfile registry (from MODEL_LICENSES.md)                              │
 
 ## 5. Data contracts
 
-**Proposed. Nonauthoritative.** JSON Schemas: [`t0/schemas/`](t0/schemas/). Examples: [`t0/examples/`](t0/examples/). Section 15 states how the examples were validated.
+**Proposed. Nonauthoritative. Unapproved design.** JSON Schemas: [`t0/schemas/`](t0/schemas/). Examples: [`t0/examples/`](t0/examples/). Section 15 states how the examples were validated.
+
+**Implementation is deferred.** The seven schemas and the general resolver (section 6) are not required before the first working template-first character. Do not implement them in T1a, T1b, T2, T3 or T4. Those steps write only the small manifests that they need. Implementation of the records (P2) and the resolver (P3) starts only when a concrete need exists, for example a second style, a second model family, or many characters. The design can change with the experience of the first character.
 
 ### 5.1 Common rules
 
@@ -210,15 +222,15 @@ ModelProfile registry (from MODEL_LICENSES.md)                              │
 | TemplateProfile   | `aigg.template-profile/0.1`   | Rig binding (contract SHA-256, Spine export fingerprint or `null` for prototypes), view, canvas, derivation inputs, orientation, image assets, anchors, parts with visible and coverage masks | New bones, slots, pivots, draw order                |
 | StyleProfile      | `aigg.style-profile/0.1`      | Art rules, palette, content rules, style references of different characters with rights, accepted and rejected examples                                                                       | Model files, strengths, LoRA, identity              |
 | StyleBinding      | `aigg.style-binding/0.1`      | Style reference, base family, components (`prompt_only`, `reference_image`, `lora`), required capabilities, use cases, evaluations                                                            | A second style, an identity image                   |
-| CharacterIdentity | `aigg.character-identity/0.1` | Adult flag, description, traits with `locked`, asymmetry, identity references with rights, approved concept, `variantOf`, `relatedTo`                                                         | Style rules, model data, part images                |
+| CharacterIdentity | `aigg.character-identity/0.1` | Adult flag, description, traits with `locked`, asymmetry, identity references with rights, approved concept, appearance variants (`base` and others), `relatedTo`                             | Style rules, model data, part images                |
 | ModelProfile      | `aigg.model-profile/0.1`      | Exact file (name, SHA-256, size, `safetensors`, repository, commit), license, approval status and scopes, capabilities, compatibility, providers                                              | Approval that is not in `MODEL_LICENSES.md`         |
-| GenerationJob     | `aigg.generation-job/0.1`     | Purpose and scope, pinned rig, template, style, binding, identity, one model for each role, resolved aliases, policy (`fallback: forbidden`), stages, output                                  | Mutable channel names without their resolved record |
+| GenerationJob     | `aigg.generation-job/0.1`     | Purpose and scope, pinned rig, template, style, binding, identity and appearance variant, one model for each role, resolved aliases, policy (`fallback: forbidden`), stages, output           | Mutable channel names without their resolved record |
 
-The build record (`provenance/generation.json`) is the result side of a job. It adds: resolved job digest, provider-native workflow and its SHA-256, tool versions, seeds, output hashes for each stage, part hashes and origins keyed by slot, human gate records, cleanup time, and cost. Its schema is planned for P3.
+The build record (`provenance/generation.json`) is the result side of a job. It adds: resolved job digest, provider-native workflow and its SHA-256, tool versions, seeds, output hashes for each stage, part hashes and origins keyed by slot, human gate records, cleanup time, and cost. Its schema is planned for P3. Until then, the existing provenance rules of [the package format](../CHARACTER_PACKAGE.md#generation-record) apply.
 
 ### 5.3 Example build manifest
 
-[`generation-job.example.json`](t0/examples/generation-job.example.json) is one complete build manifest for the test identity `example_ranger` on the C0.5 prototype template, with the prompt-only binding and the two approved models. It has purpose `experiment`, scope `experiment_c`, `skeletonSha256: null` (prototype), and nine stages with four human gates.
+[`generation-job.example.json`](t0/examples/generation-job.example.json) is one complete build manifest for the `base` appearance variant of the test identity `example_ranger` on the C0.5 prototype template, with the prompt-only binding and the two approved models. It has purpose `experiment`, scope `experiment_c`, `skeletonSha256: null` (prototype), and nine stages with four human gates.
 Its record digests are the real canonical digests of the other example files. Its image hashes that start with `dddd` are dummy values.
 
 ### 5.4 Relation to existing formats
@@ -232,6 +244,8 @@ Its record digests are the real canonical digests of the other example files. It
 | `aigg.pose-marks/0.1`, overlays | Reused for the geometry gate of template-guided images.                                                                          |
 
 ## 6. Model capability negotiation
+
+**Unapproved design. Implementation deferred (P3, see section 5).** Until then, the existing rules apply: a bundle names its approved files and its runs, and the runner refuses any other list (as in the experiment C bundles).
 
 The resolver runs offline, before any download, upload or paid request. It is pure code. It writes one JSON report.
 
@@ -279,7 +293,14 @@ Example: a job that uses a `reference_image` binding with only the two approved 
 3. For each part, map the visible pixels back into the part setup-pose space.
 4. The union over all samples, plus the joint overlap circles, is the coverage mask.
 
-T1 uses the approximate forward kinematics of `@aigg/control` (rotate and translate, linear keys) on the C0.5 prototype. This is an **estimate**. T2 repeats it with spine-core on the real export. The masks are a lower bound for the area to paint: a part shape that differs from the template (for example a wide sleeve) needs a margin. The margin value is an owner decision, not part of the template.
+Rules for the method:
+
+- **spine-core poses the skeleton.** The tool uses `@esotericsoftware/spine-core` (already a root development dependency, Spine Runtimes License) to read the export, apply animations and compute world transforms, as `@aigg/rig-runtime` already does. The project does not write its own animation engine. Our code only rasterizes the posed part shapes.
+- **Only a matching export gives evidence.** A coverage mask is valid only for a Spine export whose setup pose matches the template geometry. The L1 export does not match the C0.5 geometry (R1). So no coverage result on L1 or on a contract-derived approximation is evidence of real coverage.
+- **Split of the work.** T1a makes the static template only, without coverage. T1b builds the coverage tool on spine-core and checks it on a synthetic test rig, as a tool check, not as coverage evidence. T2 makes the first real coverage masks on a master rig export that matches the template (after D17 and D32).
+- The approximate forward kinematics of `@aigg/control` (used for the C0.5 key-pose pictures) is not used for coverage.
+
+The masks are a lower bound for the area to paint: a part shape that differs from the template (for example a wide sleeve) needs a margin. The margin value is an owner decision, not part of the template.
 
 ### 8.3 Two production-art paths
 
@@ -313,7 +334,7 @@ T1 uses the approximate forward kinematics of `@aigg/control` (rotate and transl
 | C0.5 candidate contract 0.3.0     | Prototype only | Owner: preliminary reference for experiment C. Not a production rig.                                                                                                                                                                         |
 | `character.json`                  | Yes            | No new part fields (R7). Provenance goes to the build record.                                                                                                                                                                                |
 | `@aigg/rig-runtime`               | Yes            | Runtime skins from `character.json`, D22 absent parts, profile check (rigid region attachments only) stay the gate.                                                                                                                          |
-| `@aigg/control`                   | Yes            | T1 adds one command (`template`). Existing commands, fixtures and bundles do not change.                                                                                                                                                     |
+| `@aigg/control`                   | Yes            | T1a adds one command (`template`). Existing commands, fixtures and bundles do not change.                                                                                                                                                    |
 | D22 absent parts                  | Yes            | An optional part that a design does not have is `absent_by_design`. Its coverage mask is not required.                                                                                                                                       |
 | D23 modules (principles accepted) | Yes            | Templates work on slots. Groups are applied after assembly. Proposed groups and migration stay open.                                                                                                                                         |
 | D25 equipment (intent)            | Yes            | Weapons and removable items are not drawn into the design (style rule `dont`). Outfit variants: D29.                                                                                                                                         |
@@ -323,58 +344,73 @@ T1 uses the approximate forward kinematics of `@aigg/control` (rotate and transl
 
 ## 10. Implemented and planned
 
-| Capability                                                     | State                                     |
-| -------------------------------------------------------------- | ----------------------------------------- |
-| Shared skeleton, runtime skins, D22 absent parts, atlas checks | Implemented (`@aigg/rig-runtime`)         |
-| Part modules, atomic change, atlas cache                       | Implemented as draft (D23 open)           |
-| Control images, overlays, pose marks, C0.5 candidate, depth    | Implemented (`@aigg/control`)             |
-| Execution bundle, runner, evidence check                       | Implemented for experiment C only         |
-| Template profile, masks, line art, coverage masks              | Planned (T1)                              |
-| Records: style, binding, identity, model profile, job          | Proposed (this document), not implemented |
-| Resolver, capability negotiation, no-fallback policy           | Planned (P3)                              |
-| Partition, part completion, coverage validation                | Planned (T4, D31)                         |
-| Style reference strategy (A)                                   | Planned (S1), needs approvals (R3)        |
-| Style LoRA (B), second backend                                 | Planned later (L1), no work now           |
-| Identity variants, related characters                          | Planned (V1), D29 open                    |
+| Capability                                                     | State                                           |
+| -------------------------------------------------------------- | ----------------------------------------------- |
+| Shared skeleton, runtime skins, D22 absent parts, atlas checks | Implemented (`@aigg/rig-runtime`)               |
+| Part modules, atomic change, atlas cache                       | Implemented as draft (D23 open)                 |
+| Control images, overlays, pose marks, C0.5 candidate, depth    | Implemented (`@aigg/control`)                   |
+| Execution bundle, runner, evidence check                       | Implemented for experiment C only               |
+| Static template: line art, region map, visible masks           | Planned (T1a)                                   |
+| Coverage masks with spine-core                                 | Planned (T1b tool check, T2 real rig)           |
+| Records: style, binding, identity, model profile, job          | Unapproved design, implementation deferred (P2) |
+| Resolver, capability negotiation, no-fallback policy           | Unapproved design, implementation deferred (P3) |
+| Partition, part completion, coverage validation                | Planned (T4, D31)                               |
+| Style reference strategy (A)                                   | Planned (S1), needs approvals (R3)              |
+| Style LoRA (B), second backend                                 | Planned later (L1), no work now                 |
+| Appearance variants, related characters                        | Planned (V1), D29 open                          |
 
 ## 11. Decisions and dependencies
 
-### 11.1 Existing open decisions
+### 11.1 Dependency gates
 
-| Id  | Effect on template-first                                                                                    | Blocks          |
-| --- | ----------------------------------------------------------------------------------------------------------- | --------------- |
-| D2  | Essential is enough for rigid layers. IK needs Professional (verified). Keep the template free of IK.       | Nothing now     |
-| D5  | The coverage masks follow the animation list of the export.                                                 | T2 final masks  |
-| D7  | New option: shared template geometry, skin painted per character (R6).                                      | T4              |
-| D9  | Every new file (adapter, encoder, inpaint model, LoRA) needs approval. Scope rules (R8).                    | T3, S1, L1      |
-| D12 | Asymmetric identities and mirrored previews (R9).                                                           | V1              |
-| D14 | Reproducibility = parameters, files and hashes. The build record follows it.                                | Nothing         |
-| D15 | Reference images, outputs and edited templates need storage. Derived templates can be made again from code. | S1, T3 storage  |
-| D16 | Full canvas or cropped parts. The coverage masks work in both.                                              | T4              |
-| D17 | The view of all templates. **Prerequisite** of every production template.                                   | T2, production  |
-| D19 | GPU host. Owner runs bundles.                                                                               | T3              |
-| D20 | Content rules are constants in the schemas.                                                                 | Nothing         |
-| D23 | Group table for modules made after assembly.                                                                | V1              |
-| D24 | Atlas budget for many characters.                                                                           | Scale           |
-| D25 | Clothing vs equipment boundary (R5).                                                                        | V1              |
-| D26 | Face slots for blinking need a new rig version.                                                             | Later templates |
+Not every open decision blocks every step. The offline prototype T1a needs none of them.
 
-### 11.2 Proposed new open decisions
+| Gate        | Blocks                                                                                                                                   | Does not block                                                      |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| D17 and D32 | A production template (status `candidate` or `approved`), T2, any job with purpose `production`                                          | T1a, T1b (prototype and synthetic test rig only)                    |
+| D9          | Every new generative model, adapter, image encoder, LoRA, custom node or other extension. Scope extension of the two approved files (R8) | T1a, T1b, T2 (no model runs)                                        |
+| D15         | Permanent storage of reference images, generated art, hand-edited templates and package images                                           | T1a, T1b, T2 (outputs are derived by code or kept in project files) |
+| D7          | The base body strategy: shared painted body, or shared geometry with skin painted per character. Body archetypes                         | T1a, T1b, T2 geometry work                                          |
+| D19         | GPU runs (T3 and later)                                                                                                                  | T1a, T1b, T2                                                        |
+| D31, D28    | T4 partition and completion method, S1 style proof                                                                                       | T1a, T1b, T2                                                        |
+| D29         | V1 appearance variants                                                                                                                   | Everything before V1                                                |
+
+### 11.2 Existing open decisions
+
+| Id  | Effect on template-first                                                                                    | Blocks                  |
+| --- | ----------------------------------------------------------------------------------------------------------- | ----------------------- |
+| D2  | Essential is enough for rigid layers. IK needs Professional (verified). Keep the template free of IK.       | Nothing now             |
+| D5  | The coverage masks follow the animation list of the export.                                                 | T2 final masks          |
+| D7  | New option: shared template geometry, skin painted per character (R6).                                      | Base body strategy, T4  |
+| D9  | Every new file (adapter, encoder, inpaint model, LoRA) needs approval. Scope rules (R8).                    | T3, S1, L1              |
+| D12 | Asymmetric identities and mirrored previews (R9).                                                           | V1                      |
+| D14 | Reproducibility = parameters, files and hashes. The build record follows it.                                | Nothing                 |
+| D15 | Reference images, outputs and edited templates need storage. Derived templates can be made again from code. | Permanent asset storage |
+| D16 | Full canvas or cropped parts. The coverage masks work in both.                                              | T4                      |
+| D17 | The view of all templates. **Prerequisite** of every production template, with D32.                         | T2, production          |
+| D19 | GPU host. Owner runs bundles.                                                                               | T3                      |
+| D20 | Content rules are constants in the schemas.                                                                 | Nothing                 |
+| D23 | Group table for modules made after assembly.                                                                | V1                      |
+| D24 | Atlas budget for many characters.                                                                           | Scale                   |
+| D25 | Clothing vs equipment boundary (R5).                                                                        | V1                      |
+| D26 | Face slots for blinking need a new rig version.                                                             | Later templates         |
+
+### 11.3 Proposed new open decisions
 
 These are added to [the decision log](../DECISIONS.md) with the status **Open**. Only the owner closes them.
 
-| Id  | Decision                                    | Options                                                                                       | Recommendation                                                         |
-| --- | ------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| D27 | Production-art strategy                     | Template-first (D) / prompt with pose control / hybrid                                        | Template-first, details after T1–T3. Strategic intent is the owner's.  |
-| D28 | Style application strategy and lifecycle    | Prompt-only baseline / reference image (A) / LoRA (B), channels and revisions as in section 7 | Measure the baseline first, then A in S1. B later.                     |
-| D29 | Outfit variants                             | New identity revision and full package / cross-module outfit sets / equipment (D25)           | New identity revision with `variantOf` in v1                           |
-| D30 | Machine-readable model registry             | JSON records checked against `MODEL_LICENSES.md` / JSON as the only source / Markdown only    | JSON records with a consistency check, Markdown stays the human source |
-| D31 | Layer authoring path                        | W (whole design, partition, completion) / P (part-first) / mixed                              | Pilot W with targeted completion, P for tiny parts, decide after T3    |
-| D32 | Master rig version for production templates | Migrate the setup pose to the D17 view and review animations / keep L1 geometry               | Migrate after D17, with an owner Spine session and an animation review |
+| Id  | Decision                                    | Options                                                                                                  | Recommendation                                                         |
+| --- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| D27 | Production-art strategy                     | Template-first (D) / prompt with pose control / hybrid                                                   | Template-first, details after T1–T3. Strategic intent is the owner's.  |
+| D28 | Style application strategy and lifecycle    | Prompt-only baseline / reference image (A) / LoRA (B), channels and revisions as in section 7            | Measure the baseline first, then A in S1. B later.                     |
+| D29 | Outfit variants                             | Appearance variants in one identity / new identity revision / cross-module outfit sets / equipment (D25) | Appearance variants in one identity, one package for each variant (R5) |
+| D30 | Machine-readable model registry             | JSON records checked against `MODEL_LICENSES.md` / JSON as the only source / Markdown only               | JSON records with a consistency check, Markdown stays the human source |
+| D31 | Layer authoring path                        | W (whole design, partition, completion) / P (part-first) / mixed                                         | Pilot W with targeted completion, P for tiny parts, decide after T3    |
+| D32 | Master rig version for production templates | Migrate the setup pose to the D17 view and review animations / keep L1 geometry                          | Migrate after D17, with an owner Spine session and an animation review |
 
-### 11.3 Owner approval points in the plan
+### 11.4 Owner approval points in the plan
 
-Template approval (T1 review sheet), master rig migration (T2), GPU spend and model scope (T3), new weights and custom nodes (S1), style promotion to `production` (S1), identity approval and final package approval (every character), LoRA training rights and cost (L1).
+Prototype template review (T1a review sheet), master rig migration (T2), GPU spend and model scope (T3), new weights and custom nodes (S1), style promotion to `production` (S1), identity approval and final package approval (every character), LoRA training rights and cost (L1).
 
 ## 12. Long-term risks
 
@@ -397,70 +433,74 @@ Template approval (T1 review sheet), master rig migration (T2), GPU spend and mo
 
 Each PR is small and independent. No PR runs a model, buys a tool, or downloads weights unless the owner approves that step.
 
-| PR  | Scope                                                                                                                          | Depends on                 | Acceptance criteria                                                                                           |
-| --- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| T0  | This ADR, proposed schemas, examples, decision log rows                                                                        | —                          | Owner audit. No code or contract change. Examples validate.                                                   |
-| T1  | `aigg-control template` on the C0.5 prototype: line art, region map, masks, coverage estimate, review sheet, mock part package | T0 review                  | Section 14                                                                                                    |
-| P1  | Fix the documentation drift of `character.json` part fields (R7)                                                               | Owner choice               | `CHARACTER_PACKAGE.md` and `parseCharacter` agree. Tests unchanged or extended.                               |
-| P2  | Record schemas in a package (`contract` or `control`), with runtime validation and tests                                       | T0 approval of formats     | Each schema has positive and negative tests. Digest function has property tests.                              |
-| P3  | Resolver: alias pinning, digest check, capability negotiation, mock adapter, build record schema                               | P2                         | Every failure code has a test. No network access in the code path. Dry run is the default.                    |
-| T2  | Master rig and template on a real export: spine-core coverage masks, one hand-made part set, all animations                    | D17, D32, owner Spine work | Real runtime preview of all animations in both facings. If the editor is not available, INCOMPLETE.           |
-| T3  | GPU comparison: template line control and/or img2img against pose-only, one variable at a time                                 | T1, owner GPU approval, R8 | Bundle as in experiment C. Geometry gate, artifact counts, cleanup estimate. No claim before the measurement. |
-| T4  | Partition and coverage validation on T3 output, completion experiment                                                          | T3, D31 pilot choice       | Parts pass coverage and alpha checks or a clear report of the gaps. Cleanup time recorded.                    |
-| S1  | Style profile proof: baseline against reference image on three different characters                                            | T3, D28, approvals of R3   | Style gate and clone check by a human, blind where feasible.                                                  |
-| V1  | Identity variants                                                                                                              | S1, D29, D23               | Identity gate on one variant.                                                                                 |
-| L1  | Optional style LoRA, optional second backend                                                                                   | S1, training rights, cost  | Evaluation on identities outside the training set. Capability rejection tests.                                |
+Order: first one working template-first character on the shared rig, then general infrastructure only when a concrete need exists.
 
-## 14. T1 specification
+| PR  | Scope                                                                                                                        | Depends on                                   | Acceptance criteria                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| T0  | This ADR, unapproved schema design, examples, decision log rows                                                              | —                                            | Owner and external audit. No code or contract change. Examples validate.                                                    |
+| T1a | Static research template of the C0.5 prototype: line art, region map, visible masks, overlay sheet, static mock part package | T0 review                                    | Section 14                                                                                                                  |
+| T1b | Coverage tool on spine-core, checked on a synthetic test rig. Tool check only, no coverage claim                             | T1a                                          | Masks of the synthetic rig agree with hand-computed expected masks. No own animation engine. Results labelled "tool check". |
+| P1  | Fix the documentation drift of `character.json` part fields (R7)                                                             | Owner choice                                 | `CHARACTER_PACKAGE.md` and `parseCharacter` agree. Tests unchanged or extended.                                             |
+| T2  | Master rig and template on a real export: spine-core coverage masks, one hand-made part set, all animations                  | D17, D32, owner Spine work, T1b              | Real runtime preview of all animations in both facings. If the editor is not available, INCOMPLETE.                         |
+| T3  | GPU comparison: template line control and/or img2img against pose-only, one variable at a time                               | T1a, owner GPU approval, D9 scope (R8), D19  | Bundle as in experiment C. Geometry gate, artifact counts, cleanup estimate. No claim before the measurement.               |
+| T4  | Partition and coverage validation on T3 output, completion experiment. First working template-first character                | T2, T3, D31 pilot choice, D7                 | Parts pass coverage and alpha checks or a clear report of the gaps. Cleanup time recorded. All animations previewed.        |
+| S1  | Style profile proof: baseline against reference image on three different characters                                          | T4, D28, separate approvals of R3 components | Style gate and clone check by a human, blind where feasible.                                                                |
+| V1  | Appearance variants of one identity                                                                                          | S1, D29, D23                                 | Identity gate on one variant: locked traits kept, changed traits as declared.                                               |
+| P2  | Record schemas in a package, with runtime validation and tests. **Deferred**                                                 | T4 done and a concrete need (section 5)      | Each schema has positive and negative tests. Digest function has property tests.                                            |
+| P3  | Resolver: alias pinning, digest check, capability negotiation, build record schema. **Deferred**                             | P2                                           | Every failure code has a test. No network access in the code path. Dry run is the default.                                  |
+| L1  | Optional style LoRA, optional second backend                                                                                 | S1, training rights, cost, D9                | Evaluation on identities outside the training set. Capability rejection tests.                                              |
 
-**Proposed scope for the next PR, after the owner reviews T0.** Offline only. No GPU, no model, no network, no change of the master rig, the contracts, or existing fixtures.
+## 14. T1a specification
 
-### 14.1 Inputs
+**Proposed scope for the next PR, after the owner and the external audit review T0.** Minimal, static, offline. No GPU, no model, no network, no animation, no coverage masks, no change of the master rig, the contracts, existing commands, or existing fixtures. Not started.
+
+### 14.1 Purpose
+
+Show the owner a static 3/4 template of the C0.5 prototype geometry and a mock part package that `@aigg/rig-runtime` accepts. The output is research material for review. It is not a production template and not evidence of animation compatibility.
+
+### 14.2 Inputs
 
 - `packages/control/test/fixtures/c05-candidate/rig.contract.json` (SHA-256 `17e73069…675e`) as a **prototype** fixture.
 - `referenceBody` in `packages/control/src/mannequin.ts`.
-- The L1 test export `packages/rig-runtime/test/fixtures/l1-owner/editor-out/skeleton.json` only for the animation list and key values (approximate FK). The template states that its geometry does not match this export (R1).
+- No Spine export. No animation data.
 
-### 14.2 Deliverables
+### 14.3 Deliverables
 
-| #   | Deliverable                                                                                                                                                                                                      |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | New command `aigg-control template --contract <file> [--skeleton <file>] --out <dir> [--size WxH] [--dry-run] [--force]`.                                                                                        |
-| 2   | `template-profile.json` in format `aigg.template-profile/0.1` with status `prototype`, `spineExport: null`, and a draft schema in the package.                                                                   |
-| 3   | `contour-lineart.png`: 3/4 contour line art of the reference body at the generation size (black lines on white, no fill). Visible turn: shoulder and hip lines, foreshortened far side, feet to the image right. |
-| 4   | `region-map.png` and one visible mask for each slot (`masks/<slot>.visible.png`).                                                                                                                                |
-| 5   | `masks/<slot>.coverage.png`: coverage estimate from all animations of the given export, both facings, with approximate FK.                                                                                       |
-| 6   | `overlay-sheet.png`: line art, region map, joints and pivots, attachment rectangles, joint overlap circles, near/far order, a top view of the yaw.                                                               |
-| 7   | `visibility-sheet.png`: for each part, visible mask, coverage mask, and the hidden area in a third color.                                                                                                        |
-| 8   | `mock-package/`: a flat-color RGBA part for each required slot, cut from the region map and extended to its coverage mask, with `character.json` that `parseCharacter` accepts.                                  |
-| 9   | `review.md` for the owner: what to check, and the explicit list of items that must change or be checked on a real master rig.                                                                                    |
-| 10  | README and SECURITY sections for the command. Version step of `@aigg/control` (minor).                                                                                                                           |
+| #   | Deliverable                                                                                                                                                                                                                        |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | New command `aigg-control template --contract <file> --out <dir> [--size WxH] [--dry-run] [--force]`.                                                                                                                              |
+| 2   | `template.json`: a small manifest with status `prototype`, the input hashes, the tool version, and each output file with its SHA-256. It follows the template profile proposal where practical, but it is not a format commitment. |
+| 3   | `contour-lineart.png`: 3/4 contour line art of the reference body at the generation size (black lines on white, no fill). Visible turn: shoulder and hip lines, foreshortened far side, feet to the image right.                   |
+| 4   | `region-map.png` and one visible mask for each slot in the setup pose (`masks/<slot>.visible.png`).                                                                                                                                |
+| 5   | `overlay-sheet.png`: line art, region map, joints and pivots, attachment rectangles, joint overlap circles from the contract, near/far order, and a top view of the yaw.                                                           |
+| 6   | `mock-package/`: a flat-color RGBA part for each required slot, cut from its visible mask and extended by the contract joint overlap circles only, with a `character.json` that `parseCharacter` accepts.                          |
+| 7   | `review.md` for the owner: what to check, and the explicit list of items that must change or be checked on a real master rig (coverage, animation, view).                                                                          |
+| 8   | README and SECURITY sections for the command. Version step of `@aigg/control` (minor).                                                                                                                                             |
 
-### 14.3 Tests (Vitest, synthetic data, temporary directories)
+### 14.4 Tests (Vitest, synthetic data, temporary directories)
 
-| Id    | Test                                                                                                                                           |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1-01 | Determinism: two runs give byte-equal files and an equal profile digest.                                                                       |
-| T1-02 | Exact ids: the slot, bone and draw order lists equal the contract. Unknown or missing slots fail.                                              |
-| T1-03 | Each visible mask is inside the attachment rectangle of its slot. Each coverage mask contains the visible mask and the joint overlap circles.  |
-| T1-04 | Near/far geometry: near shoulder and near hip are on the image left. The face direction and the feet point to the image right.                 |
-| T1-05 | Alpha semantics: masks are binary. Mock parts are straight alpha, sRGB, RGBA 8 bit. No pixel outside the coverage mask.                        |
-| T1-06 | Mock package: `parseCharacter` of `@aigg/rig-runtime` accepts it. Optional slots are `absent_by_design` (D22).                                 |
-| T1-07 | No input change: the hashes of the contract, the skeleton and all fixtures are the same after the run.                                         |
-| T1-08 | File safety: the output directory is not followed through a symbolic link. An existing output needs `--force`. `--dry-run` writes nothing.     |
-| T1-09 | Rejection: a contract with another view or side naming stops with `E_VIEW_UNSUPPORTED`. A skeleton with mesh or IK data is reported, not used. |
-| T1-10 | The profile validates against its schema and refuses status `approved` while `spineExport` is `null`.                                          |
+| Id     | Test                                                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1a-01 | Determinism: two runs give byte-equal files and an equal manifest.                                                                           |
+| T1a-02 | Exact ids: the slot, bone and draw order lists equal the contract. Unknown or missing slots fail.                                            |
+| T1a-03 | Each visible mask is inside the attachment rectangle of its slot. The region map has one region id for each pixel at most.                   |
+| T1a-04 | Near/far geometry: near shoulder and near hip are on the image left. The face direction and the feet point to the image right.               |
+| T1a-05 | Alpha semantics: masks are binary. Mock parts are straight alpha, sRGB, RGBA 8 bit. No mock pixel outside visible mask plus overlap circles. |
+| T1a-06 | Mock package: `parseCharacter` of `@aigg/rig-runtime` accepts it. Optional slots are `absent_by_design` (D22).                               |
+| T1a-07 | No input change: the hashes of the contract and all fixtures are the same after the run.                                                     |
+| T1a-08 | File safety: the output directory is not followed through a symbolic link. An existing output needs `--force`. `--dry-run` writes nothing.   |
+| T1a-09 | Rejection: a contract with another view or side naming stops with `E_VIEW_UNSUPPORTED`. The manifest status is always `prototype`.           |
 
-### 14.4 Acceptance
+### 14.5 Acceptance
 
 - All tests pass. Format, lint, typecheck, build and `check:config` pass.
-- The review sheet and `review.md` go to the project files, not to Git (D15). The PR contains code, the schema and tests only.
-- A preview that looks correct is not a proof of animation compatibility. The report says this.
-- The owner decides after T1 whether to start T2 (real master rig) or T3 (GPU comparison) first.
+- The pictures and `review.md` go to the project files, not to Git (D15). The PR contains code and tests only.
+- The report says: a static template that looks correct is not a proof of animation compatibility or coverage.
+- After T1a, the owner decides the order of T1b, T2 and T3.
 
-### 14.5 Not in T1
+### 14.6 Not in T1a
 
-Any model run, any template image edited by hand, any change to `character.json`, the rig contract, the master rig, D-statuses, or existing package behaviour.
+Coverage masks, any animation sampling or forward kinematics, any Spine export, the seven record schemas, the resolver, any model run, any template image edited by hand, any change to `character.json`, the rig contract, the master rig, D-statuses, or existing package behaviour.
 
 ## 15. Sources and verification
 
@@ -489,7 +529,7 @@ These documents describe the prompt-first pipeline. This PR adds a pointer to th
 | Document                                                                                                | What becomes stale                                                            | Planned update after acceptance                            |
 | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | [ARCHITECTURE.md](../ARCHITECTURE.md)                                                                   | Stages S4–S6, principle 3 (shared base body), candidate tool table            | New stage table (section 4.4), template principle, records |
-| [ROADMAP.md](../ROADMAP.md)                                                                             | Experiment C hypothesis (pose, depth, line from the mannequin), phase 5 and 6 | T1–T4, S1, V1, L1 phases                                   |
+| [ROADMAP.md](../ROADMAP.md)                                                                             | Experiment C hypothesis (pose, depth, line from the mannequin), phase 5 and 6 | T1a–T4, S1, V1, L1 phases                                  |
 | [GLOSSARY.md](../GLOSSARY.md)                                                                           | Missing terms                                                                 | Terms added as proposals in this PR                        |
 | [CHARACTER_PACKAGE.md](../CHARACTER_PACKAGE.md)                                                         | Per-part SHA-256 and `origin` (R7), `source/decomposed.psd`                   | P1                                                         |
 | [WORKSPACES.md](../WORKSPACES.md)                                                                       | Planned `measure`, `assembler` purposes                                       | After P2 and T4                                            |

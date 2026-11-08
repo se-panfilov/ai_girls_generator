@@ -2,26 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/common.schema.json",
   "title": "Shared definitions for the template-first records (PROPOSAL, NONAUTHORITATIVE)",
-  "description": "PROPOSAL from the T0 ADR. Not accepted. No package reads these schemas. Cross-record rules (digests, capability negotiation, approval scopes) are described in the ADR, not in JSON Schema.",
+  "description": "PROPOSAL from the T0 ADR. Unapproved design. Implementation is deferred until the first working template-first character (P2, P3). No package reads these schemas. Cross-record rules (digests, capability negotiation, approval scopes) are described in the ADR, not in JSON Schema.",
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
     "revision": { "type": "integer", "minimum": 1 },
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "semver": { "type": "string", "pattern": "^(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})$" },
-    "relativePath": {
-      "type": "string",
-      "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)[A-Za-z0-9_][A-Za-z0-9_./-]{0,200}$"
-    },
+    "relativePath": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)(?!.*//)[A-Za-z0-9_][A-Za-z0-9_./-]{0,200}$" },
     "recordRef": {
       "description": "An immutable reference to another record: id, revision, and the SHA-256 of the canonical JSON of that revision.",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "revision", "digest"],
-      "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "revision": { "$ref": "#/$defs/revision" },
-        "digest": { "$ref": "#/$defs/sha256" }
-      }
+      "properties": { "id": { "$ref": "#/$defs/id" }, "revision": { "$ref": "#/$defs/revision" }, "digest": { "$ref": "#/$defs/sha256" } }
     },
     "lifecycle": { "enum": ["draft", "prototype", "candidate", "approved", "retired"] },
     "rights": {
@@ -33,12 +26,7 @@
         "source": { "enum": ["owner_drawn", "owner_commissioned", "factory_generated", "licensed_stock", "synthetic_test"] },
         "rightsHolder": { "type": "string", "minLength": 1, "maxLength": 200 },
         "license": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "permittedUses": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": { "enum": ["style_reference", "identity_reference", "lora_training", "evaluation_only", "test_fixture"] }
-        },
+        "permittedUses": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["style_reference", "identity_reference", "lora_training", "evaluation_only", "test_fixture"] } },
         "checkedBy": { "type": "string", "minLength": 1, "maxLength": 100 }
       }
     },

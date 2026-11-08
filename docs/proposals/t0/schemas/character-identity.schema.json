@@ -2,10 +2,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/character-identity.schema.json",
   "title": "Character identity (PROPOSAL aigg.character-identity/0.1, NONAUTHORITATIVE)",
-  "description": "PROPOSAL from the T0 ADR. The design of one character, independent of the style, the model and the rig. It is not character.json. character.json describes the finished parts of one package.",
+  "description": "PROPOSAL from the T0 ADR. The design of one character, independent of the style, the model and the rig. It is not character.json. character.json describes the finished parts of one package. An identity revision changes only when the person changes. Outfit and hair variants are appearance variants inside the same revision.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "characterId", "revision", "status", "adult", "description", "traits", "asymmetry", "references", "approvedConcept", "relations", "approvals"],
+  "required": ["schema", "characterId", "revision", "status", "adult", "description", "traits", "asymmetry", "references", "approvedConcept", "appearanceVariants", "relations", "approvals"],
   "properties": {
     "schema": { "const": "aigg.character-identity/0.1" },
     "characterId": { "$ref": "common.schema.json#/$defs/id" },
@@ -32,10 +32,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["asymmetric", "details"],
-      "properties": {
-        "asymmetric": { "type": "boolean" },
-        "details": { "type": "string", "maxLength": 500 }
-      }
+      "properties": { "asymmetric": { "type": "boolean" }, "details": { "type": "string", "maxLength": 500 } }
     },
     "references": {
       "description": "Identity images. Never used as style references.",
@@ -44,11 +41,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["assetId", "sha256", "rights"],
-        "properties": {
-          "assetId": { "$ref": "common.schema.json#/$defs/id" },
-          "sha256": { "$ref": "common.schema.json#/$defs/sha256" },
-          "rights": { "$ref": "common.schema.json#/$defs/rights" }
-        }
+        "properties": { "assetId": { "$ref": "common.schema.json#/$defs/id" }, "sha256": { "$ref": "common.schema.json#/$defs/sha256" }, "rights": { "$ref": "common.schema.json#/$defs/rights" } }
       }
     },
     "approvedConcept": {
@@ -58,22 +51,39 @@
           "type": "object",
           "additionalProperties": false,
           "required": ["sha256", "job"],
-          "properties": {
-            "sha256": { "$ref": "common.schema.json#/$defs/sha256" },
-            "job": { "$ref": "common.schema.json#/$defs/recordRef" }
-          }
+          "properties": { "sha256": { "$ref": "common.schema.json#/$defs/sha256" }, "job": { "$ref": "common.schema.json#/$defs/recordRef" } }
         }
       ]
+    },
+    "appearanceVariants": {
+      "description": "Variants of the same person: other drawn-on clothes, hair or expression. A variant changes only traits with locked false. Each variant gives one complete character package. Removable equipment is never a variant (D25). Cross rule (not in JSON Schema): exactly one variant has the id base, and changes refer only to unlocked traits.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["variantId", "label", "status", "changes"],
+        "properties": {
+          "variantId": { "$ref": "common.schema.json#/$defs/id" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "status": { "$ref": "common.schema.json#/$defs/lifecycle" },
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["trait", "value"],
+              "properties": { "trait": { "enum": ["hair", "outfit", "accessory", "palette", "other"] }, "value": { "type": "string", "minLength": 1, "maxLength": 500 } }
+            }
+          }
+        }
+      }
     },
     "relations": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["variantOf", "relatedTo"],
+      "required": ["relatedTo"],
       "properties": {
-        "variantOf": {
-          "description": "The same person with permitted changes (outfit, hair, expression). Locked traits of the base stay.",
-          "oneOf": [{ "type": "null" }, { "$ref": "common.schema.json#/$defs/recordRef" }]
-        },
         "relatedTo": {
           "description": "A different person with an explicit resemblance objective, for example a visual family. Not identity.",
           "type": "array",
@@ -81,11 +91,7 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["character", "relation", "note"],
-            "properties": {
-              "character": { "$ref": "common.schema.json#/$defs/recordRef" },
-              "relation": { "const": "resemblance" },
-              "note": { "type": "string", "maxLength": 500 }
-            }
+            "properties": { "character": { "$ref": "common.schema.json#/$defs/recordRef" }, "relation": { "const": "resemblance" }, "note": { "type": "string", "maxLength": 500 } }
           }
         }
       }

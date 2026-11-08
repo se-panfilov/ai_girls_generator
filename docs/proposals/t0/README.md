@@ -2,10 +2,10 @@
 
 **Proposal. Not accepted.** These files belong to [the T0 ADR](../T0_TEMPLATE_FIRST_ARCHITECTURE.md). No package reads them. They do not change any accepted format.
 
-| Folder      | Content                                                                                                                                                             |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `schemas/`  | JSON Schemas (draft 2020-12) for the template profile, style profile, style binding, character identity, model profile and generation job, plus shared definitions. |
-| `examples/` | One example of each record. `generation-job.example.json` is the complete example build manifest.                                                                   |
+| Folder      | Content                                                                                                                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schemas/`  | JSON Schemas (draft 2020-12) for the template profile, style profile, style binding, character identity, model profile and generation job, plus shared definitions.                                |
+| `examples/` | One example of each record. `generation-job.example.json` is the complete example build manifest. **Unapproved design. Implementation deferred** until the first working template-first character. |
 
 ## Rules for the examples
 

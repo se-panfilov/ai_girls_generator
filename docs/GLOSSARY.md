@@ -21,29 +21,30 @@
 
 ## Factory terms
 
-| Term               | Meaning                                                                                                                                            |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rig contract       | The versioned rules that every character package must obey. See [the rig contract](RIG_CONTRACT.md).                                               |
-| Contract space     | Pixel coordinates on the contract canvas. The Y axis points down. The origin is the top-left corner.                                               |
-| Rig space          | Spine coordinates. The Y axis points up. The origin is the `root` bone.                                                                            |
-| Mannequin          | The reference body in the reference pose. Control images for generation come from it.                                                              |
-| Base body          | The shared skin parts (arms, legs, neck, torso). They are drawn once and are part of the contract.                                                 |
-| Character package  | All data of one character: parts, sidecar, sources, derived files, and QA output. See [the package format](CHARACTER_PACKAGE.md).                  |
-| Part               | One PNG file in a character package. It becomes one attachment.                                                                                    |
-| Rig part           | One part on one slot that bones and joints of the shared rig move, for example `forearm_near`. Proposal, see D23.                                  |
-| Appearance module  | A group of parts that is replaced as one unit, for example a complete arm or a hairstyle. Proposal, see D23.                                       |
-| Sidecar            | The `character.json` file. It describes the parts and the provenance of one character.                                                             |
-| Layer              | One image layer in a PSD, ORA, or decomposition output. A layer is not a part until the assembly stage maps it to a slot.                          |
-| Concept            | A free-pose image of a character design. A human selects one concept.                                                                              |
-| Production art     | An image of the selected design in the reference pose. Decomposition uses it.                                                                      |
-| Decomposition      | The stage that splits production art into semantic layers.                                                                                         |
-| Assembly           | The stage that maps layers and base body parts to contract slots and writes parts.                                                                 |
-| Provenance         | The record of models, file hashes, seeds, workflows, and tool versions that made a result.                                                         |
-| Derived file       | A file that a script makes from canonical data, for example PSD, atlas, or preview. It is never edited as the source of truth.                     |
-| Template profile   | The approved geometry of one view of one rig version: line art, part masks, coverage masks, anchors. Derived from the rig. Proposal, see D27.      |
-| Coverage mask      | The pixels of one part that become visible in at least one pose of the shared animation set. The part must be painted there. Proposal, see D27.    |
-| Style profile      | Model-neutral art direction for a collection of characters, with approved style references. Proposal, see D28.                                     |
-| Style binding      | How one style profile revision is applied with one model family: prompt, reference image, or LoRA. Proposal, see D28.                              |
-| Character identity | The design of one character (traits, references, approved concept), independent of style, model and rig. It is not the sidecar. Proposal, see D27. |
-| Model profile      | A machine-readable entry for one exact model file: hash, license, approval scope, capabilities. Proposal, see D30.                                 |
-| Generation job     | The build manifest of one package. It pins every input by id, revision and digest, and forbids fallback. Proposal, see D27.                        |
+| Term               | Meaning                                                                                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rig contract       | The versioned rules that every character package must obey. See [the rig contract](RIG_CONTRACT.md).                                                                      |
+| Contract space     | Pixel coordinates on the contract canvas. The Y axis points down. The origin is the top-left corner.                                                                      |
+| Rig space          | Spine coordinates. The Y axis points up. The origin is the `root` bone.                                                                                                   |
+| Mannequin          | The reference body in the reference pose. Control images for generation come from it.                                                                                     |
+| Base body          | The shared skin parts (arms, legs, neck, torso). They are drawn once and are part of the contract.                                                                        |
+| Character package  | All data of one character: parts, sidecar, sources, derived files, and QA output. See [the package format](CHARACTER_PACKAGE.md).                                         |
+| Part               | One PNG file in a character package. It becomes one attachment.                                                                                                           |
+| Rig part           | One part on one slot that bones and joints of the shared rig move, for example `forearm_near`. Proposal, see D23.                                                         |
+| Appearance module  | A group of parts that is replaced as one unit, for example a complete arm or a hairstyle. Proposal, see D23.                                                              |
+| Sidecar            | The `character.json` file. It describes the parts and the provenance of one character.                                                                                    |
+| Layer              | One image layer in a PSD, ORA, or decomposition output. A layer is not a part until the assembly stage maps it to a slot.                                                 |
+| Concept            | A free-pose image of a character design. A human selects one concept.                                                                                                     |
+| Production art     | An image of the selected design in the reference pose. Decomposition uses it.                                                                                             |
+| Decomposition      | The stage that splits production art into semantic layers.                                                                                                                |
+| Assembly           | The stage that maps layers and base body parts to contract slots and writes parts.                                                                                        |
+| Provenance         | The record of models, file hashes, seeds, workflows, and tool versions that made a result.                                                                                |
+| Derived file       | A file that a script makes from canonical data, for example PSD, atlas, or preview. It is never edited as the source of truth.                                            |
+| Template profile   | The approved geometry of one view of one rig version: line art, part masks, coverage masks, anchors. Derived from the rig. Proposal, see D27.                             |
+| Coverage mask      | The pixels of one part that become visible in at least one pose of the shared animation set. The part must be painted there. Proposal, see D27.                           |
+| Style profile      | Model-neutral art direction for a collection of characters, with approved style references. Proposal, see D28.                                                            |
+| Style binding      | How one style profile revision is applied with one model family: prompt, reference image, or LoRA. Proposal, see D28.                                                     |
+| Character identity | The design of one character (traits, references, approved concept), independent of style, model and rig. It is not the sidecar. Proposal, see D27.                        |
+| Appearance variant | The same character identity with other drawn-on clothes, hair or expression. Only unlocked traits change. One package for each variant. Not equipment. Proposal, see D29. |
+| Model profile      | A machine-readable entry for one exact model file: hash, license, approval scope, capabilities. Proposal, see D30.                                                        |
+| Generation job     | The build manifest of one package. It pins every input by id, revision and digest, and forbids fallback. Proposal, see D27.                                               |
