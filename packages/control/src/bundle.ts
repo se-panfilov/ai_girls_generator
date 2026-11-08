@@ -74,7 +74,8 @@ The runner reports PASS only after the images and \`SHA256SUMS\` are written and
 
 ## Repeat runs and errors
 
-- A second \`run.sh\` after PASS does nothing and prints the saved result.
+- A second \`run.sh\` after PASS reads both images and \`SHA256SUMS\` again and compares them with \`result.json\`. If they agree, it prints the saved result and runs nothing. If a file is missing or changed, it stops with \`E_RESULT_CHANGED\` (FAIL) and does not generate again.
+- The runner records each submission in \`state.json\` before it sends the prompt to ComfyUI. If the connection breaks before ComfyUI gives a prompt id, the prompt was possibly queued. The runner then stops with \`E_SUBMISSION_AMBIGUOUS\`, also on each repeat run, and never submits that run again. Check the ComfyUI queue and history by hand (the hint gives the commands and the \`client_id\`). ComfyUI gives no exactly-once guarantee, and the runner does not claim one.
 - After an interruption, the same command continues: it waits for the recorded prompt and does not submit it again. If ComfyUI lost the prompt (for example after a restart), the runner stops with \`E_PROMPT_LOST\`. A new run is the owner's decision: move \`results/\` away and run again.
 - An existing model file with another SHA-256 stops the runner (\`E_MODEL_HASH_MISMATCH\`). The runner never replaces it. A failed download removes its \`.part\` file.
 - Each error prints a code, a message, and a hint. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE.

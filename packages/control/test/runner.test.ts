@@ -49,14 +49,14 @@ type Fake = {
   history: Map<string, unknown>;
   input: Map<string, Buffer>;
   modelsDir: string;
-  mode: { error: boolean; lose: boolean; missingNode: string | null };
+  mode: { error: boolean; lose: boolean; dropResponse: boolean; missingNode: string | null };
 };
 
 const outputImage = encodePng(new Raster(832, 1216, [10, 20, 30, 255]));
 
 /** A minimal fake ComfyUI API on 127.0.0.1 with the endpoints that the runner uses. */
 async function fakeComfy(modelsDir: string): Promise<Fake> {
-  const fake: Omit<Fake, 'server' | 'port'> = { prompts: [], history: new Map(), input: new Map(), modelsDir, mode: { error: false, lose: false, missingNode: null } };
+  const fake: Omit<Fake, 'server' | 'port'> = { prompts: [], history: new Map(), input: new Map(), modelsDir, mode: { error: false, lose: false, dropResponse: false, missingNode: null } };
   const send = (response: ServerResponse, code: number, value: unknown): void => {
     response.writeHead(code, { 'content-type': 'application/json' });
     response.end(JSON.stringify(value));
@@ -101,6 +101,8 @@ async function fakeComfy(modelsDir: string): Promise<Fake> {
               : { status: { status_str: 'success', completed: true, messages: [] }, outputs: { '7': { images: [{ filename: `${prefix}_00001_.png`, subfolder: '', type: 'output' }] } } }
           );
         }
+        // The server accepted and queued the prompt, but the connection breaks before the answer.
+        if (fake.mode.dropResponse) return request.socket.destroy();
         return send(response, 200, { prompt_id: id, number: fake.prompts.length, node_errors: {} });
       }
       if (url.pathname.startsWith('/history/')) {
@@ -209,9 +211,56 @@ describe('runner with a fake ComfyUI', () => {
     expect(status(out).status).toBe('PASS');
 
     const again = await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl });
-    expect(again.note).toMatch(/Nothing was run again/);
+    expect(again.status).toBe('PASS');
+    expect(again.note).toMatch(/agree with result.json and SHA256SUMS\. Nothing was run again/);
     expect(fake.prompts).toHaveLength(2);
     expect(downloads.calls).toHaveLength(2);
+  });
+
+  it('verifies the saved results again after PASS and fails without a new generation when they changed', async () => {
+    const { out, fake, base } = await setup();
+    const downloads = fakeDownloads();
+    expect((await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl })).status).toBe('PASS');
+    const pose = readFileSync(join(out, 'pose-1001.png'));
+    const sums = readFileSync(join(out, 'SHA256SUMS'));
+
+    rmSync(join(out, 'pose-1001.png'));
+    expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_RESULT_CHANGED');
+    expect(status(out)).toMatchObject({ status: 'FAIL', problems: ['pose-1001.png is missing'] });
+
+    writeFileSync(join(out, 'pose-1001.png'), Buffer.concat([pose, Buffer.from([0])]));
+    expect(await errorCode(execute({ ...base, command: 'run' }))).toBe('E_RESULT_CHANGED');
+    expect(status(out)).toMatchObject({ status: 'FAIL', problems: ['pose-1001.png has another SHA-256'] });
+
+    writeFileSync(join(out, 'pose-1001.png'), pose);
+    writeFileSync(join(out, 'SHA256SUMS'), `${'0'.repeat(64)}  baseline-1001.png\n`);
+    expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_RESULT_CHANGED');
+    expect(status(out).status).toBe('FAIL');
+
+    writeFileSync(join(out, 'SHA256SUMS'), sums);
+    expect((await execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl })).status).toBe('PASS');
+    expect(fake.prompts).toHaveLength(2);
+    expect(downloads.calls).toHaveLength(2);
+    expect(existsSync(join(out, '.lock'))).toBe(false);
+  });
+
+  it('stops with E_SUBMISSION_AMBIGUOUS and never submits again when the answer to POST /prompt is lost', async () => {
+    const { out, fake, base } = await setup();
+    fake.mode.dropResponse = true;
+    const downloads = fakeDownloads();
+    expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_SUBMISSION_AMBIGUOUS');
+    expect(fake.prompts).toHaveLength(1);
+    const state = JSON.parse(readFileSync(join(out, 'state.json'), 'utf8')) as { runs: Record<string, Record<string, unknown>> };
+    expect(typeof state.runs['baseline-1001']?.clientId).toBe('string');
+    expect(typeof state.runs['baseline-1001']?.submissionStartedAt).toBe('string');
+    expect(state.runs['baseline-1001']?.promptId).toBeUndefined();
+    expect(status(out)).toMatchObject({ status: 'INCOMPLETE', runs: [{ id: 'baseline-1001', submissionAmbiguous: true }] });
+
+    fake.mode.dropResponse = false;
+    expect(await errorCode(execute({ ...base, command: 'all', fetchImpl: downloads.fetchImpl }))).toBe('E_SUBMISSION_AMBIGUOUS');
+    expect(await errorCode(execute({ ...base, command: 'run' }))).toBe('E_SUBMISSION_AMBIGUOUS');
+    expect(fake.prompts).toHaveLength(1);
+    expect(existsSync(join(out, '.lock'))).toBe(false);
   });
 
   it('check does not download and reports INCOMPLETE when models are missing', async () => {

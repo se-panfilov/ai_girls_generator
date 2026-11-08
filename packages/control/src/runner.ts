@@ -571,6 +571,8 @@ export async function uploadControlImage(comfy: Comfy, loaded: LoadedBundle, log
 export type RunState = {
   promptId?: string;
   clientId?: string;
+  /** Written before POST /prompt. With no promptId, the submission state is unknown: the runner never submits the run again by itself. */
+  submissionStartedAt?: string;
   submittedAt?: string;
   finishedAt?: string;
   output?: { file: string; sha256: string; bytes: number; width: number; height: number; comfyFilename: string };
@@ -627,6 +629,16 @@ async function inQueue(comfy: Comfy, promptId: string): Promise<boolean> {
   return false;
 }
 
+/** The prompt was possibly queued, but its id is unknown. The runner does not guess and does not submit again. */
+function ambiguousSubmission(run: BundleRun, runState: RunState, comfy: Comfy): never {
+  return fail(
+    'E_SUBMISSION_AMBIGUOUS',
+    `Run ${run.id} was possibly submitted at ${show(runState.submissionStartedAt)} (client_id ${show(runState.clientId)}), but the runner did not get a prompt id.`,
+    `Do a manual check on the Pod: curl -s ${comfy.base}/queue and curl -s '${comfy.base}/history?max_items=20', and look for client_id ${show(runState.clientId)}. ` +
+      'The runner does not submit this run again. A new run is the decision of the owner: move the results directory away and run again.'
+  );
+}
+
 export type RunOptions = {
   readonly comfy: Comfy;
   readonly out: string;
@@ -657,11 +669,31 @@ export async function runOne(loaded: LoadedBundle, run: BundleRun, state: State,
         `ComfyUI no longer knows prompt ${runState.promptId} of run ${run.id}.`,
         'The runner does not submit it again by itself. Move the results directory away to start a new run.'
       );
+  } else if (runState.submissionStartedAt) {
+    ambiguousSubmission(run, runState, comfy);
   } else {
+    // Record the intent before the request. If the answer is lost, a repeat run must not submit a second prompt.
     const clientId = randomUUID();
+    runState.clientId = clientId;
+    runState.submissionStartedAt = new Date().toISOString();
+    saveState(out, state);
+    log.event('run.submitting', { run: run.id, clientId, seed: run.seed });
     const workflow = loaded.workflows.get(run.id);
-    const answer = await comfyRequest(comfy, '/prompt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt: workflow, client_id: clientId }) });
-    const text = await answer.text();
+    let answer: Response;
+    let text: string;
+    try {
+      answer = await comfy.fetchImpl(`${comfy.base}/prompt`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt: workflow, client_id: clientId }),
+        redirect: 'error',
+        signal: AbortSignal.timeout(30_000)
+      });
+      text = await answer.text();
+    } catch (error) {
+      log.event('run.submission_ambiguous', { run: run.id, clientId, message: show(error instanceof Error ? error.message : error) });
+      return ambiguousSubmission(run, runState, comfy);
+    }
     let value: unknown;
     try {
       value = JSON.parse(text) as unknown;
@@ -669,9 +701,17 @@ export async function runOne(loaded: LoadedBundle, run: BundleRun, state: State,
       value = null;
     }
     const promptId = isRecord(value) && typeof value.prompt_id === 'string' ? value.prompt_id : null;
-    if (!answer.ok || promptId === null) fail('E_PROMPT_REJECTED', `ComfyUI rejected run ${run.id} (HTTP ${answer.status}): ${show(isRecord(value) ? (value.node_errors ?? value.error) : text)}`);
+    if (!answer.ok || promptId === null) {
+      // ComfyUI validates a prompt before it queues it and answers HTTP 4xx when it refuses it. Only then is the intent removed.
+      // Any other answer without a prompt id leaves the intent, so a repeat run stops with E_SUBMISSION_AMBIGUOUS.
+      if (answer.status >= 400 && answer.status < 500) {
+        delete runState.submissionStartedAt;
+        delete runState.clientId;
+        saveState(out, state);
+      }
+      fail('E_PROMPT_REJECTED', `ComfyUI rejected run ${run.id} (HTTP ${answer.status}): ${show(isRecord(value) ? (value.node_errors ?? value.error) : text)}`);
+    }
     runState.promptId = promptId;
-    runState.clientId = clientId;
     runState.submittedAt = new Date().toISOString();
     saveState(out, state);
     log.event('run.submitted', { run: run.id, promptId: runState.promptId, seed: run.seed });
@@ -769,7 +809,19 @@ export async function execute(options: ExecuteOptions): Promise<Report> {
   const previous = writes ? readJsonFile(finalResult) : undefined;
   if ((options.command === 'run' || options.command === 'all') && isRecord(previous) && previous.status === 'PASS') {
     if (previous.bundleSha256 !== loaded.bundleSha256) fail('E_STATE_BUNDLE', 'The results directory belongs to another bundle.', 'Give a new --out directory.', 2);
-    return { ...(previous as Report), note: 'The results exist already. Nothing was run again.' };
+    // Do not trust result.json alone: read the images and SHA256SUMS again. A changed result is FAIL, never a new generation.
+    const problems = resultProblems(
+      out,
+      previous,
+      loaded.bundle.runs.map((run) => run.id)
+    );
+    if (problems.length > 0)
+      fail(
+        'E_RESULT_CHANGED',
+        `The saved results do not agree with result.json: ${problems.join('; ')}.`,
+        'Nothing was run again. Move the results directory away. A new run is a new decision of the owner.'
+      );
+    return { ...(previous as Report), note: 'The results exist already and agree with result.json and SHA256SUMS. Nothing was run again.' };
   }
   const release = writes ? acquireLock(out) : () => undefined;
   const log = fileLogger(writes ? join(out, 'run.log') : null, options.quiet);
@@ -799,7 +851,7 @@ export async function execute(options: ExecuteOptions): Promise<Report> {
     const state = readState(out, loaded.bundleSha256);
     saveState(out, state);
     const startedAt = new Date().toISOString();
-    if (loaded.bundle.runs.some((run) => !state.runs[run.id]?.promptId)) await uploadControlImage(comfy, loaded, log);
+    if (loaded.bundle.runs.some((run) => !state.runs[run.id]?.promptId && !state.runs[run.id]?.submissionStartedAt)) await uploadControlImage(comfy, loaded, log);
     const runs = [];
     for (const run of loaded.bundle.runs) {
       const output = await runOne(loaded, run, state, { comfy, out, timeoutMs: options.timeoutMs, pollMs: options.pollMs ?? 2000, log });
@@ -821,18 +873,40 @@ export async function execute(options: ExecuteOptions): Promise<Report> {
   }
 }
 
+/** Compares the images and SHA256SUMS with a PASS result.json. Returns the problems; an empty list means that all agree. */
+function resultProblems(out: string, result: Record<string, unknown>, ids: readonly string[]): string[] {
+  const problems: string[] = [];
+  const runs = Array.isArray(result.runs) ? result.runs.filter(isRecord) : [];
+  const lines: string[] = [];
+  if (runs.length !== ids.length) problems.push(`result.json lists ${runs.length} runs, ${ids.length} are expected`);
+  for (const id of ids) {
+    const entry = runs.find((run) => run.id === id);
+    const file = `${id}.png`;
+    if (!entry || entry.file !== file || typeof entry.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(entry.sha256)) {
+      problems.push(`result.json has no valid entry for ${file}`);
+      continue;
+    }
+    lines.push(`${entry.sha256}  ${file}\n`);
+    const path = join(out, file);
+    if (!existsSync(path)) problems.push(`${file} is missing`);
+    else if (sha256(readFileSync(path)) !== entry.sha256) problems.push(`${file} has another SHA-256`);
+  }
+  const sumsPath = join(out, 'SHA256SUMS');
+  if (!existsSync(sumsPath)) problems.push('SHA256SUMS is missing');
+  else if (readFileSync(sumsPath, 'utf8') !== lines.join('')) problems.push('SHA256SUMS does not agree with result.json');
+  return problems;
+}
+
 /** status: reads the results directory only. */
 export function status(out: string): Report {
   const full = resolve(out);
   const result = readJsonFile(join(full, 'result.json'));
   if (isRecord(result) && result.status === 'PASS') {
     const runs = Array.isArray(result.runs) ? result.runs.filter(isRecord) : [];
-    const verified = runs.map((run) => {
-      const path = join(full, String(run.file));
-      return { id: run.id, file: run.file, sha256: run.sha256, present: existsSync(path), sameSha256: existsSync(path) && sha256(readFileSync(path)) === run.sha256 };
-    });
-    const ok = verified.every((run) => run.sameSha256);
-    return { status: ok ? 'PASS' : 'FAIL', command: 'status', results: full, runs: verified, ...(ok ? {} : { note: 'A result file is missing or changed.' }) };
+    const ids = runs.map((run) => run.id).filter((id): id is string => typeof id === 'string' && /^[A-Za-z0-9-]+$/.test(id));
+    const problems = resultProblems(full, result, ids.length === runs.length ? ids : []);
+    const ok = problems.length === 0 && ids.length > 0;
+    return { status: ok ? 'PASS' : 'FAIL', command: 'status', results: full, runs: runs.map((run) => ({ id: run.id, file: run.file, sha256: run.sha256 })), ...(ok ? {} : { problems }) };
   }
   const state = readJsonFile(join(full, 'state.json'));
   const runs = isRecord(state) && isRecord(state.runs) ? state.runs : {};
@@ -841,7 +915,12 @@ export function status(out: string): Report {
     command: 'status',
     results: full,
     locked: existsSync(join(full, '.lock')),
-    runs: Object.entries(runs).map(([id, run]) => ({ id, promptId: isRecord(run) ? (run.promptId ?? null) : null, saved: isRecord(run) && isRecord(run.output) }))
+    runs: Object.entries(runs).map(([id, run]) => ({
+      id,
+      promptId: isRecord(run) ? (run.promptId ?? null) : null,
+      submissionAmbiguous: isRecord(run) && run.promptId === undefined && run.submissionStartedAt !== undefined,
+      saved: isRecord(run) && isRecord(run.output)
+    }))
   };
 }
 
