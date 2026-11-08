@@ -54,6 +54,12 @@ These items come from the owner. They are not open.
 | D24 | Texture ownership at run time                 | Shared atlas cache with owner counts / one atlas set for each character                                   | Shared cache with owner counts; set the budget after a GPU check (deferred, see the owner requirements)                                                    | Open         |
 | D25 | Equipment System implementation details (v2+) | Item mounting, slots and mount points, layer composition, equipment manifests, API, complex grips         | Not evaluated yet. Check the slots and mount points that equipment needs before the rig contract freeze. Related: D6, D23, D24.                            | Open         |
 | D26 | Animated parts and secondary animation        | Behaviours `static`, `frame_sequence`, `bone_animated` (conceptual) on the shared rig / no part animation | Owner-approved intent. Spine Essential features, secondary tracks with property ownership. Details open. See the D23/D26 proposal.                         | Open         |
+| D27 | Production-art strategy                       | Template-first (D) / prompt with pose control / hybrid                                                    | Template-first. Details after T1–T3. See [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md).                                                        | Open         |
+| D28 | Style application strategy and lifecycle      | Prompt-only baseline / reference image (A) / style LoRA (B), with channels and immutable revisions        | Measure the prompt-only baseline first, then A. B later. See the T0 ADR, R3 and section 7.                                                                 | Open         |
+| D29 | Outfit variants                               | New identity revision and full package / cross-module outfit sets / equipment (D25)                       | New identity revision with `variantOf` in version 1. See the T0 ADR, R5.                                                                                   | Open         |
+| D30 | Machine-readable model registry               | JSON records checked against the Markdown registry / JSON only / Markdown only                            | JSON records with a consistency check. The Markdown registry stays the human source.                                                                       | Open         |
+| D31 | Layer authoring path                          | Whole design, partition and completion (W) / rig-part-first painting (P) / mixed                          | Pilot W with targeted completion, P for very small parts. Decide after T3. See the T0 ADR, section 8.                                                      | Open         |
+| D32 | Master rig version for production templates   | Migrate the setup pose to the D17 view and review the animations / keep the L1 geometry                   | Migrate after D17, with an owner Spine session and an animation review. See the T0 ADR, R1.                                                                | Open         |
 
 ## Accepted decisions
 
@@ -71,6 +77,12 @@ Changed documents: [the rig contract](RIG_CONTRACT.md) (absent parts rules, atta
 No contract field and no bone, slot or attachment name changes. The contract is not frozen.
 
 ## Open decision notes
+
+### D27: production-art strategy
+
+Accepted by the owner (strategic intent, not part of this open decision): the main direction is template-first generation (D) bound to the shared Spine rig. A style reference (A) is the main candidate for art consistency. A style LoRA (B) is a later pluggable strategy. Models and art profiles are switched by data, without source changes. Characters share one style and differ in identity. Later, variants of one character are necessary. Different models at different stages are permitted. The shared skeleton, the animation set, PNG parts plus `character.json`, and the existing packages stay. C0.5 is not a production rig.
+Open: the records and their formats, the layer authoring path (D31), the style strategy (D28), outfit variants (D29), the model registry format (D30), and the master rig version (D32).
+Details and the critical review: [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md).
 
 ### D25: Equipment System implementation details (v2+)
 

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/model-profile.schema.json",
+  "title": "Model profile (PROPOSAL aigg.model-profile/0.1, NONAUTHORITATIVE)",
+  "description": "PROPOSAL from the T0 ADR. A machine-readable entry for one exact model file. The human source of the approval stays docs/MODEL_LICENSES.md. A check must find the same values in both.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "modelId", "revision", "kind", "family", "file", "license", "approval", "capabilities", "compatibility", "runtime"],
+  "properties": {
+    "schema": { "const": "aigg.model-profile/0.1" },
+    "modelId": { "$ref": "common.schema.json#/$defs/id" },
+    "revision": { "$ref": "common.schema.json#/$defs/revision" },
+    "kind": { "enum": ["checkpoint", "controlnet", "ip_adapter", "image_encoder", "lora", "vae", "decomposition", "segmentation"] },
+    "family": { "enum": ["sdxl", "other"] },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256", "sizeBytes", "format", "repository", "commit"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,200}$" },
+        "sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+        "sizeBytes": { "type": "integer", "minimum": 1 },
+        "format": { "const": "safetensors" },
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "url"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "label": { "enum": ["open source", "open weights", "source-available", "proprietary free tier", "proprietary paid"] },
+        "url": { "type": "string", "pattern": "^https://" }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "scopes"],
+      "properties": {
+        "status": { "enum": ["approved", "candidate", "not_verified", "rejected"] },
+        "scopes": {
+          "description": "The jobs that can use the file. A job purpose outside these scopes is rejected.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "common.schema.json#/$defs/id" }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "common.schema.json#/$defs/capability" }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseFamilies", "requiresModels"],
+      "properties": {
+        "baseFamilies": { "type": "array", "uniqueItems": true, "items": { "enum": ["sdxl", "other"] } },
+        "requiresModels": {
+          "description": "Other model ids that must be present, for example the image encoder of an IP-Adapter.",
+          "type": "array",
+          "items": { "$ref": "common.schema.json#/$defs/id" }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["providers", "notes"],
+      "properties": {
+        "providers": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["comfyui", "mock"] } },
+        "notes": { "type": "string", "maxLength": 500 }
+      }
+    }
+  }
+}

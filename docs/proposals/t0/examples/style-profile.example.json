@@ -1,0 +1,40 @@
+{
+  "schema": "aigg.style-profile/0.1",
+  "styleId": "example_clean_cel",
+  "revision": 1,
+  "status": "draft",
+  "name": "Example clean cel shading (test only)",
+  "scope": { "collection": "example_collection" },
+  "artRules": {
+    "lineWork": "Thin dark outline of constant width on the silhouette. Thinner inner lines.",
+    "shading": "Two-tone cel shading. One shadow tone for each material. No soft gradients on skin.",
+    "lighting": "One neutral key light from the upper left of the image. No rim light. No cast shadow on the ground.",
+    "detailDensity": "medium",
+    "palette": ["#2b2d42", "#8d99ae", "#edf2f4", "#ef233c"],
+    "do": ["Flat transparent background", "Readable silhouette at 300 px character height"],
+    "dont": ["Background objects", "Text or logos", "Motion blur", "Glow that goes outside the silhouette"]
+  },
+  "contentRules": { "adultCharactersOnly": true, "explicitContent": false, "bakedBackground": false, "bakedCastShadow": false },
+  "references": [
+    {
+      "assetId": "ref_a",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0101",
+      "depicts": "fixture_person_a",
+      "rights": { "source": "synthetic_test", "rightsHolder": "repository owner", "license": "test fixture only", "permittedUses": ["test_fixture"], "checkedBy": "owner" }
+    },
+    {
+      "assetId": "ref_b",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0102",
+      "depicts": "fixture_person_b",
+      "rights": { "source": "synthetic_test", "rightsHolder": "repository owner", "license": "test fixture only", "permittedUses": ["test_fixture"], "checkedBy": "owner" }
+    },
+    {
+      "assetId": "ref_c",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0103",
+      "depicts": "fixture_person_c",
+      "rights": { "source": "synthetic_test", "rightsHolder": "repository owner", "license": "test fixture only", "permittedUses": ["test_fixture"], "checkedBy": "owner" }
+    }
+  ],
+  "examples": { "accepted": [], "rejected": [] },
+  "approvals": []
+}

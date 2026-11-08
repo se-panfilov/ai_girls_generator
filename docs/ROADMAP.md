@@ -97,6 +97,7 @@ The first generation uses an execution bundle (`aigg-control bundle`): the agent
 C1 evaluated the first baseline and pose-guided pair (one seed). OpenPose kept the joint positions, but not the torso and foot orientation. This does not decide experiment C. See [the C1 report](proposals/C1_GEOMETRY_EVALUATION.md).
 C2 prepares OpenPose only against OpenPose + depth (three seeds) with an approximate depth image of the C0.5 reference body. Run once. See [the C2 preparation](proposals/C2_PREPARATION.md).
 C2 ran (six images). The orientation gate failed in all six images. Detached hands were in 3 of 3 A images and 1 of 3 B images. See [the C2 failure analysis](proposals/C2_FAILURE_ANALYSIS.md).
+The owner selected template-first generation as the strategic direction (D27). The proposed architecture and the next offline step T1 are in [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md). The phase table is updated after the owner decides D27.
 
 ### D. Asset interchange
 

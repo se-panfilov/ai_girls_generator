@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/style-profile.schema.json",
+  "title": "Style profile (PROPOSAL aigg.style-profile/0.1, NONAUTHORITATIVE)",
+  "description": "PROPOSAL from the T0 ADR. Model-neutral art direction for a collection of characters. It contains no model file, no adapter, no LoRA and no strength value. Those are in a style binding.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "styleId", "revision", "status", "name", "scope", "artRules", "contentRules", "references", "examples", "approvals"],
+  "properties": {
+    "schema": { "const": "aigg.style-profile/0.1" },
+    "styleId": { "$ref": "common.schema.json#/$defs/id" },
+    "revision": { "$ref": "common.schema.json#/$defs/revision" },
+    "status": { "$ref": "common.schema.json#/$defs/lifecycle" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collection"],
+      "properties": {
+        "collection": { "$ref": "common.schema.json#/$defs/id" }
+      }
+    },
+    "artRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineWork", "shading", "lighting", "detailDensity", "do", "dont"],
+      "properties": {
+        "lineWork": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "shading": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "lighting": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "detailDensity": { "enum": ["low", "medium", "high"] },
+        "palette": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "type": "string", "pattern": "^#[0-9a-f]{6}$" }
+        },
+        "do": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 300 } },
+        "dont": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 300 } }
+      }
+    },
+    "contentRules": {
+      "description": "Fixed project rules. A profile cannot weaken them.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adultCharactersOnly", "explicitContent", "bakedBackground", "bakedCastShadow"],
+      "properties": {
+        "adultCharactersOnly": { "const": true },
+        "explicitContent": { "const": false },
+        "bakedBackground": { "const": false },
+        "bakedCastShadow": { "const": false }
+      }
+    },
+    "references": {
+      "description": "Approved style reference images. They show different characters, so that a model learns the style and not one face or outfit.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["assetId", "sha256", "depicts", "rights"],
+        "properties": {
+          "assetId": { "$ref": "common.schema.json#/$defs/id" },
+          "sha256": { "$ref": "common.schema.json#/$defs/sha256" },
+          "depicts": {
+            "description": "A label of the character in the image. The ADR rule: an approved profile has at least three different labels.",
+            "$ref": "common.schema.json#/$defs/id"
+          },
+          "rights": { "$ref": "common.schema.json#/$defs/rights" }
+        }
+      }
+    },
+    "examples": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accepted", "rejected"],
+      "properties": {
+        "accepted": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/sha256" } },
+        "rejected": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/sha256" } }
+      }
+    },
+    "approvals": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/approval" } }
+  }
+}

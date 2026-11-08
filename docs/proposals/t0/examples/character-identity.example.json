@@ -1,0 +1,20 @@
+{
+  "schema": "aigg.character-identity/0.1",
+  "characterId": "example_ranger",
+  "revision": 1,
+  "status": "draft",
+  "adult": true,
+  "description": "An adult scout in her late twenties. Calm and practical. Test identity for the T0 example manifest only.",
+  "traits": [
+    { "trait": "face", "value": "Narrow face, straight eyebrows, small scar on the near cheek", "locked": true },
+    { "trait": "eyes", "value": "Green eyes", "locked": true },
+    { "trait": "hair", "value": "Short silver bob, fringe to the eyebrows", "locked": false },
+    { "trait": "outfit", "value": "Fitted dark green jacket with short sleeves, shorts, low boots", "locked": false },
+    { "trait": "palette", "value": "Dark green, grey, brown leather", "locked": false }
+  ],
+  "asymmetry": { "asymmetric": true, "details": "Scar on the near cheek. The scar changes sides when the character is mirrored (decision D12 is open)." },
+  "references": [],
+  "approvedConcept": null,
+  "relations": { "variantOf": null, "relatedTo": [] },
+  "approvals": []
+}
