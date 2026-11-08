@@ -2,7 +2,7 @@
 
 **Draft.** This document describes the proposed pipeline for version 1. Many choices are open. See [the decision log](DECISIONS.md).
 
-**Proposed change.** The owner set a new strategic direction: template-first generation (D27). Stages S4–S6, principle 3 and the candidate tool table below describe the earlier prompt-first pipeline. See [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md) for the proposed stages. This document is updated after the owner decides D27.
+**Proposed change.** The owner approved a three-phase product strategy: Phase 1 Art Generation MVP (whole-image concept W, layered character L, modular character M), Phase 2 Spine Automation, Phase 3 Production Readiness. Stages S4–S6, principle 3 and the candidate tool table below describe the earlier prompt-first pipeline. See [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md) for the proposed stages. This document is updated after the owner decides D27.
 
 ## Goal
 

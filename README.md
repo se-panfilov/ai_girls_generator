@@ -3,7 +3,7 @@
 A reproducible asset factory for layered cutout anime-girl characters.
 Each character is a package of PNG parts and a JSON sidecar. All characters fit one shared Spine skeleton and one shared animation set.
 
-**Status: draft.** The repository contains agent rules, draft design documents, and the npm workspaces setup with shared tool configuration. No pipeline package exists yet.
+**Status: draft.** The repository contains agent rules, draft design documents, and the npm workspaces setup with shared tool configuration. Two experimental packages exist (`@aigg/control` and `@aigg/rig-runtime`). No production pipeline exists yet.
 
 ## Documents
 

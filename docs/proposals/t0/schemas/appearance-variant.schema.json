@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/se-panfilov/ai_girls_generator/docs/proposals/t0/schemas/appearance-variant.schema.json",
+  "title": "Appearance variant (PROPOSAL aigg.appearance-variant/0.1, NONAUTHORITATIVE)",
+  "description": "PROPOSAL from the T0 ADR. One variant of one person: other drawn-on clothes, hair or expression. It refers to one identity revision. Adding or changing a variant does not change the identity record or its digest. Each variant gives one complete character package. Removable equipment is never a variant (D25). Cross rules (not in JSON Schema): each identity revision has one variant with the id base, and changes refer only to traits with locked false.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "variantId", "revision", "status", "identity", "label", "changes", "approvals"],
+  "properties": {
+    "schema": { "const": "aigg.appearance-variant/0.1" },
+    "variantId": { "$ref": "common.schema.json#/$defs/id" },
+    "revision": { "$ref": "common.schema.json#/$defs/revision" },
+    "status": { "$ref": "common.schema.json#/$defs/lifecycle" },
+    "identity": { "description": "The identity revision that this variant belongs to.", "$ref": "common.schema.json#/$defs/recordRef" },
+    "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["trait", "value"],
+        "properties": { "trait": { "enum": ["hair", "outfit", "accessory", "palette", "other"] }, "value": { "type": "string", "minLength": 1, "maxLength": 500 } }
+      }
+    },
+    "approvals": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/approval" } }
+  }
+}
