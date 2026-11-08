@@ -1,0 +1,875 @@
+{
+  "format": "aigg.c1-measurements/0.1",
+  "note": "Extracted from overlay.json of @aigg/control 0.4.0 overlay --mapping anatomical --marks. Marks are visual estimates by an AI agent, not confirmed by the owner.",
+  "contract": {
+    "rigId": "humanoid_girl_v1_c05_candidate",
+    "contractVersion": "0.3.0",
+    "sha256": "17e730691f7efc3e33dde993c46a3e250650152790cbbad89429af8a1977675e",
+    "view": "three_quarter_right",
+    "sideNaming": "near_far",
+    "canvas": {
+      "width": 1024,
+      "height": 1536
+    }
+  },
+  "runs": {
+    "baseline-1001": {
+      "image": {
+        "sha256": "bfea13b71db5082b8a92f3b0e66c8aea1a46bb925dec0051b16589ccb2db130d",
+        "size": {
+          "width": 832,
+          "height": 1216
+        }
+      },
+      "transform": {
+        "scale": 0.792,
+        "offsetX": 10.667,
+        "offsetY": 0
+      },
+      "measurement": {
+        "status": "FAIL",
+        "method": "manual marks by Claude (AI agent), visual estimate; error = distance / body height in contract pixels",
+        "origin": "Visual estimate by an AI agent (Claude) on 2x zoomed crops with a 20 px grid. Not confirmed by the owner. Not a detector output.",
+        "bodyHeightPx": 1240,
+        "joints": [
+          {
+            "name": "neck",
+            "confidence": "low",
+            "expected": {
+              "x": 509.5,
+              "y": 507
+            },
+            "marked": {
+              "x": 477.895,
+              "y": 327.158
+            },
+            "errorPx": 182.598,
+            "errorPctHeight": 14.726,
+            "pass": false
+          },
+          {
+            "name": "r_shoulder",
+            "confidence": "low",
+            "expected": {
+              "x": 394,
+              "y": 507
+            },
+            "marked": {
+              "x": 355.368,
+              "y": 323.368
+            },
+            "errorPx": 187.651,
+            "errorPctHeight": 15.133,
+            "pass": false
+          },
+          {
+            "name": "r_elbow",
+            "confidence": "low",
+            "expected": {
+              "x": 337,
+              "y": 719
+            },
+            "marked": {
+              "x": 330.105,
+              "y": 530.526
+            },
+            "errorPx": 188.6,
+            "errorPctHeight": 15.21,
+            "pass": false
+          },
+          {
+            "name": "r_wrist",
+            "confidence": "medium",
+            "expected": {
+              "x": 322,
+              "y": 905
+            },
+            "marked": {
+              "x": 345.263,
+              "y": 698.526
+            },
+            "errorPx": 207.78,
+            "errorPctHeight": 16.756,
+            "pass": false
+          },
+          {
+            "name": "l_shoulder",
+            "confidence": "low",
+            "expected": {
+              "x": 625,
+              "y": 507
+            },
+            "marked": {
+              "x": 600.421,
+              "y": 330.947
+            },
+            "errorPx": 177.76,
+            "errorPctHeight": 14.335,
+            "pass": false
+          },
+          {
+            "name": "l_elbow",
+            "confidence": "low",
+            "expected": {
+              "x": 676,
+              "y": 719
+            },
+            "marked": {
+              "x": 643.368,
+              "y": 517.895
+            },
+            "errorPx": 203.735,
+            "errorPctHeight": 16.43,
+            "pass": false
+          },
+          {
+            "name": "l_wrist",
+            "confidence": "medium",
+            "expected": {
+              "x": 729,
+              "y": 905
+            },
+            "marked": {
+              "x": 635.789,
+              "y": 666.947
+            },
+            "errorPx": 255.651,
+            "errorPctHeight": 20.617,
+            "pass": false
+          },
+          {
+            "name": "r_hip",
+            "confidence": "low",
+            "expected": {
+              "x": 451,
+              "y": 861
+            },
+            "marked": {
+              "x": 431.158,
+              "y": 688.421
+            },
+            "errorPx": 173.716,
+            "errorPctHeight": 14.009,
+            "pass": false
+          },
+          {
+            "name": "r_knee",
+            "confidence": "low",
+            "expected": {
+              "x": 457,
+              "y": 1153
+            },
+            "marked": {
+              "x": 428.632,
+              "y": 1042.105
+            },
+            "errorPx": 114.466,
+            "errorPctHeight": 9.231,
+            "pass": false
+          },
+          {
+            "name": "r_ankle",
+            "confidence": "low",
+            "expected": {
+              "x": 447,
+              "y": 1446
+            },
+            "marked": {
+              "x": 434.947,
+              "y": 1395.789
+            },
+            "errorPx": 51.637,
+            "errorPctHeight": 4.164,
+            "pass": false
+          },
+          {
+            "name": "l_hip",
+            "confidence": "low",
+            "expected": {
+              "x": 573,
+              "y": 861
+            },
+            "marked": {
+              "x": 561.263,
+              "y": 688.421
+            },
+            "errorPx": 172.978,
+            "errorPctHeight": 13.95,
+            "pass": false
+          },
+          {
+            "name": "l_knee",
+            "confidence": "low",
+            "expected": {
+              "x": 579,
+              "y": 1153
+            },
+            "marked": {
+              "x": 523.368,
+              "y": 1042.105
+            },
+            "errorPx": 124.067,
+            "errorPctHeight": 10.005,
+            "pass": false
+          },
+          {
+            "name": "l_ankle",
+            "confidence": "low",
+            "expected": {
+              "x": 577,
+              "y": 1446
+            },
+            "marked": {
+              "x": 504.421,
+              "y": 1370.526
+            },
+            "errorPx": 104.709,
+            "errorPctHeight": 8.444,
+            "pass": false
+          }
+        ],
+        "segments": [
+          {
+            "from": "r_shoulder",
+            "to": "r_elbow",
+            "ratio": 0.951,
+            "ratioScaleFree": 0.853,
+            "pass": true
+          },
+          {
+            "from": "r_elbow",
+            "to": "r_wrist",
+            "ratio": 0.904,
+            "ratioScaleFree": 0.811,
+            "pass": false
+          },
+          {
+            "from": "l_shoulder",
+            "to": "l_elbow",
+            "ratio": 0.88,
+            "ratioScaleFree": 0.789,
+            "pass": false
+          },
+          {
+            "from": "l_elbow",
+            "to": "l_wrist",
+            "ratio": 0.772,
+            "ratioScaleFree": 0.692,
+            "pass": false
+          },
+          {
+            "from": "r_hip",
+            "to": "r_knee",
+            "ratio": 1.211,
+            "ratioScaleFree": 1.086,
+            "pass": false
+          },
+          {
+            "from": "r_knee",
+            "to": "r_ankle",
+            "ratio": 1.207,
+            "ratioScaleFree": 1.082,
+            "pass": false
+          },
+          {
+            "from": "l_hip",
+            "to": "l_knee",
+            "ratio": 1.218,
+            "ratioScaleFree": 1.092,
+            "pass": false
+          },
+          {
+            "from": "l_knee",
+            "to": "l_ankle",
+            "ratio": 1.123,
+            "ratioScaleFree": 1.007,
+            "pass": false
+          }
+        ],
+        "missing": [],
+        "unmeasurable": [
+          {
+            "name": "l_eye",
+            "reason": "Far eye is hidden: the face is in near profile."
+          },
+          {
+            "name": "l_ear",
+            "reason": "Far ear is hidden, as in the rig."
+          }
+        ],
+        "meanErrorPctHeight": 13.308,
+        "maxErrorPctHeight": 20.617,
+        "confident": {
+          "count": 2,
+          "meanErrorPctHeight": 18.687,
+          "maxErrorPctHeight": 20.617,
+          "overMax": ["r_wrist", "l_wrist"]
+        },
+        "face": [
+          {
+            "name": "nose",
+            "confidence": "medium",
+            "errorPctHeight": 15.722
+          },
+          {
+            "name": "r_eye",
+            "confidence": "high",
+            "errorPctHeight": 15.051
+          },
+          {
+            "name": "r_ear",
+            "confidence": "high",
+            "errorPctHeight": 13.519
+          }
+        ],
+        "alignment": {
+          "note": "Diagnostic only. Uniform scale and translation fitted to the marked joints (least squares, no rotation). The result status does not use it.",
+          "figureScale": 1.115,
+          "offsetPx": {
+            "x": -24.633,
+            "y": -125.83
+          },
+          "offsetPctHeight": {
+            "x": -2.509,
+            "y": -12.818
+          },
+          "residuals": [
+            {
+              "name": "neck",
+              "confidence": "low",
+              "errorPctHeight": 1.757,
+              "pass": true
+            },
+            {
+              "name": "r_shoulder",
+              "confidence": "low",
+              "errorPctHeight": 1.551,
+              "pass": true
+            },
+            {
+              "name": "r_elbow",
+              "confidence": "low",
+              "errorPctHeight": 3.285,
+              "pass": false
+            },
+            {
+              "name": "r_wrist",
+              "confidence": "medium",
+              "errorPctHeight": 6.536,
+              "pass": false
+            },
+            {
+              "name": "l_shoulder",
+              "confidence": "low",
+              "errorPctHeight": 2.082,
+              "pass": true
+            },
+            {
+              "name": "l_elbow",
+              "confidence": "low",
+              "errorPctHeight": 2.13,
+              "pass": true
+            },
+            {
+              "name": "l_wrist",
+              "confidence": "medium",
+              "errorPctHeight": 8.532,
+              "pass": false
+            },
+            {
+              "name": "r_hip",
+              "confidence": "low",
+              "errorPctHeight": 1.494,
+              "pass": true
+            },
+            {
+              "name": "r_knee",
+              "confidence": "low",
+              "errorPctHeight": 1.515,
+              "pass": true
+            },
+            {
+              "name": "r_ankle",
+              "confidence": "low",
+              "errorPctHeight": 3.829,
+              "pass": false
+            },
+            {
+              "name": "l_hip",
+              "confidence": "low",
+              "errorPctHeight": 1.126,
+              "pass": true
+            },
+            {
+              "name": "l_knee",
+              "confidence": "low",
+              "errorPctHeight": 2.687,
+              "pass": false
+            },
+            {
+              "name": "l_ankle",
+              "confidence": "low",
+              "errorPctHeight": 3.824,
+              "pass": false
+            }
+          ],
+          "all": {
+            "count": 13,
+            "meanErrorPctHeight": 3.104,
+            "maxErrorPctHeight": 8.532,
+            "overMax": ["r_elbow", "r_wrist", "l_wrist", "r_ankle", "l_knee", "l_ankle"]
+          },
+          "confident": {
+            "count": 2,
+            "meanErrorPctHeight": 7.534,
+            "maxErrorPctHeight": 8.532,
+            "overMax": ["r_wrist", "l_wrist"]
+          }
+        },
+        "composition": {
+          "note": "From the marked head top (hair included) and ground line. Positive y offset is lower in the image.",
+          "markedBodyHeightPx": 1120,
+          "rigBodyHeightPx": 981.667,
+          "bodyHeightRatio": 1.141,
+          "headTopOffsetPctHeight": {
+            "x": -2.649,
+            "y": -14.864
+          },
+          "groundOffsetPctHeight": {
+            "x": -3.667,
+            "y": -0.772
+          }
+        }
+      }
+    },
+    "pose-1001": {
+      "image": {
+        "sha256": "cbe36875756ec4edfcbb89d1048712a65b73efdb1ed64eb3ebe54fc277fcc2f9",
+        "size": {
+          "width": 832,
+          "height": 1216
+        }
+      },
+      "transform": {
+        "scale": 0.792,
+        "offsetX": 10.667,
+        "offsetY": 0
+      },
+      "measurement": {
+        "status": "FAIL",
+        "method": "manual marks by Claude (AI agent), visual estimate; error = distance / body height in contract pixels",
+        "origin": "Visual estimate by an AI agent (Claude) on 2x zoomed crops with a 20 px grid. Not confirmed by the owner. Not a detector output.",
+        "bodyHeightPx": 1240,
+        "joints": [
+          {
+            "name": "neck",
+            "confidence": "low",
+            "expected": {
+              "x": 509.5,
+              "y": 507
+            },
+            "marked": {
+              "x": 505.684,
+              "y": 512.842
+            },
+            "errorPx": 6.978,
+            "errorPctHeight": 0.563,
+            "pass": true
+          },
+          {
+            "name": "r_shoulder",
+            "confidence": "low",
+            "expected": {
+              "x": 394,
+              "y": 507
+            },
+            "marked": {
+              "x": 371.789,
+              "y": 511.579
+            },
+            "errorPx": 22.678,
+            "errorPctHeight": 1.829,
+            "pass": true
+          },
+          {
+            "name": "r_elbow",
+            "confidence": "low",
+            "expected": {
+              "x": 337,
+              "y": 719
+            },
+            "marked": {
+              "x": 317.474,
+              "y": 722.526
+            },
+            "errorPx": 19.842,
+            "errorPctHeight": 1.6,
+            "pass": true
+          },
+          {
+            "name": "r_wrist",
+            "confidence": "medium",
+            "expected": {
+              "x": 322,
+              "y": 905
+            },
+            "marked": {
+              "x": 304.842,
+              "y": 919.579
+            },
+            "errorPx": 22.515,
+            "errorPctHeight": 1.816,
+            "pass": true
+          },
+          {
+            "name": "l_shoulder",
+            "confidence": "low",
+            "expected": {
+              "x": 625,
+              "y": 507
+            },
+            "marked": {
+              "x": 640.842,
+              "y": 515.368
+            },
+            "errorPx": 17.917,
+            "errorPctHeight": 1.445,
+            "pass": true
+          },
+          {
+            "name": "l_elbow",
+            "confidence": "low",
+            "expected": {
+              "x": 676,
+              "y": 719
+            },
+            "marked": {
+              "x": 702.737,
+              "y": 722.526
+            },
+            "errorPx": 26.968,
+            "errorPctHeight": 2.175,
+            "pass": true
+          },
+          {
+            "name": "l_wrist",
+            "confidence": "medium",
+            "expected": {
+              "x": 729,
+              "y": 905
+            },
+            "marked": {
+              "x": 721.684,
+              "y": 918.316
+            },
+            "errorPx": 15.193,
+            "errorPctHeight": 1.225,
+            "pass": true
+          },
+          {
+            "name": "r_hip",
+            "confidence": "low",
+            "expected": {
+              "x": 451,
+              "y": 861
+            },
+            "marked": {
+              "x": 451.368,
+              "y": 843.789
+            },
+            "errorPx": 17.214,
+            "errorPctHeight": 1.388,
+            "pass": true
+          },
+          {
+            "name": "r_knee",
+            "confidence": "medium",
+            "expected": {
+              "x": 457,
+              "y": 1153
+            },
+            "marked": {
+              "x": 448.842,
+              "y": 1143.158
+            },
+            "errorPx": 12.784,
+            "errorPctHeight": 1.031,
+            "pass": true
+          },
+          {
+            "name": "r_ankle",
+            "confidence": "low",
+            "expected": {
+              "x": 447,
+              "y": 1446
+            },
+            "marked": {
+              "x": 450.105,
+              "y": 1452.632
+            },
+            "errorPx": 7.323,
+            "errorPctHeight": 0.591,
+            "pass": true
+          },
+          {
+            "name": "l_hip",
+            "confidence": "low",
+            "expected": {
+              "x": 573,
+              "y": 861
+            },
+            "marked": {
+              "x": 580.211,
+              "y": 843.789
+            },
+            "errorPx": 18.66,
+            "errorPctHeight": 1.505,
+            "pass": true
+          },
+          {
+            "name": "l_knee",
+            "confidence": "medium",
+            "expected": {
+              "x": 579,
+              "y": 1153
+            },
+            "marked": {
+              "x": 576.421,
+              "y": 1140.632
+            },
+            "errorPx": 12.634,
+            "errorPctHeight": 1.019,
+            "pass": true
+          },
+          {
+            "name": "l_ankle",
+            "confidence": "low",
+            "expected": {
+              "x": 577,
+              "y": 1446
+            },
+            "marked": {
+              "x": 577.684,
+              "y": 1452.632
+            },
+            "errorPx": 6.667,
+            "errorPctHeight": 0.538,
+            "pass": true
+          }
+        ],
+        "segments": [
+          {
+            "from": "r_shoulder",
+            "to": "r_elbow",
+            "ratio": 0.992,
+            "ratioScaleFree": 0.983,
+            "pass": true
+          },
+          {
+            "from": "r_elbow",
+            "to": "r_wrist",
+            "ratio": 1.058,
+            "ratioScaleFree": 1.049,
+            "pass": false
+          },
+          {
+            "from": "l_shoulder",
+            "to": "l_elbow",
+            "ratio": 0.992,
+            "ratioScaleFree": 0.983,
+            "pass": true
+          },
+          {
+            "from": "l_elbow",
+            "to": "l_wrist",
+            "ratio": 1.017,
+            "ratioScaleFree": 1.008,
+            "pass": true
+          },
+          {
+            "from": "r_hip",
+            "to": "r_knee",
+            "ratio": 1.025,
+            "ratioScaleFree": 1.016,
+            "pass": true
+          },
+          {
+            "from": "r_knee",
+            "to": "r_ankle",
+            "ratio": 1.056,
+            "ratioScaleFree": 1.046,
+            "pass": false
+          },
+          {
+            "from": "l_hip",
+            "to": "l_knee",
+            "ratio": 1.016,
+            "ratioScaleFree": 1.007,
+            "pass": true
+          },
+          {
+            "from": "l_knee",
+            "to": "l_ankle",
+            "ratio": 1.065,
+            "ratioScaleFree": 1.055,
+            "pass": false
+          }
+        ],
+        "missing": [],
+        "unmeasurable": [
+          {
+            "name": "l_eye",
+            "reason": "Far eye is hidden: the head turns more than the rig yaw (near profile)."
+          },
+          {
+            "name": "l_ear",
+            "reason": "Far ear is hidden, as in the rig."
+          }
+        ],
+        "meanErrorPctHeight": 1.287,
+        "maxErrorPctHeight": 2.175,
+        "confident": {
+          "count": 4,
+          "meanErrorPctHeight": 1.273,
+          "maxErrorPctHeight": 1.816,
+          "overMax": []
+        },
+        "face": [
+          {
+            "name": "nose",
+            "confidence": "low",
+            "errorPctHeight": 1.089
+          },
+          {
+            "name": "r_eye",
+            "confidence": "high",
+            "errorPctHeight": 0.086
+          },
+          {
+            "name": "r_ear",
+            "confidence": "high",
+            "errorPctHeight": 0.426
+          }
+        ],
+        "alignment": {
+          "note": "Diagnostic only. Uniform scale and translation fitted to the marked joints (least squares, no rotation). The result status does not use it.",
+          "figureScale": 1.009,
+          "offsetPx": {
+            "x": -1.633,
+            "y": 0.631
+          },
+          "offsetPctHeight": {
+            "x": -0.166,
+            "y": 0.064
+          },
+          "residuals": [
+            {
+              "name": "neck",
+              "confidence": "low",
+              "errorPctHeight": 0.69,
+              "pass": true
+            },
+            {
+              "name": "r_shoulder",
+              "confidence": "low",
+              "errorPctHeight": 1.632,
+              "pass": true
+            },
+            {
+              "name": "r_elbow",
+              "confidence": "low",
+              "errorPctHeight": 1.319,
+              "pass": true
+            },
+            {
+              "name": "r_wrist",
+              "confidence": "medium",
+              "errorPctHeight": 1.535,
+              "pass": true
+            },
+            {
+              "name": "l_shoulder",
+              "confidence": "low",
+              "errorPctHeight": 1.614,
+              "pass": true
+            },
+            {
+              "name": "l_elbow",
+              "confidence": "low",
+              "errorPctHeight": 2.216,
+              "pass": true
+            },
+            {
+              "name": "l_wrist",
+              "confidence": "medium",
+              "errorPctHeight": 1.148,
+              "pass": true
+            },
+            {
+              "name": "r_hip",
+              "confidence": "low",
+              "errorPctHeight": 1.433,
+              "pass": true
+            },
+            {
+              "name": "r_knee",
+              "confidence": "medium",
+              "errorPctHeight": 1.121,
+              "pass": true
+            },
+            {
+              "name": "r_ankle",
+              "confidence": "low",
+              "errorPctHeight": 0.467,
+              "pass": true
+            },
+            {
+              "name": "l_hip",
+              "confidence": "low",
+              "errorPctHeight": 1.577,
+              "pass": true
+            },
+            {
+              "name": "l_knee",
+              "confidence": "medium",
+              "errorPctHeight": 1.232,
+              "pass": true
+            },
+            {
+              "name": "l_ankle",
+              "confidence": "low",
+              "errorPctHeight": 0.195,
+              "pass": true
+            }
+          ],
+          "all": {
+            "count": 13,
+            "meanErrorPctHeight": 1.245,
+            "maxErrorPctHeight": 2.216,
+            "overMax": []
+          },
+          "confident": {
+            "count": 4,
+            "meanErrorPctHeight": 1.259,
+            "maxErrorPctHeight": 1.535,
+            "overMax": []
+          }
+        },
+        "composition": {
+          "note": "From the marked head top (hair included) and ground line. Positive y offset is lower in the image.",
+          "markedBodyHeightPx": 1042,
+          "rigBodyHeightPx": 981.667,
+          "bodyHeightRatio": 1.061,
+          "headTopOffsetPctHeight": {
+            "x": -1.63,
+            "y": -4.066
+          },
+          "groundOffsetPctHeight": {
+            "x": -0.102,
+            "y": 2.08
+          }
+        }
+      }
+    }
+  }
+}

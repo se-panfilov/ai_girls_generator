@@ -4,7 +4,7 @@ import { deflateSync } from 'node:zlib';
 
 import { overlayCommand, parseContractBytes, poseCommand, workflowCommand } from '@control/commands';
 import { parseControlContract } from '@control/contract';
-import { marksFormat } from '@control/measure';
+import { fitScaleTranslation, marksFormat, parseMarks } from '@control/measure';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { decodePng, encodePng, pixelHash } from '@control/png';
 import { fitTransform, keypointColors, keypointNames, renderOpenPose, rigPose, toTarget } from '@control/pose';
@@ -201,6 +201,87 @@ describe('overlay command', () => {
     expect(shifted.report.status).toBe('FAIL');
     const partial = overlayCommand({ contractBytes, mapping: 'detector', imageBytes: image, marksBytes: marks(0, ['l_ankle']) });
     expect(partial.report.status).toBe('INCOMPLETE');
+  });
+
+  it('reports confidence, unmeasurable joints, the diagnostic alignment, and the composition', () => {
+    const points: Record<string, { x: number; y: number; confidence?: string }> = {};
+    const center = { x: size.width / 2, y: size.height / 2 };
+    for (const item of rigPose(contract, 'detector').keypoints) {
+      if (!item.point || item.name === 'l_ankle') continue;
+      const point = toTarget(item.point, transform);
+      // The whole figure 10 % larger around the image center and moved 12 px down: a pure scale and translation.
+      points[item.name] = { x: center.x + (point.x - center.x) * 1.1, y: center.y + (point.y - center.y) * 1.1 + 12, confidence: item.name.includes('elbow') ? 'low' : 'high' };
+    }
+    const bytes = bytesOf({
+      format: marksFormat,
+      image: size,
+      markedBy: 'synthetic test',
+      origin: 'synthetic',
+      points,
+      unmeasurable: { l_ankle: 'hidden by a boot' },
+      extent: { headTop: { x: 160, y: 20 }, ground: { x: 160, y: 470 } }
+    });
+    const result = overlayCommand({ contractBytes, mapping: 'detector', imageBytes: image, marksBytes: bytes });
+    const measurement = result.report.measurement as {
+      status: string;
+      missing: string[];
+      unmeasurable: { name: string }[];
+      joints: { name: string; confidence: string }[];
+      confident: { count: number };
+      alignment: { figureScale: number; all: { maxErrorPctHeight: number }; offsetPx: { x: number; y: number } };
+      segments: { ratio: number; ratioScaleFree: number }[];
+      composition: { bodyHeightRatio: number };
+    };
+    expect(measurement.status).toBe('FAIL');
+    expect(measurement.missing).toEqual([]);
+    expect(measurement.unmeasurable.map((item) => item.name)).toEqual(['l_ankle']);
+    expect(measurement.joints.find((item) => item.name === 'r_elbow')?.confidence).toBe('low');
+    expect(measurement.confident.count).toBe(measurement.joints.length - 2);
+    expect(measurement.alignment.figureScale).toBeCloseTo(1.1, 3);
+    expect(measurement.alignment.all.maxErrorPctHeight).toBeLessThan(0.01);
+    for (const segment of measurement.segments) expect(segment.ratioScaleFree).toBeCloseTo(1, 2);
+    expect(measurement.composition.bodyHeightRatio).toBeGreaterThan(0);
+    expect(result.files.map((file) => file.name)).toContain('aligned-diagnostic.png');
+  });
+
+  it('validates the optional marks fields', () => {
+    const base = { format: marksFormat, image: size, markedBy: 'x' };
+    expect(codeOf(() => parseMarks({ ...base, points: { neck: { x: 1, y: 1, confidence: 'sure' } } }))).toBe('E_MARKS_FORMAT');
+    expect(codeOf(() => parseMarks({ ...base, points: { neck: { x: 1, y: 1 } }, unmeasurable: { neck: 'hidden' } }))).toBe('E_MARKS_CONFLICT');
+    expect(codeOf(() => parseMarks({ ...base, points: {}, unmeasurable: { tail: 'x' } }))).toBe('E_MARKS_UNKNOWN_POINT');
+    expect(codeOf(() => parseMarks({ ...base, points: {}, extent: { headTop: { x: 1, y: 50 }, ground: { x: 1, y: 10 } } }))).toBe('E_MARKS_FORMAT');
+    const parsed = parseMarks({ ...base, points: { neck: { x: 1, y: 2 } } });
+    expect(parsed.points.get('neck')?.confidence).toBe('unspecified');
+  });
+
+  it('fits scale and translation only from distinct points', () => {
+    expect(fitScaleTranslation([{ x: 1, y: 1 }], [{ x: 2, y: 2 }])).toBeNull();
+    expect(
+      fitScaleTranslation(
+        [
+          { x: 1, y: 1 },
+          { x: 1, y: 1 }
+        ],
+        [
+          { x: 2, y: 2 },
+          { x: 3, y: 3 }
+        ]
+      )
+    ).toBeNull();
+    const fit = fitScaleTranslation(
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 0, y: 10 }
+      ],
+      [
+        { x: 5, y: 5 },
+        { x: 25, y: 5 },
+        { x: 5, y: 25 }
+      ]
+    );
+    expect(fit?.s).toBeCloseTo(2, 9);
+    expect(fit?.t.x).toBeCloseTo(5, 9);
   });
 
   it('rejects marks for another image', () => {
