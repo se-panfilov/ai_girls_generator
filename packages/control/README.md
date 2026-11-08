@@ -18,6 +18,7 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `calibrate` | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
 | `depth`     | The C0.5 candidate `rig.contract.json`        | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
 | `bundle`    | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
+| `template`  | The C0.5 candidate `rig.contract.json`        | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`   |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -52,6 +53,23 @@ The contract canvas is scaled uniformly into the target size and centered. The p
   It runs the consistency checks V1 to V11 (side order, front/back cues, face direction, BODY_18 labels, draw order, rectangles, proportion proxy, arm separation) and writes the migration table.
   With `--skeleton`, it poses both contracts at the most extreme key of each animation (forward kinematics, linear keys, rotate and translate only).
 - Face keypoints come from contract points `face_nose`, `face_eye_<side>` and `face_ear_<side>` when they exist. Otherwise the face template is used.
+
+## Static template (T1a)
+
+**Prototype.** `template` makes a static template of the C0.5 candidate geometry in the setup pose. See [the T0 ADR, section 16](../../docs/proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md#16-t1a-specification).
+
+```sh
+node packages/control/dist/src/cli.js template --contract packages/control/test/fixtures/c05-candidate/rig.contract.json --out ./t1a-output
+```
+
+- Geometry source: the volumes of the `depth` command (C0.5 reference body). One ray goes through the center of each pixel.
+  A slot owns a pixel when its volume is hit and no hit slot has a higher draw order, as Spine draws the setup pose. `drawOrderConflicts` in `template.json` lists pixels where another slot is nearer in 3D.
+- The torso volume is split between `torso` and `hips` at the spine joint height. Hair, ears, tail, skirt, accessory, weapon and `hand_near_front` have no volume and no mask.
+- `mock-package/` has one flat-color PNG for each required slot (the visible area plus the joint overlap circles of the contract), with the size of the attachment rectangle, and `character.json` with optional slots `absent_by_design` (D22).
+  Required slots without a volume (`hair_back`, `hair_front`) get a hatched placeholder frame, not a shape.
+- Checks: G1 (contract matches the reference body), N1 to N3 (near/far order, face and feet direction), M1 to M3 (masks and overlap circles inside the attachment rectangles, no empty mask). A failed check gives status FAIL; the files are still written for review.
+- `template.json` has the status `prototype` and marks motion coverage and Spine compatibility as `not_validated`. Parser acceptance of the mock package is a structural check only.
+- The images are review and reference material. Do not commit them while decision D15 is open.
 
 ## Experiment C execution bundle
 

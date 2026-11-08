@@ -19,6 +19,7 @@ Color space: pixel values are used as stored and are assumed to be sRGB. ICC pro
 Each command writes into one output directory. The directory must be new, or empty, or `--force` must be given. A symbolic link as the output directory is refused.
 Each file is written to a new temporary name with the exclusive flag and then renamed. The rename replaces a link at the target name, so a write never follows a link.
 File names come from the code, not from input. `--dry-run` prints the report and writes nothing.
+A file name can have subdirectories (`template` writes `masks/` and `mock-package/parts/`). Every part of a name must be a plain name. Before the first write, each existing subdirectory must be a real directory, not a symbolic link, or nothing is written.
 
 ## External effects
 
@@ -30,6 +31,12 @@ The prompts in the workflows ask for an explicitly adult character with a safe r
 The `depth` command reads only the contract. It renders fixed volumes of the C0.5 reference body with deterministic math (no random values, no model, no subprocess).
 It refuses a contract that is not the C0.5 candidate, and its checks D1 and D2 fail when the contract joints or face points do not agree with the reference body within 1 px. The C2 bundle refuses a depth image that fails a check.
 The output image size is limited to 4096 x 4096. The render time grows with the pixel count (about 3 s for 832 x 1216).
+
+## Static template (`template`)
+
+The `template` command reads only the contract. It accepts only the C0.5 candidate (`three_quarter_right`, `near_far`, rig id `*_c05_candidate`), and it stops when the contract joints or face points differ from the reference body by more than 1 px.
+It casts rays through the same fixed volumes as `depth` (deterministic math, no random values, no model, no subprocess, no network). Slot ids from the contract become file names only after the id pattern check.
+The output is a prototype. It is not evidence that the parts animate correctly. The mock package is flat test data, not character art.
 
 ## Experiment C runner (`runner.mjs` in the bundle)
 
