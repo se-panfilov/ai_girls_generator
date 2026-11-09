@@ -1,0 +1,268 @@
+[
+  {
+    "repo": "layerdiff3d",
+    "path": "LICENSE",
+    "size": 43567,
+    "gitBlobSha1": "c8fbc5e0969b7d4a424ac096d7f7c449a30c6cd4",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "NOTICE",
+    "size": 2321,
+    "gitBlobSha1": "7f4b3f70eefc6bd4465e9131bed05b4006aca406",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "README.md",
+    "size": 2656,
+    "gitBlobSha1": "b4df872731d9a4e0968077d62dbbfd6c2a5d1848",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "model_index.json",
+    "size": 668,
+    "gitBlobSha1": "3bf962198a9bcee304310516457916338f909520",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "scheduler/scheduler_config.json",
+    "size": 992,
+    "gitBlobSha1": "ed256528d77fda40249c8ab68434fa2e0178aaff",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "text_encoder/config.json",
+    "size": 561,
+    "gitBlobSha1": "184c41a8a1122dbf4125eb4ecfab3cf9f679cfe9",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "text_encoder/model.safetensors",
+    "size": 246144352,
+    "gitBlobSha1": "f7ac268280a3e59932a0758fc003e32a3f0f971f",
+    "sha256": "e4c36502d1f3fca20e6a8db3af2ab8213bb59178a5ff77aab086f0992cd0237d"
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "text_encoder_2/config.json",
+    "size": 571,
+    "gitBlobSha1": "5c56b6649e5039930e088dee8f609070f156f26f",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "text_encoder_2/model.safetensors",
+    "size": 1389382688,
+    "gitBlobSha1": "737345156d1bff9e60d46cedf1a79aa8bde165fe",
+    "sha256": "b361da6fb93514411949c779d3abd7684e19900a6e566eaf64ea5a3697b23a21"
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer/merges.txt",
+    "size": 524619,
+    "gitBlobSha1": "76e821f1b6f0a9709293c3b6b51ed90980b3166b",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer/special_tokens_map.json",
+    "size": 585,
+    "gitBlobSha1": "b5018cd2c0d0f31e08ba78d639e05736101ca08a",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer/tokenizer_config.json",
+    "size": 755,
+    "gitBlobSha1": "0ad88c5e80ee19b52006a7330ae588a34a399848",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer/vocab.json",
+    "size": 1059962,
+    "gitBlobSha1": "469be27c5c010538f845f518c4f5e8574c78f7c8",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer_2/merges.txt",
+    "size": 524619,
+    "gitBlobSha1": "76e821f1b6f0a9709293c3b6b51ed90980b3166b",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer_2/special_tokens_map.json",
+    "size": 574,
+    "gitBlobSha1": "eaf8780e3c90b1af01a8574bf8596a9acebe6858",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer_2/tokenizer_config.json",
+    "size": 906,
+    "gitBlobSha1": "dc097ae967f931ac94b3762db0073a76abf66b41",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "tokenizer_2/vocab.json",
+    "size": 1059962,
+    "gitBlobSha1": "469be27c5c010538f845f518c4f5e8574c78f7c8",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "trans_vae/config.json",
+    "size": 139,
+    "gitBlobSha1": "b87fabc870d5f3ed2a0c9990d168394693ac7fac",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "trans_vae/diffusion_pytorch_model.safetensors",
+    "size": 210639792,
+    "gitBlobSha1": "9ff4b4d92ee28203732be48858e2ee12b78a3f56",
+    "sha256": "925ffed4df7b2f57dbb549ac1ef374a26a1ead8d247eaf054dab641f82a8e0b7"
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "unet/config.json",
+    "size": 1985,
+    "gitBlobSha1": "f63649415e2b89eed138af0e8cdce46ceda7812f",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "unet/diffusion_pytorch_model.safetensors",
+    "size": 8142919672,
+    "gitBlobSha1": "0da4ac69dc6d9716c828eb9f418896ea44e4755c",
+    "sha256": "05b5cd5ee2cbd7cd9c23008b7f76918cfc8e75aa0c45e7ce4cd1c741629b8f1d"
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "vae/config.json",
+    "size": 932,
+    "gitBlobSha1": "52868beadc84182071c8bc41804560dac30bc660",
+    "sha256": null
+  },
+  {
+    "repo": "layerdiff3d",
+    "path": "vae/diffusion_pytorch_model.safetensors",
+    "size": 167335590,
+    "gitBlobSha1": "c11ec3241fe711c38cfccab9ef8ff65c8f87cde4",
+    "sha256": "ce4b137acad050c9072769cfb02fdc6ecb8dc0957586db5f6fab71d18103ccc1"
+  },
+  {
+    "repo": "marigold",
+    "path": "LICENSE",
+    "size": 39470,
+    "gitBlobSha1": "447ff5a7dbe9450b8c97c5eb7da196927385c4c6",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "NOTICE",
+    "size": 1909,
+    "gitBlobSha1": "243694479d490640d31d66342e9f4f3c4c8a3173",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "README.md",
+    "size": 2634,
+    "gitBlobSha1": "3312e38bc2f2f3c821d3fe7e303fc5070119e8eb",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "model_index.json",
+    "size": 499,
+    "gitBlobSha1": "503a2ec28d6d20759efc004ee4be4cfd224a48d3",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "scheduler/scheduler_config.json",
+    "size": 538,
+    "gitBlobSha1": "077bfbd780f0c0a7898ae7a1a7197c79aed8a48b",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "text_encoder/config.json",
+    "size": 556,
+    "gitBlobSha1": "a149b3c1ae840e9da60bb7b2ff3be97d6c9d4d8d",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "text_encoder/model.safetensors",
+    "size": 680820760,
+    "gitBlobSha1": "57011861c4dd49afe4eba604e1c87daab9bfc70a",
+    "sha256": "305b018799a2e1dba83e9db17654309814ff4212e40b8096b237ce2e3794a132"
+  },
+  {
+    "repo": "marigold",
+    "path": "tokenizer/merges.txt",
+    "size": 524619,
+    "gitBlobSha1": "76e821f1b6f0a9709293c3b6b51ed90980b3166b",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "tokenizer/special_tokens_map.json",
+    "size": 460,
+    "gitBlobSha1": "ae0c5be6f35217e51c4c000fd325d8de0294e99c",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "tokenizer/tokenizer_config.json",
+    "size": 886,
+    "gitBlobSha1": "94655315ab76e016a2ae4c594e13df5c54342183",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "tokenizer/vocab.json",
+    "size": 1059962,
+    "gitBlobSha1": "469be27c5c010538f845f518c4f5e8574c78f7c8",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "unet/config.json",
+    "size": 1890,
+    "gitBlobSha1": "fdce9929db4883757c28389d5a037149aee86f2a",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "unet/diffusion_pytorch_model.safetensors",
+    "size": 2426482432,
+    "gitBlobSha1": "b3dd5f439107de99aaffbc2064b8cef08e34736b",
+    "sha256": "baf19abcc3b59af0e9a32b19781bf062aa99ced5d6f7d661902b59b0b4e1fb29"
+  },
+  {
+    "repo": "marigold",
+    "path": "vae/config.json",
+    "size": 919,
+    "gitBlobSha1": "3de849a1cb61c767c47ce3ebf54507975ba32414",
+    "sha256": null
+  },
+  {
+    "repo": "marigold",
+    "path": "vae/diffusion_pytorch_model.safetensors",
+    "size": 167335590,
+    "gitBlobSha1": "ae4bb53593b4381098d3afb99c5ca2b253c0d86b",
+    "sha256": "8d0c34f57abe50f323040f2366c8e22b941068dcdf53c8eb1d6fafb838afecb7"
+  }
+]
