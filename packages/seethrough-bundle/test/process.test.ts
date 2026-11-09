@@ -8,6 +8,7 @@ import {
   byUid,
   type Capture,
   collect,
+  gpuReleaseState,
   isolationPrefix,
   liveProcesses,
   processProblems,
@@ -174,6 +175,7 @@ describe('run result after a stop', () => {
       expect(result.status).toBe('FAIL');
       for (const code of item.codes) expect(String(result.problems)).toContain(code);
       expect(result.gpuAfter).toEqual([]);
+      expect(result.gpuRelease).toBe('FREE');
     }
   });
 
@@ -190,6 +192,7 @@ describe('run result after a stop', () => {
     });
     expect(result.status).toBe('FAIL');
     expect(String(result.problems)).toContain('E_GPU_PROCESS_REMAINS');
+    expect(result.gpuRelease).toBe('BUSY');
   });
 });
 
@@ -203,5 +206,13 @@ describe('collect after a lost runner', () => {
     expect(summary.runUserProcessesKilled).toBe(2);
     const stuck = { ...testHost(), reapUser: () => Promise.resolve({ killed: 1, survivors: [77] }) };
     await expect(collect(lay, stuck)).rejects.toMatchObject({ code: 'E_PROCESS_SURVIVED' });
+  });
+});
+
+describe('GPU release state', () => {
+  it('records UNKNOWN, not FREE, when nvidia-smi gives no list', () => {
+    expect(gpuReleaseState(null)).toBe('UNKNOWN');
+    expect(gpuReleaseState([])).toBe('FREE');
+    expect(gpuReleaseState(['31337'])).toBe('BUSY');
   });
 });

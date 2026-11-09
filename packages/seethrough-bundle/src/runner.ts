@@ -1164,6 +1164,15 @@ export async function waitGpuFree(capture: Capture, env: Record<string, string>,
   }
 }
 
+/**
+ * The GPU release state after qualify or run. UNKNOWN: nvidia-smi gave no list. This is not a proof that the GPU is free.
+ * BUSY: nvidia-smi still shows a compute process (E_GPU_PROCESS_REMAINS). FREE: the list is empty.
+ */
+export function gpuReleaseState(gpuAfter: readonly string[] | null): 'FREE' | 'BUSY' | 'UNKNOWN' {
+  if (gpuAfter === null) return 'UNKNOWN';
+  return gpuAfter.length > 0 ? 'BUSY' : 'FREE';
+}
+
 /** The base environment for every subprocess. Nothing from the caller's environment is passed except PATH. */
 export function baseEnvironment(lay: Layout, pathValue: string | undefined): Record<string, string> {
   const home = join(lay.runDirectory, 'home');
@@ -1842,6 +1851,7 @@ export async function qualify(bundle: LoadedBundle, lay: Layout, log: Logger, de
     gpu,
     exit: processResult,
     gpuAfter,
+    gpuRelease: gpuReleaseState(gpuAfter),
     output
   };
   writeAtomic(join(lay.evidence, 'qualify.json'), `${JSON.stringify(report, null, 2)}\n`);
@@ -1967,6 +1977,7 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
     seconds,
     exit: processResult,
     gpuAfter,
+    gpuRelease: gpuReleaseState(gpuAfter),
     guard: { denied: guard.denied.length, reads: guard.reads, unexpectedReads: guard.unexpectedReads, missingReads: guard.missingReads },
     modelFiles: modelFileHashes(lay, manifest),
     outputs
