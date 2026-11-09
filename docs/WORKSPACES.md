@@ -1,6 +1,6 @@
 # npm workspaces
 
-The root workspace and the shared configuration exist. The packages are `rig-runtime` and `control`. **Draft:** the package list is a proposal, and the package names depend on decision D21.
+The root workspace and the shared configuration exist. The packages are `rig-runtime`, `control`, and `seethrough-bundle`. **Draft:** the package list is a proposal, and the package names depend on decision D21.
 
 ## Layout
 
@@ -41,10 +41,11 @@ The shared configuration comes from the Toolchain repository with the same tool 
 
 ## Existing packages
 
-| Directory     | Kind          | Stage   | Purpose                                                                                                                                                                                                  |
-| ------------- | ------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `control`     | library + cli | S4      | Pose control images, proportion references, ComfyUI workflow files, and rig overlays for experiment C0. No model runs. See its README.                                                                   |
-| `rig-runtime` | library + cli | S9, S11 | Shared runtime skeleton, character skins from `character.json` without blank placeholder regions, part modules (draft), atlas cache, and asset manifests with the macOS metadata policy. See its README. |
+| Directory           | Kind          | Stage     | Purpose                                                                                                                                                                                                                        |
+| ------------------- | ------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `control`           | library + cli | S4        | Pose control images, proportion references, ComfyUI workflow files, and rig overlays for experiment C0. No model runs. See its README.                                                                                         |
+| `rig-runtime`       | library + cli | S9, S11   | Shared runtime skeleton, character skins from `character.json` without blank placeholder regions, part modules (draft), atlas cache, and asset manifests with the macOS metadata policy. See its README.                       |
+| `seethrough-bundle` | cli           | S5 (L0-1) | Owner-run bundle for one standalone See-through decomposition of the pinned L0-1 concept: pinned code, models, and wheels, a guarded runner, and offline preflight. No model runs in the package or its tests. See its README. |
 
 Packages that decode or write images will need an image library with native binaries, such as `sharp`. That dependency needs a human decision.
 
