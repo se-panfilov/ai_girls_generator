@@ -140,6 +140,7 @@ ps -u aigg-l0
 
 The run stops after 3600 s. The result is PASS or FAIL. Each problem has a code, for example `E_GUARD_DENIED` or `E_FALLBACK_SUSPECTED`.
 `ps -u aigg-l0` must show no process. The runner kills all processes of the run user after the timeout or when you press Ctrl+C, and the result is then FAIL (`E_TIMEOUT` or `E_CANCELLED`).
+`result.json` has `gpuRelease`. `UNKNOWN` means that `nvidia-smi` gave no list: then check `nvidia-smi` yourself. It is not a proof that the GPU is free.
 If `ps -u aigg-l0` shows a process (for example after the SSH connection was lost), run `collect` (section 7): it kills them. Do not run it again in the same work directory. A second run is a new owner decision.
 
 ## 7. Collect the evidence (after every stop: PASS, FAIL, or BLOCKED)
