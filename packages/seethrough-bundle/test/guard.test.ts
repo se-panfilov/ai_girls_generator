@@ -15,7 +15,12 @@ const guard = join(packageRoot, 'assets', 'guard.py');
 
 type Records = { kind: string; event: string; detail: unknown }[];
 
-function runGuard(script: string, argv: string[] = [], flags = ['-I', '-B']): { status: number | null; records: Records; root: string; stderr: string } {
+function runGuard(
+  script: string,
+  argv: string[] = [],
+  flags = ['-I', '-B'],
+  target: { kind: string; script?: string; files?: Record<string, string> } = { kind: 'see-through' }
+): { status: number | null; records: Records; root: string; stderr: string } {
   const root = temporaryDirectory('guard');
   const st = join(root, 'st');
   mkdirSync(join(st, 'common', 'helper'), { recursive: true });
@@ -25,17 +30,28 @@ function runGuard(script: string, argv: string[] = [], flags = ['-I', '-B']): { 
   writeFileSync(join(root, 'hf', 'hub', 'models--a--b', 'config.json'), '{}');
   writeFileSync(join(st, 'common', 'helper', '__init__.py'), 'VALUE = 7\n');
   writeFileSync(join(st, 'inference', 'target.py'), script);
+  for (const [name, content] of Object.entries(target.files ?? {})) writeFileSync(join(root, name), content);
   const log = join(root, 'guard.jsonl');
   const config = join(root, 'config.json');
   writeFileSync(
     config,
-    JSON.stringify({ format: guardFormat, seeThroughRoot: st, script: join(st, 'inference', 'target.py'), argv, writeRoots: [join(root, 'output')], hfCache: join(root, 'hf', 'hub'), log })
+    JSON.stringify({
+      format: guardFormat,
+      kind: target.kind,
+      seeThroughRoot: st,
+      script: target.script ?? join(st, 'inference', 'target.py'),
+      argv: argv.map((item) => item.replace('<root>', root)),
+      writeRoots: [join(root, 'output')],
+      hfCache: join(root, 'hf', 'hub'),
+      log
+    })
   );
   const result = spawnSync(python ?? 'python3.12', [...flags, guard, config], { env: { PATH: '/usr/bin:/bin', ROOT: root }, encoding: 'utf8', timeout: 60_000 });
   const records = existsSync(log)
     ? readFileSync(log, 'utf8')
         .trim()
         .split('\n')
+        .filter((line) => line !== '')
         .map((line) => JSON.parse(line) as Records[number])
     : [];
   return { status: result.status, records, root, stderr: result.stderr };
@@ -83,6 +99,30 @@ describe.runIf(python !== undefined)('guard.py (needs Python 3.12)', () => {
     const result = runGuard(`import os\nopen(os.path.join(os.environ["ROOT"], "hf", "hub", "models--a--b", "config.json")).read()\n`);
     expect(result.status).toBe(0);
     expect(result.records.filter((record) => record.kind === 'read').map((record) => String(record.detail))).toEqual([join(result.root, 'hf', 'hub', 'models--a--b', 'config.json')]);
+  });
+
+  it('runs qualify.py only from next to guard.py, and qualify.py reports PASS and FAIL in its JSON report', () => {
+    const qualifyScript = join(packageRoot, 'assets', 'qualify.py');
+    const runQualify = (expectData: unknown): { status: number | null; report: { status: string; problems: string[] } } => {
+      const result = runGuard('pass\n', ['--expect', '<root>/expect.json', '--out', '<root>/output/report.json'], ['-I', '-B'], {
+        kind: 'qualify',
+        script: qualifyScript,
+        files: { 'expect.json': JSON.stringify(expectData) }
+      });
+      return { status: result.status, report: JSON.parse(readFileSync(join(result.root, 'output', 'report.json'), 'utf8')) as { status: string; problems: string[] } };
+    };
+    const passing = runQualify({ modules: [{ distribution: 'none', module: 'json' }], packages: {}, requireCuda: false });
+    expect(passing.status).toBe(0);
+    expect(passing.report.status).toBe('PASS');
+    const failing = runQualify({ modules: [{ distribution: 'none', module: 'module_that_does_not_exist' }], packages: { torch: '2.8.0' }, requireCuda: false });
+    expect(failing.status).toBe(1);
+    expect(failing.report.status).toBe('FAIL');
+    expect(failing.report.problems.join()).toContain('module_that_does_not_exist');
+    expect(failing.report.problems.join()).toContain('version torch');
+    const other = runGuard('pass\n', [], ['-I', '-B'], { kind: 'qualify' });
+    expect(other.status).toBe(2);
+    expect(other.stderr).toContain('qualify.py next to guard.py');
+    expect(other.records).toEqual([]);
   });
 
   it('refuses forbidden arguments and a start without -I -B before the target runs', () => {

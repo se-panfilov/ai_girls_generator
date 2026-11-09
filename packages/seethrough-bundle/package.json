@@ -1,6 +1,6 @@
 {
   "name": "@aigg/seethrough-bundle",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Build the owner-run bundle for the L0-1 standalone See-through decomposition experiment",
   "private": true,
   "type": "module",

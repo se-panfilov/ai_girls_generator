@@ -65,3 +65,20 @@ The bundle writes `requirements.lock` with exactly one hash per package, so pip 
 
 `concept-mirrored.png`, SHA-256 `175b3292437165380dd6cfb07c2b46b05a7dee11f90cd24307ba05326e8eae8b`, from the project file `l0-input-v1.tar.gz`. It is a mirrored copy of a paid asset. It is not in Git.
 Akane is a technical benchmark of the decomposition only. The source does not confirm the age of the character. The explicitly adult rule stays for the characters of this project.
+
+## Installation qualification
+
+**Draft.** The qualification has two parts. Only the first part runs in the repository and in CI.
+
+| Part                      | Where                         | What it shows                                                                                                                                                                                                            | What it does not show                                           |
+| ------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Static wheel check        | Tests, CI, bundle build       | Each wheel file name has tags for CPython 3.12 (`cp312`, `abi3` from `cp3x` up to `cp312`, or `py3`) and a `manylinux` tag up to glibc 2.28 on x86_64. The highest glibc that the wheels need is 2.28.                   | That pip installs them, or that they import                     |
+| `qualify` (owner gate G3) | The GPU host, after `prepare` | As the run user, isolated and guarded: every installed distribution has its pinned version and no other distribution is present; each direct requirement imports; PyTorch reports CUDA 12.8 and runs one CUDA operation. | That the models load or that See-through gives a correct result |
+
+Before `qualify`, `prepare` and `preflight` also check, without Python: the venv uses Python 3.12, does not include system site packages, and has exactly the pinned distributions in its `*.dist-info` metadata.
+A mocked subprocess in the tests shows only the order of the steps and the arguments. It does not prove a real installation.
+
+Direct requirements that `qualify` imports (distribution, then module): `torch` (`torch`), `torchvision`, `numpy`, `opencv-python` (`cv2`), `pillow` (`PIL.Image`), `scipy`, `scikit-learn` (`sklearn`), `matplotlib`, `einops`, `transformers`, `diffusers`, `huggingface-hub` (`huggingface_hub`), `tokenizers`, `accelerate`, `safetensors`, `pycocotools`, `psd-tools` (`psd_tools`), `tqdm`, `pyyaml` (`yaml`).
+
+To repeat the qualification independently on another Linux x86_64 host with Python 3.12 and an NVIDIA GPU (owner permission necessary, because it downloads and installs):
+make the run user, then run `preflight`, `prepare`, `preflight`, `gpu`, `isolation`, and `qualify` as in [the owner instructions](OWNER_RUN.md), and compare `evidence/qualify.json`.

@@ -8,6 +8,7 @@ import {
   bundleFormat,
   forbiddenArguments,
   gitBlobSha1,
+  type Host,
   input,
   type Layout,
   layout,
@@ -25,6 +26,32 @@ import {
 
 export const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const guardSource = readFileSync(join(packageRoot, 'assets', 'guard.py'));
+export const qualifySource = readFileSync(join(packageRoot, 'assets', 'qualify.py'));
+
+export const syntheticPasswd = 'root:x:0:0:root:/root:/bin/bash\naigg-l0:x:1500:1500::/nonexistent:/usr/sbin/nologin\n';
+export const syntheticGroup = 'root:x:0:\nsudo:x:27:\naigg-l0:x:1500:\n';
+
+/**
+ * A synthetic Pod: Linux x86_64, glibc 2.39, the run user aigg-l0 (uid 1500), no secret paths. isRoot is true so that the commands
+ * that need root can be tested, but uid is the real test user, so ownership checks pass on files that the test makes.
+ * chown records the calls and changes nothing (a test process is not root).
+ */
+export function testHost(chowns: { path: string; uid: number }[] = []): Host {
+  return {
+    platform: 'linux',
+    arch: 'x64',
+    freeBytes: () => 1e15,
+    isRoot: true,
+    uid: process.getuid?.() ?? 0,
+    gid: process.getgid?.() ?? 0,
+    readText: (path) => (path === '/etc/passwd' ? syntheticPasswd : path === '/etc/group' ? syntheticGroup : null),
+    secretPaths: [],
+    glibc: () => '2.39',
+    chown: (path, uid) => {
+      chowns.push({ path, uid });
+    }
+  };
+}
 
 export const sha256 = (bytes: Uint8Array | string): string => createHash('sha256').update(bytes).digest('hex');
 
@@ -80,6 +107,7 @@ export function syntheticManifest(): Synthetic {
     run: { seed, forbiddenArguments },
     bundleFiles: [
       { path: 'guard.py', sha256: sha256(guardSource) },
+      { path: 'qualify.py', sha256: sha256(qualifySource) },
       { path: 'requirements.lock', sha256: sha256(lock) }
     ]
   };
@@ -90,6 +118,7 @@ export function writeBundle(directory: string, synthetic: Synthetic): LoadedBund
   mkdirSync(directory, { recursive: true });
   const manifest = synthetic.manifest as { python: { wheels: Parameters<typeof requirementsLock>[0] } };
   writeFileSync(join(directory, 'guard.py'), guardSource);
+  writeFileSync(join(directory, 'qualify.py'), qualifySource);
   writeFileSync(join(directory, 'requirements.lock'), requirementsLock(manifest.python.wheels));
   writeFileSync(join(directory, 'manifest.json'), `${JSON.stringify(synthetic.manifest, null, 2)}\n`);
   return loadBundle(directory);
@@ -148,3 +177,12 @@ export function readyWork(): { bundle: LoadedBundle; lay: Layout; synthetic: Syn
   writeFileSync(inputPath, syntheticImage);
   return { bundle, lay, synthetic, inputPath, root };
 }
+
+/** A passed qualify for this bundle, as qualify writes it. Only the fields that run checks are present. */
+export function writeQualified(lay: Layout, bundle: LoadedBundle): void {
+  mkdirSync(lay.evidence, { recursive: true, mode: 0o700 });
+  writeFileSync(join(lay.evidence, 'qualify.json'), `${JSON.stringify({ format: 'aigg.l0-seethrough-qualify/0.1', status: 'PASS', bundle: bundle.manifestSha256 })}\n`);
+}
+
+/** The interface list of /proc/self/net/dev in a new network namespace. */
+export const loopbackOnly = 'Inter-|   Receive\n face |bytes    packets\n    lo:       0       0\n';

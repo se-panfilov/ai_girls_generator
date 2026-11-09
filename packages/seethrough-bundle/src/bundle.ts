@@ -15,6 +15,7 @@ import {
   parseSourceFile,
   parseWheel,
   requirementsLock,
+  runUser,
   seed,
   seeThrough
 } from '@seethrough-bundle/runner';
@@ -26,7 +27,14 @@ import {
 export const wheelCutoff = '2026-10-26T00:00:00Z';
 
 export type PlannedFile = { readonly name: string; readonly bytes: Buffer };
-export type BundleData = { readonly wheels: unknown; readonly modelFiles: unknown; readonly sourceFiles: unknown; readonly guard: Buffer; readonly runner: Buffer };
+export type BundleData = {
+  readonly wheels: unknown;
+  readonly modelFiles: unknown;
+  readonly sourceFiles: unknown;
+  readonly guard: Buffer;
+  readonly qualify: Buffer;
+  readonly runner: Buffer;
+};
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 const text = (value: string): Buffer => Buffer.from(value, 'utf8');
@@ -35,12 +43,13 @@ const json = (value: unknown): Buffer => text(`${JSON.stringify(value, null, 2)}
 const runScript = `#!/bin/sh
 # L0-1 See-through bundle: a thin wrapper only. It checks the bundle files and Node.js, then starts runner.mjs.
 # All logic is in runner.mjs. Its TypeScript source is packages/seethrough-bundle/src/runner.ts in the repository.
+# The runner starts with an empty environment except PATH: no NODE_OPTIONS, no TLS or proxy settings, no tokens.
 set -eu
 cd "$(dirname "$0")"
 command -v sha256sum >/dev/null 2>&1 || { echo "E_TOOL: sha256sum is necessary." >&2; exit 2; }
 sha256sum --check --quiet --strict SHA256SUMS || { echo "E_BUNDLE_INTEGRITY: a bundle file is missing or changed. Copy the bundle again." >&2; exit 2; }
-command -v node >/dev/null 2>&1 || { echo "E_NODE_MISSING: Node.js ${minimumNode} or later is necessary. See README.md." >&2; exit 2; }
-exec node runner.mjs "$@"
+NODE="$(command -v node)" || { echo "E_NODE_MISSING: Node.js ${minimumNode} or later is necessary. See README.md." >&2; exit 2; }
+exec env -i PATH="$PATH" "$NODE" runner.mjs "$@"
 `;
 
 function checkWheelAges(wheels: readonly unknown[]): void {
@@ -91,7 +100,9 @@ ${rows}
 | GPU | One NVIDIA GPU with ${limits.gpuMemoryMiB} MiB or more (for example RTX A5000 24 GB). Offload modes are not allowed. |
 | Driver | NVIDIA driver ${limits.driverMajor} or later (PyTorch 2.8.0 uses CUDA 12.8). Check with \`nvidia-smi\`. |
 | System | Linux x86_64, glibc 2.28 or later, \`git\`, \`sha256sum\`, \`python3.12\` (only for \`prepare\`; Ubuntu 24.04 has it), Node.js ${minimumNode} or later. |
-| Disk | About ${gb(total + wheelBytes)} GB of downloads plus about ${(limits.venvBytes / 1024 ** 3).toFixed(0)} GiB for the venv. Use a volume of 40 GB or more. |
+| Disk | About ${gb(total + wheelBytes)} GB of downloads plus about ${(limits.venvBytes / 1024 ** 3).toFixed(0)} GiB for the venv. Minimum: a volume of 40 GB. Suggested: 60 GB (headroom for the first full installation). |
+| Run user | The unprivileged user \`${runUser}\` (no administrative groups). Third-party Python runs only as this user. The runner starts as root. |
+| Network isolation | \`unshare\` (util-linux 2.38 or later) and a host that allows a new user and network namespace. Without it, \`qualify\` and \`run\` are BLOCKED unless the owner gives \`--accept-guard-only-network\`. |
 | Time limit | The run stops after ${limits.runTimeoutSeconds} s. |
 
 If an item is not available, the result is BLOCKED. The runner has no fallback.
@@ -102,22 +113,27 @@ If an item is not available, the result is BLOCKED. The runner has no fallback.
 | --- | --- |
 | \`run.sh\` | Thin wrapper: checks \`SHA256SUMS\` and Node.js, then starts \`runner.mjs\` |
 | \`runner.mjs\` | The runner (compiled from \`packages/seethrough-bundle/src/runner.ts\`, Node.js built-ins only) |
-| \`guard.py\` | Starts See-through with audit hooks: no network, no new process, no pickle, no write outside the run directories |
+| \`guard.py\` | Starts See-through or \`qualify.py\` with audit hooks: no network, no new process, no pickle, no write outside the run directories |
+| \`qualify.py\` | Imports each direct requirement, compares installed versions, runs one small CUDA operation. Loads no model |
 | \`manifest.json\` | Every pinned file: See-through files, model files, wheels, and the input image hash |
 | \`requirements.lock\` | One wheel per package with its SHA-256, for pip \`--require-hashes\` |
 | \`SHA256SUMS\` | The SHA-256 of every other file |
 
 ## Commands
 
-All commands need \`--work <dir>\`: a real directory with mode 700 on the Pod volume. Exit status: 0 PASS or READY, 1 FAIL, 2 usage or input error, 3 INCOMPLETE or BLOCKED.
+All commands need \`--work <dir>\`: a real directory of root with mode 755 on the Pod volume. Exit status: 0 PASS or READY, 1 FAIL, 2 usage or input error, 3 INCOMPLETE or BLOCKED.
+The owner runs them in this order and can stop after each one. \`qualify\` and \`run\` need separate owner permissions.
 
-| Command | Network | Process | See-through code |
+| Command | Network | Process and user | Third-party code |
 | --- | --- | --- | --- |
-| \`preflight [--input <png>]\` | No | No | Not read as code, not imported |
-| \`prepare\` | Yes (pinned URLs only) | git, python3.12 -m venv, pip from the pinned wheel | Downloaded and checked, not run |
-| \`gpu\` | No | nvidia-smi | No |
-| \`run [--input <png>]\` | No (offline settings, guard) | The guarded Python process | Run once |
-| \`status\` | No | No | No |
+| \`preflight [--input <png>]\` | No | None | Not imported |
+| \`prepare\` | Yes (pinned URLs only) | root: git. Run user: python3.12 -m venv, pip from the pinned wheel | Wheels installed, See-through not run |
+| \`gpu\` | No | root: nvidia-smi | No |
+| \`isolation\` | No | Run user: unshare, cat | No |
+| \`qualify\` | No (namespace, offline, guard) | Run user: guarded Python | Imports only, one CUDA operation, no model |
+| \`run [--input <png>]\` | No (namespace, offline, guard) | Run user: guarded Python | See-through run once |
+| \`collect\` | No | None | No |
+| \`status\` | No | None | No |
 
 See the owner instructions in the repository (\`packages/seethrough-bundle/docs/OWNER_RUN.md\`) for the complete steps: Pod start, CUDA check, run, evidence, and Pod stop.
 
@@ -141,6 +157,7 @@ export function bundleFiles(data: BundleData): PlannedFile[] {
   const lock = text(requirementsLock(wheels));
   const fixed: PlannedFile[] = [
     { name: 'guard.py', bytes: data.guard },
+    { name: 'qualify.py', bytes: data.qualify },
     { name: 'requirements.lock', bytes: lock }
   ];
   const listed: BundleFile[] = fixed.map((file) => ({ path: file.name, sha256: sha256(file.bytes) }));

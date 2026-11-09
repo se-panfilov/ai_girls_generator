@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { bundleFiles, wheelCutoff } from '@seethrough-bundle/bundle';
 import { loadData } from '@seethrough-bundle/cli';
-import { type ModelFile, normalizeName, parseManifest, seeThrough, type SourceFile, type Wheel } from '@seethrough-bundle/runner';
+import { type ModelFile, normalizeName, parseManifest, qualifyModules, requiredGlibc, seeThrough, type SourceFile, type Wheel, wheelCompatible } from '@seethrough-bundle/runner';
 import { describe, expect, it } from 'vitest';
 
 import { packageRoot, sha256 } from './helpers';
@@ -43,7 +43,11 @@ describe('pinned data', () => {
       expect(wheel.url.startsWith('https://files.pythonhosted.org/packages/')).toBe(true);
       expect(Date.parse((wheel as Wheel & { uploaded: string }).uploaded)).toBeLessThan(Date.parse(wheelCutoff));
       expect(/-(cp312|py3|py2\.py3|cp3\d+)-(cp312|abi3|none)-(manylinux|any)/.test(wheel.file)).toBe(true);
+      expect(wheelCompatible(wheel.file)).toBe(true);
     }
+    // Static tag check only: it shows that pip can select each wheel on CPython 3.12, Linux x86_64, glibc 2.28.
+    // It does not prove that the installation or the imports work. That is the owner-approved qualify step on the GPU host.
+    expect(requiredGlibc(wheels)).toBe(28);
     expect(new Set(wheels.map((wheel) => normalizeName(wheel.name))).size).toBe(wheels.length);
   });
 
@@ -57,6 +61,7 @@ describe('pinned data', () => {
     expect(version('safetensors')).toBe('0.7.0');
     expect(version('psd-tools')).toBe('1.14.2');
     expect(version('nvidia-cuda-runtime-cu12')?.startsWith('12.8.')).toBe(true);
+    for (const item of qualifyModules) expect(version(item.distribution)).toBeDefined();
     for (const excluded of ['pyqt6', 'timm', 'lpips', 'deepspeed', 'detectron2', 'sam2', 'mmdet', 'mmcv', 'bitsandbytes']) expect(version(excluded)).toBeUndefined();
   });
 
@@ -82,7 +87,7 @@ describe('bundle', () => {
     const first = bundleFiles(data);
     const second = bundleFiles(data);
     expect(first.map((file) => sha256(file.bytes))).toEqual(second.map((file) => sha256(file.bytes)));
-    expect(first.map((file) => file.name)).toEqual(['run.sh', 'runner.mjs', 'guard.py', 'requirements.lock', 'manifest.json', 'README.md', 'SHA256SUMS']);
+    expect(first.map((file) => file.name)).toEqual(['run.sh', 'runner.mjs', 'guard.py', 'qualify.py', 'requirements.lock', 'manifest.json', 'README.md', 'SHA256SUMS']);
     const sums = first.find((file) => file.name === 'SHA256SUMS')?.bytes.toString('utf8') ?? '';
     for (const file of first.filter((item) => item.name !== 'SHA256SUMS')) expect(sums).toContain(`${sha256(file.bytes)}  ${file.name}`);
     const manifest = parseManifest(JSON.parse(first.find((file) => file.name === 'manifest.json')?.bytes.toString('utf8') ?? '') as unknown);
@@ -95,6 +100,15 @@ describe('bundle', () => {
     expect(() => bundleFiles({ ...data, wheels: late })).toThrow(/uploaded/);
     const pickle = [...models, { repo: 'layerdiff3d', path: 'lama_large_512px.ckpt', size: 1, gitBlobSha1: '0'.repeat(40), sha256: '0'.repeat(64) }];
     expect(() => bundleFiles({ ...data, modelFiles: pickle })).toThrow(/pickle/);
+  });
+
+  it('starts the runner with an empty environment except PATH', () => {
+    const script =
+      bundleFiles(data)
+        .find((file) => file.name === 'run.sh')
+        ?.bytes.toString('utf8') ?? '';
+    expect(script).toContain('exec env -i PATH="$PATH" "$NODE" runner.mjs "$@"');
+    expect(script).toContain('sha256sum --check --quiet --strict SHA256SUMS');
   });
 
   it('writes no date, host name, or local path into the bundle', () => {

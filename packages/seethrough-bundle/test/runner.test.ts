@@ -33,10 +33,11 @@ import {
 } from '@seethrough-bundle/runner';
 import { describe, expect, it } from 'vitest';
 
-import { quietLog, readyWork, sha256, syntheticImage, syntheticManifest, temporaryDirectory, writeBundle } from './helpers';
+import { loopbackOnly, quietLog, readyWork, sha256, syntheticImage, syntheticManifest, temporaryDirectory, testHost, writeBundle, writeQualified } from './helpers';
 
-const host: Host = { platform: 'linux', arch: 'x64', freeBytes: () => 1e15 };
-const gpuOk: Capture = () => Promise.resolve({ code: 0, stdout: 'NVIDIA RTX A5000, 24564, 575.57.08\n' });
+const host: Host = testHost();
+/** nvidia-smi gives an RTX A5000. unshare gives a namespace with only loopback. */
+const gpuOk: Capture = (command) => Promise.resolve(command === 'unshare' ? { code: 0, stdout: loopbackOnly } : { code: 0, stdout: 'NVIDIA RTX A5000, 24564, 575.57.08\n' });
 const noSpawn: Spawner = () => Promise.reject(new Error('No process may start in this test.'));
 const noFetch: FetchFunction = () => Promise.reject(new Error('No network access may happen in this test.'));
 
@@ -272,13 +273,19 @@ describe('downloads', () => {
   const response = (status: number, body: string | null, headers: Record<string, string> = {}): Response => new Response(body, { status, headers });
 
   it('allows only HTTPS on the pinned hosts', () => {
-    expect(allowedHost('https://huggingface.co/a')).toBe(true);
-    expect(allowedHost('https://cas-bridge.xethub.hf.co/a')).toBe(true);
-    expect(allowedHost('https://files.pythonhosted.org/packages/a.whl')).toBe(true);
-    expect(allowedHost('http://huggingface.co/a')).toBe(false);
-    expect(allowedHost('https://huggingface.co.evil.example/a')).toBe(false);
-    expect(allowedHost('https://user:pass@huggingface.co/a')).toBe(false);
-    expect(allowedHost('https://huggingface.co:8443/a')).toBe(false);
+    expect(allowedHost('https://huggingface.co/a', 'models')).toBe(true);
+    expect(allowedHost('https://cas-bridge.xethub.hf.co/a', 'models')).toBe(true);
+    expect(allowedHost('https://cdn-lfs-us-1.hf.co/a', 'models')).toBe(true);
+    expect(allowedHost('https://files.pythonhosted.org/packages/a.whl', 'wheels')).toBe(true);
+    expect(allowedHost('https://files.pythonhosted.org/packages/a.whl', 'models')).toBe(false);
+    expect(allowedHost('https://cdn-lfs.hf.co/a.whl', 'wheels')).toBe(false);
+    expect(allowedHost('https://hf.co/a', 'models')).toBe(false);
+    expect(allowedHost('http://huggingface.co/a', 'models')).toBe(false);
+    expect(allowedHost('https://huggingface.co.evil.example/a', 'models')).toBe(false);
+    expect(allowedHost('https://evilhf.co/a', 'models')).toBe(false);
+    expect(allowedHost('https://user:pass@huggingface.co/a', 'models')).toBe(false);
+    expect(allowedHost('https://huggingface.co:8443/a', 'models')).toBe(false);
+    expect(allowedHost('not a url', 'models')).toBe(false);
   });
 
   it('keeps a file only when size and hash agree, and removes the partial file otherwise', async () => {
@@ -286,20 +293,41 @@ describe('downloads', () => {
     const target = join(root, 'file.bin');
     const check = (p: string): Promise<boolean> => Promise.resolve(sha256(readFileSync(p)) === sha256('payload'));
     const good: FetchFunction = () => Promise.resolve(response(200, 'payload'));
-    await download(good, 'https://huggingface.co/x', target, 7, check, quietLog);
+    await download(good, 'models', 'https://huggingface.co/x', target, 7, check, quietLog);
     expect(readFileSync(target, 'utf8')).toBe('payload');
     const bad: FetchFunction = () => Promise.resolve(response(200, 'PAYLOAD'));
-    expect(await codeAsync(() => download(bad, 'https://huggingface.co/x', join(root, 'b.bin'), 7, check, quietLog))).toBe('E_DOWNLOAD_HASH');
+    expect(await codeAsync(() => download(bad, 'models', 'https://huggingface.co/x', join(root, 'b.bin'), 7, check, quietLog))).toBe('E_DOWNLOAD_HASH');
     const large: FetchFunction = () => Promise.resolve(response(200, 'payload and more'));
-    expect(await codeAsync(() => download(large, 'https://huggingface.co/x', join(root, 'c.bin'), 7, check, quietLog))).toBe('E_DOWNLOAD_SIZE');
+    expect(await codeAsync(() => download(large, 'models', 'https://huggingface.co/x', join(root, 'c.bin'), 7, check, quietLog))).toBe('E_DOWNLOAD_SIZE');
     expect(readdirSync(root)).toEqual(['file.bin']);
   });
 
-  it('refuses a redirect to a host that is not allowed', async () => {
+  it('refuses redirects to other hosts, to HTTP, without a valid location, and more than 5 redirects', async () => {
     const root = temporaryDirectory('redirect');
-    const fetcher: FetchFunction = (url) => Promise.resolve(url.includes('huggingface.co') ? response(302, null, { location: 'https://evil.example/file' }) : response(200, 'payload'));
-    expect(await codeAsync(() => download(fetcher, 'https://huggingface.co/x', join(root, 'f.bin'), 7, () => Promise.resolve(true), quietLog))).toBe('E_DOWNLOAD_HOST');
-    expect(existsSync(join(root, 'f.bin'))).toBe(false);
+    const ok = (): Promise<boolean> => Promise.resolve(true);
+    const redirectTo =
+      (location: string | null, status = 302): FetchFunction =>
+      (url) =>
+        Promise.resolve(url === 'https://huggingface.co/x' ? response(status, null, location === null ? {} : { location }) : response(200, 'payload'));
+    const attempt = (fetcher: FetchFunction, source: 'models' | 'wheels' = 'models', url = 'https://huggingface.co/x'): Promise<string> =>
+      codeAsync(() => download(fetcher, source, url, join(root, 'f.bin'), 7, ok, quietLog));
+    expect(await attempt(redirectTo('https://evil.example/file'))).toBe('E_DOWNLOAD_HOST');
+    expect(await attempt(redirectTo('http://cdn-lfs.hf.co/file'))).toBe('E_DOWNLOAD_HOST');
+    expect(await attempt(redirectTo('https://files.pythonhosted.org/packages/x.whl'))).toBe('E_DOWNLOAD_HOST');
+    expect(await attempt(redirectTo(null))).toBe('E_DOWNLOAD_REDIRECT');
+    expect(await attempt(redirectTo('https://[bad'))).toBe('E_DOWNLOAD_REDIRECT');
+    const wheelToHub: FetchFunction = () => Promise.resolve(response(302, null, { location: 'https://cdn-lfs.hf.co/x.whl' }));
+    expect(await attempt(wheelToHub, 'wheels', 'https://files.pythonhosted.org/packages/x.whl')).toBe('E_DOWNLOAD_HOST');
+    let hops = 0;
+    const loop: FetchFunction = () => Promise.resolve(response(307, null, { location: `https://cdn-lfs.hf.co/hop${(hops += 1)}` }));
+    expect(await attempt(loop)).toBe('E_DOWNLOAD_REDIRECT');
+    expect(hops).toBe(6);
+    expect(await attempt(redirectTo('/relative/path', 308))).toBe('NO_ERROR');
+    expect(readFileSync(join(root, 'f.bin'), 'utf8')).toBe('payload');
+    rmSync(join(root, 'f.bin'));
+    const wrongLength: FetchFunction = () => Promise.resolve(response(200, 'payload', { 'content-length': '8' }));
+    expect(await attempt(wrongLength)).toBe('E_DOWNLOAD_SIZE');
+    expect(readdirSync(root)).toEqual([]);
   });
 });
 
@@ -321,9 +349,9 @@ describe('prepare', () => {
       const bytes = key ? synthetic.modelBytes.get(`${key.repo}/${key.path}`) : undefined;
       return Promise.resolve(match && bytes ? new Response(bytes, { status: 200 }) : new Response(null, { status: 404 }));
     };
-    const calls: { command: string; args: readonly string[]; env: Record<string, string> }[] = [];
+    const calls: { command: string; args: readonly string[]; env: Record<string, string>; uid: number | undefined }[] = [];
     const spawner: Spawner = (command, args, options) => {
-      calls.push({ command, args, env: options.env });
+      calls.push({ command, args, env: options.env, uid: options.user?.uid });
       if (command === 'git' && args.includes('checkout')) {
         mkdirSync(join(lay.seeThrough, '.git'), { recursive: true });
         writeFileSync(join(lay.seeThrough, '.git', 'HEAD'), `${bundle.manifest.seeThrough.commit}\n`);
@@ -349,7 +377,15 @@ describe('prepare', () => {
     mkdirSync(pythonDir);
     writeFileSync(join(pythonDir, 'python3.12'), '');
     const env = { PATH: pythonDir, HF_TOKEN: 'secret-token', AWS_SECRET_ACCESS_KEY: 'secret' };
-    await prepare(bundle, lay, quietLog, { fetcher, spawner, env, host });
+    const chowns: { path: string; uid: number }[] = [];
+    const summary = await prepare(bundle, lay, quietLog, { fetcher, spawner, env, host: testHost(chowns) });
+    expect(summary.identity).toEqual({ runUser: 'aigg-l0', uid: 1500 });
+    // git runs as root (no third-party Python). The venv and pip run as the run user. Then root takes the venv back.
+    expect(calls.filter((call) => call.command === 'git').every((call) => call.uid === undefined)).toBe(true);
+    expect(calls.filter((call) => call.command !== 'git').map((call) => call.uid)).toEqual([1500, 1500]);
+    expect(chowns.find((item) => item.path === lay.venv)?.uid).toBe(1500);
+    expect(chowns.filter((item) => item.path === lay.venv).map((item) => item.uid)).toEqual([1500, process.getuid?.() ?? 0]);
+    for (const directory of ['run', 'run/home', 'run/logs']) expect(chowns.some((item) => item.path === join(lay.work, ...directory.split('/')) && item.uid === 1500)).toBe(true);
     for (const url of urls) expect(url.startsWith('https://files.pythonhosted.org/packages/') || /^https:\/\/huggingface\.co\/[^/]+\/[^/]+\/resolve\/[0-9a-f]{40}\//.test(url)).toBe(true);
     for (const call of calls) {
       expect(JSON.stringify(call.env)).not.toContain('secret');
@@ -407,10 +443,14 @@ describe('guard records', () => {
 
 describe('run', () => {
   function fakeSeeThrough(lay: ReturnType<typeof readyWork>['lay'], bundle: ReturnType<typeof readyWork>['bundle'], extra: string[] = []): Spawner {
-    return (_command, args, options) => {
-      const config = JSON.parse(readFileSync(args[args.length - 1] ?? '', 'utf8')) as { log: string; argv: string[] };
+    return (command, args, options) => {
+      const config = JSON.parse(readFileSync(args[args.length - 1] ?? '', 'utf8')) as { log: string; argv: string[]; kind: string };
       expect(config.argv).not.toContain('--tblr_split');
+      expect(config.kind).toBe('see-through');
       expect(options.env.HF_HUB_OFFLINE).toBe('1');
+      expect(options.user?.uid).toBe(1500);
+      expect([command, ...args.slice(0, 4)]).toEqual(['unshare', '--user', '--net', '--map-current-user', '--']);
+      expect(config.log.startsWith(lay.logs)).toBe(true);
       const reads = bundle.manifest.models.files.filter((file) => file.sha256 === null).map((file) => JSON.stringify({ kind: 'read', event: 'open', detail: modelPath(lay, file) }));
       writeFileSync(config.log, `${[JSON.stringify({ kind: 'start', event: 'guard', detail: {} }), ...reads, ...extra, JSON.stringify({ kind: 'end', event: 'guard', detail: {} })].join('\n')}\n`);
       for (const name of ['concept-mirrored.psd', 'concept-mirrored_depth.psd', 'concept-mirrored.psd.json']) writeFileSync(join(lay.output, name), name);
@@ -420,16 +460,21 @@ describe('run', () => {
 
   it('gives PASS with a complete guard log and outputs, and refuses a second run', async () => {
     const { bundle, lay, inputPath } = readyWork();
+    writeQualified(lay, bundle);
     const deps = { spawner: fakeSeeThrough(lay, bundle), capture: gpuOk, env: {}, expectedInputSha256: sha256(syntheticImage), host };
     const result = await runOnce(bundle, lay, inputPath, quietLog, deps);
     expect(result.status).toBe('PASS');
     expect((result.modelFiles as { source: string }[]).filter((item) => item.source === 'computed')).toHaveLength(4);
     expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('output/concept-mirrored.psd');
+    expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('evidence/guard.jsonl');
+    expect(result.network).toMatchObject({ mode: 'network-namespace' });
+    expect(result.identity).toEqual({ runUser: 'aigg-l0', uid: 1500 });
     expect(await codeAsync(() => runOnce(bundle, lay, inputPath, quietLog, deps))).toBe('E_ALREADY_RUN');
   });
 
   it('gives FAIL when the guard denied an action, also when See-through ended with code 0', async () => {
     const { bundle, lay, inputPath } = readyWork();
+    writeQualified(lay, bundle);
     const denial = JSON.stringify({ kind: 'deny', event: 'socket.getaddrinfo', detail: 'huggingface.co' });
     const result = await runOnce(bundle, lay, inputPath, quietLog, { spawner: fakeSeeThrough(lay, bundle, [denial]), capture: gpuOk, env: {}, expectedInputSha256: sha256(syntheticImage), host });
     expect(result.status).toBe('FAIL');
@@ -438,6 +483,7 @@ describe('run', () => {
 
   it('is BLOCKED on a small GPU and starts no Python process', async () => {
     const { bundle, lay, inputPath } = readyWork();
+    writeQualified(lay, bundle);
     const small: Capture = () => Promise.resolve({ code: 0, stdout: 'NVIDIA T4, 15360, 575.57.08\n' });
     expect(await codeAsync(() => runOnce(bundle, lay, inputPath, quietLog, { spawner: noSpawn, capture: small, env: {}, expectedInputSha256: sha256(syntheticImage), host }))).toBe('E_GPU_BLOCKED');
     expect(existsSync(lay.output)).toBe(false);
@@ -445,6 +491,7 @@ describe('run', () => {
 
   it('refuses another input image before any process starts', async () => {
     const { bundle, lay, inputPath } = readyWork();
+    writeQualified(lay, bundle);
     expect(await codeAsync(() => runOnce(bundle, lay, inputPath, quietLog, { spawner: noSpawn, capture: gpuOk, env: {}, host }))).toBe('E_PREFLIGHT');
   });
 });

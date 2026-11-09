@@ -4,26 +4,33 @@
 // Scope: one standalone See-through decomposition (inference/scripts/inference_psd.py) of one pinned input image.
 //
 // Trust boundaries and controls:
-// - The bundle is data from the repository. run.sh checks SHA256SUMS. The runner checks manifest.json against the pins in this file
-//   and checks each bundle file against manifest.json.
-// - Downloads come only from pinned sources: the See-through Git commit, Hugging Face files at pinned revisions, and Python wheels
-//   on files.pythonhosted.org. Each file has a pinned size and hash. A file gets its final name only after the check.
-//   An existing file with another hash stops the runner. The runner never replaces it.
+// - The bundle is data from the repository. run.sh checks SHA256SUMS and starts the runner with an empty environment (only PATH).
+//   The runner checks manifest.json against the pins in this file and checks each bundle file against manifest.json.
+// - Identities: the runner itself runs as root. Every third-party Python process (venv creation, pip, qualify, See-through) runs as
+//   the dedicated unprivileged user aigg-l0. The bundle, the guard configuration, the code, the venv, and the model cache belong
+//   to root and are not writable by group or others. The run user can write only in run/ and output/.
+// - Network: downloads happen only in prepare, only from pinned sources, and each file has a pinned size and hash.
+//   qualify and run use a new network namespace (only a loopback interface) when the host allows it. When it does not,
+//   they are BLOCKED. Only the owner can accept the weaker guard-only mode with --accept-guard-only-network.
 // - Python packages are installed only from the checked local wheels: no index, no source builds, no dependency resolution.
 // - preflight reads files only. It starts no process, uses no network, and does not import or run See-through code.
 // - The See-through process gets a fixed argument list, a minimal environment without secrets, offline Hugging Face settings,
 //   and the guard (guard.py) with audit hooks against network calls, new processes, pickle, and writes outside the run directories.
-// - The run is accepted only when the guard recorded no denial, the expected configuration files were read, and the outputs are
-//   regular files inside the output directory.
+//   The guard is defense in depth, not the sandbox.
+// - The run is accepted only when qualify passed, the guard recorded no denial, the expected configuration files were read, and
+//   the outputs are regular PSD, PNG, or JSON files inside the output directory.
 // - The log and the reports contain no environment values and no tokens.
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   closeSync,
   constants,
   createReadStream,
+  fchmodSync,
   fstatSync,
+  lchownSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -43,9 +50,10 @@ import { parseArgs } from 'node:util';
 
 // ---------------------------------------------------------------- pins
 
-export const bundleFormat = 'aigg.l0-seethrough-bundle/0.1';
-export const resultFormat = 'aigg.l0-seethrough-result/0.1';
-export const guardFormat = 'aigg.l0-seethrough-guard/0.1';
+export const bundleFormat = 'aigg.l0-seethrough-bundle/0.2';
+export const resultFormat = 'aigg.l0-seethrough-result/0.2';
+export const qualifyFormat = 'aigg.l0-seethrough-qualify/0.1';
+export const guardFormat = 'aigg.l0-seethrough-guard/0.2';
 export const minimumNode = '22.12.0';
 
 export const seeThrough = {
@@ -69,6 +77,41 @@ export const input = {
 } as const;
 
 export const seed = 1001;
+
+/** The dedicated unprivileged user for all third-party Python. The owner makes it on the Pod (see docs/OWNER_RUN.md). */
+export const runUser = 'aigg-l0';
+
+/** Groups that give administrative rights or access to secrets. The run user must not be in one of them. */
+export const privilegedGroups = ['root', 'sudo', 'admin', 'wheel', 'docker', 'lxd', 'disk', 'shadow', 'adm', 'kmem', 'sys', 'staff'] as const;
+
+/** Paths on the Pod that can hold credentials. Each one that exists must not be readable by others (the run user is an other). */
+export const hostSecretPaths = ['/root', '/etc/rp_environment', '/etc/sudoers'] as const;
+
+/** Python modules that qualify imports: the direct requirements of the run path. Distribution name, then import name. */
+export const qualifyModules: readonly { readonly distribution: string; readonly module: string }[] = [
+  { distribution: 'torch', module: 'torch' },
+  { distribution: 'torchvision', module: 'torchvision' },
+  { distribution: 'numpy', module: 'numpy' },
+  { distribution: 'opencv-python', module: 'cv2' },
+  { distribution: 'pillow', module: 'PIL.Image' },
+  { distribution: 'scipy', module: 'scipy' },
+  { distribution: 'scikit-learn', module: 'sklearn' },
+  { distribution: 'matplotlib', module: 'matplotlib' },
+  { distribution: 'einops', module: 'einops' },
+  { distribution: 'transformers', module: 'transformers' },
+  { distribution: 'diffusers', module: 'diffusers' },
+  { distribution: 'huggingface-hub', module: 'huggingface_hub' },
+  { distribution: 'tokenizers', module: 'tokenizers' },
+  { distribution: 'accelerate', module: 'accelerate' },
+  { distribution: 'safetensors', module: 'safetensors' },
+  { distribution: 'pycocotools', module: 'pycocotools' },
+  { distribution: 'psd-tools', module: 'psd_tools' },
+  { distribution: 'tqdm', module: 'tqdm' },
+  { distribution: 'pyyaml', module: 'yaml' }
+];
+
+/** The CUDA version of the pinned PyTorch build. */
+export const cudaVersion = '12.8';
 
 /** Files that the run must read from the Hugging Face cache. If one is not read, See-through possibly used its built-in fallback. */
 export const requiredReads: readonly { readonly key: string; readonly path: string }[] = [
@@ -114,12 +157,26 @@ export const limits = {
   marginBytes: 2 * 1024 ** 3,
   runFreeBytes: 10 * 1024 ** 3,
   runTimeoutSeconds: 3600,
+  qualifyTimeoutSeconds: 900,
+  evidenceFileBytes: 256 * 1024 * 1024,
   outputFiles: 2000,
   outputBytes: 4 * 1024 ** 3,
   commandTimeoutSeconds: 1800
 } as const;
 
-const downloadHosts = [/^huggingface\.co$/, /^([a-z0-9-]+\.)*hf\.co$/, /^([a-z0-9-]+\.)*huggingface\.co$/, /^files\.pythonhosted\.org$/] as const;
+/**
+ * Allowed download hosts for each source. Wheels come only from files.pythonhosted.org. Model files start at huggingface.co and can
+ * be sent to the storage hosts of Hugging Face: names below hf.co or huggingface.co (both domains belong to Hugging Face).
+ * Any other host stops the download.
+ */
+export const downloadHosts = {
+  wheels: [/^files\.pythonhosted\.org$/],
+  models: [/^huggingface\.co$/, /^([a-z0-9-]+\.)+hf\.co$/, /^([a-z0-9-]+\.)+huggingface\.co$/]
+} as const;
+export type DownloadSource = keyof typeof downloadHosts;
+
+/** Output files of See-through that the runner accepts: PSD files, part images, and JSON metadata. */
+export const outputExtensions = ['.psd', '.png', '.json'] as const;
 
 // ---------------------------------------------------------------- errors and small helpers
 
@@ -198,15 +255,20 @@ function kind(path: string): 'missing' | 'file' | 'directory' | 'link' | 'other'
   return 'other';
 }
 
-/** Makes sure that each part of a directory path below root is a real directory. Creates missing parts with mode 0700. */
-export function realDirectoryBelow(root: string, relative: string): string {
+/**
+ * Makes sure that each part of a directory path below root is a real directory. Creates missing parts with the given mode
+ * (default 0755: the run user must read the code, the venv, and the model cache, but cannot write there).
+ */
+export function realDirectoryBelow(root: string, relative: string, mode = 0o755): string {
   let current = root;
   for (const part of relative.split('/')) {
     if (part === '' || part === '.' || part === '..') fail('E_PATH', `The directory ${show(relative)} is not a plain path.`, undefined, 2);
     current = join(current, part);
     const found = kind(current);
-    if (found === 'missing') mkdirSync(current, { mode: 0o700 });
-    else if (found !== 'directory') fail('E_PATH', `${current} exists and is not a real directory (links are refused).`, 'Remove it, then run the command again.');
+    if (found === 'missing') {
+      mkdirSync(current, { mode });
+      chmodNoFollow(current, mode);
+    } else if (found !== 'directory') fail('E_PATH', `${current} exists and is not a real directory (links are refused).`, 'Remove it, then run the command again.');
   }
   return current;
 }
@@ -237,14 +299,26 @@ export function readSmall(path: string, maxBytes: number, label: string): Buffer
 }
 
 /** Writes a file atomically: exclusive temporary file, then rename. A rename replaces a link itself and never follows it. */
-export function writeAtomic(path: string, bytes: Uint8Array | string): void {
+export function writeAtomic(path: string, bytes: Uint8Array | string, mode = 0o600): void {
   const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, bytes, { flag: 'wx', mode: 0o600 });
+  writeFileSync(temporary, bytes, { flag: 'wx', mode });
+  chmodSync(temporary, mode);
   try {
     renameSync(temporary, path);
   } catch (error) {
     rmSync(temporary, { force: true });
     throw error;
+  }
+}
+
+/** Changes the mode of a directory or regular file through a descriptor opened without following a link. Other kinds are left as they are. */
+export function chmodNoFollow(path: string, mode: number): void {
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const info = fstatSync(fd);
+    if (info.isDirectory() || info.isFile()) fchmodSync(fd, mode);
+  } finally {
+    closeSync(fd);
   }
 }
 
@@ -299,12 +373,55 @@ export function parseModelFile(value: unknown): ModelFile {
   return { repo, path, size, gitBlobSha1: blob, sha256: hash };
 }
 
+/** The compatibility tags of a wheel file name (PEP 427): Python tags, ABI tags, and platform tags. */
+export function wheelTags(file: string): { readonly python: string[]; readonly abi: string[]; readonly platform: string[] } | null {
+  const parts = file.replace(/\.whl$/, '').split('-');
+  if (parts.length !== 5 && parts.length !== 6) return null;
+  const [python = '', abi = '', platform = ''] = parts.slice(-3);
+  return { python: python.split('.'), abi: abi.split('.'), platform: platform.split('.') };
+}
+
+const legacyManylinux: Record<string, number> = { manylinux1_x86_64: 5, manylinux2010_x86_64: 12, manylinux2014_x86_64: 17 };
+
+/** The glibc minor version (2.x) that a platform tag needs, or null when the tag is not for Linux x86_64 with glibc. */
+export function manylinuxGlibc(tag: string): number | null {
+  if (tag === 'any') return 0;
+  if (tag in legacyManylinux) return legacyManylinux[tag] ?? null;
+  const match = /^manylinux_2_(\d+)_x86_64$/.exec(tag);
+  return match ? Number(match[1]) : null;
+}
+
+/** The highest glibc minor version that the platform tags of the wheels need. Each wheel uses its least demanding tag. */
+export function requiredGlibc(wheels: readonly Wheel[]): number {
+  let highest = 0;
+  for (const wheel of wheels) {
+    const values = (wheelTags(wheel.file)?.platform ?? []).map(manylinuxGlibc).filter((value): value is number => value !== null);
+    highest = Math.max(highest, Math.min(...values));
+  }
+  return highest;
+}
+
+/** A wheel must install on CPython 3.12, Linux x86_64, glibc 2.28: tag cp312, abi3 from cp3x to cp312, or py3, and a manylinux tag up to 2_28. */
+export function wheelCompatible(file: string): boolean {
+  const tags = wheelTags(file);
+  if (tags === null) return false;
+  const abi3 = tags.abi.includes('abi3') && tags.python.some((tag) => /^cp3\d+$/.test(tag) && Number(tag.slice(3)) <= 12);
+  const python = abi3 || tags.python.some((tag) => tag === 'cp312' || tag === 'py3' || tag === 'py312');
+  const abi = abi3 || tags.abi.some((tag) => tag === 'cp312' || tag === 'none');
+  const platform = tags.platform.some((tag) => {
+    const glibc = manylinuxGlibc(tag);
+    return glibc !== null && glibc <= 28;
+  });
+  return python && abi && platform;
+}
+
 export function parseWheel(value: unknown): Wheel {
   if (!isRecord(value)) return fail('E_MANIFEST', 'A wheel entry is not an object.');
   const { name, version, file, url, size, sha256: hash } = value;
   if (typeof name !== 'string' || !packageName.test(name) || typeof version !== 'string' || !/^[A-Za-z0-9.+!_-]+$/.test(version))
     fail('E_MANIFEST', `The wheel ${show(name)} has no valid name or version.`);
   if (typeof file !== 'string' || !wheelName.test(file)) fail('E_MANIFEST_SOURCE_BUILD', `The package ${name} is not a wheel file. Source builds are not allowed.`);
+  if (!wheelCompatible(file)) fail('E_MANIFEST_WHEEL_TAG', `The wheel ${file} is not for CPython 3.12 on Linux x86_64 with glibc 2.28.`);
   if (typeof url !== 'string' || !url.startsWith('https://files.pythonhosted.org/packages/') || !url.endsWith(`/${file}`) || url.includes('?') || url.includes('#'))
     fail('E_MANIFEST', `The wheel ${file} has no pinned files.pythonhosted.org URL.`);
   if (!positiveSize(size) || typeof hash !== 'string' || !hex64.test(hash)) fail('E_MANIFEST', `The wheel ${file} has no valid size or SHA-256.`);
@@ -350,7 +467,7 @@ export function parseManifest(value: unknown): Manifest {
       return fail('E_MANIFEST', 'A bundle file entry is not valid.');
     return { path: item.path, sha256: item.sha256 };
   });
-  for (const required of ['guard.py', 'requirements.lock']) if (!bundleFiles.some((file) => file.path === required)) fail('E_MANIFEST', `manifest.json does not list ${required}.`);
+  for (const required of ['guard.py', 'qualify.py', 'requirements.lock']) if (!bundleFiles.some((file) => file.path === required)) fail('E_MANIFEST', `manifest.json does not list ${required}.`);
   const unique = (items: readonly string[], label: string): void => {
     if (new Set(items).size !== items.length) fail('E_MANIFEST', `manifest.json has duplicate ${label}.`);
   };
@@ -389,13 +506,14 @@ export function requirementsLock(wheels: readonly Wheel[]): string {
     .join('\n')}\n`;
 }
 
-export type LoadedBundle = { readonly root: string; readonly manifest: Manifest };
+export type LoadedBundle = { readonly root: string; readonly manifest: Manifest; readonly manifestSha256: string };
 
 /** Reads manifest.json and checks each listed bundle file. */
 export function loadBundle(root: string): LoadedBundle {
   let parsed: unknown;
+  const manifestBytes = readSmall(join(root, 'manifest.json'), 4 * 1024 * 1024, 'manifest.json');
   try {
-    parsed = JSON.parse(readSmall(join(root, 'manifest.json'), 4 * 1024 * 1024, 'manifest.json').toString('utf8'));
+    parsed = JSON.parse(manifestBytes.toString('utf8'));
   } catch (error) {
     if (error instanceof RunnerError) throw error;
     return fail('E_MANIFEST', 'manifest.json is not valid JSON.');
@@ -407,7 +525,7 @@ export function loadBundle(root: string): LoadedBundle {
   }
   const lock = readSmall(join(root, 'requirements.lock'), 4 * 1024 * 1024, 'requirements.lock').toString('utf8');
   if (lock !== requirementsLock(manifest.python.wheels)) fail('E_BUNDLE_INTEGRITY', 'requirements.lock does not agree with the wheels in manifest.json.');
-  return { root, manifest };
+  return { root, manifest, manifestSha256: sha256(manifestBytes) };
 }
 
 // ---------------------------------------------------------------- work directory layout
@@ -422,7 +540,9 @@ export type Layout = {
   readonly python: string;
   readonly inputDirectory: string;
   readonly inputPath: string;
+  readonly control: string;
   readonly runDirectory: string;
+  readonly logs: string;
   readonly output: string;
   readonly evidence: string;
 };
@@ -439,21 +559,154 @@ export function layout(work: string): Layout {
     python: join(venv, 'bin', 'python'),
     inputDirectory: join(work, 'input'),
     inputPath: join(work, 'input', input.name),
+    control: join(work, 'control'),
     runDirectory: join(work, 'run'),
+    logs: join(work, 'run', 'logs'),
     output: join(work, 'output'),
     evidence: join(work, 'evidence')
   };
 }
 
-/** The work directory must exist, be a real directory, and not be writable by other users. */
-export function checkWork(path: string): Layout {
+/** The work directory must exist, be a real directory of the runner user, and not be writable by other users. */
+export function checkWork(path: string, host: Host = realHost): Layout {
   const full = resolve(path);
   const found = kind(full);
-  if (found === 'missing') fail('E_WORK', `The work directory ${full} does not exist.`, 'Create it first, for example mkdir -m 700 /workspace/l0-1.', 2);
+  if (found === 'missing') fail('E_WORK', `The work directory ${full} does not exist.`, 'Create it first, for example mkdir -m 755 /workspace/l0-1.', 2);
   if (found !== 'directory') fail('E_WORK', `The work directory ${full} is not a real directory (links are refused).`, undefined, 2);
-  if ((lstatSync(full).mode & 0o022) !== 0) fail('E_WORK', `The work directory ${full} is writable by group or others.`, 'Run chmod 700 on it.', 2);
+  const info = lstatSync(full);
+  if ((info.mode & 0o022) !== 0) fail('E_WORK', `The work directory ${full} is writable by group or others.`, 'Run chmod 755 on it.', 2);
+  if (info.uid !== host.uid) fail('E_WORK', `The work directory ${full} does not belong to the user of the runner.`, 'Make it as the same user (root on the Pod).', 2);
   if (realpathSync(full) !== full) fail('E_WORK', `The path of the work directory ${full} contains a link.`, 'Give the real path.', 2);
   return layout(full);
+}
+
+// ---------------------------------------------------------------- identity and permissions
+
+export type RunIdentity = { readonly name: string; readonly uid: number; readonly gid: number };
+
+/**
+ * Finds the run user in the passwd and group files (no process is started). The user must exist, must not be root or the runner
+ * user, and must not be in a group that gives administrative rights.
+ */
+export function resolveRunUser(passwd: string | null, group: string | null, runnerUid: number, name: string = runUser): RunIdentity {
+  const entry = (passwd ?? '')
+    .split('\n')
+    .map((line) => line.split(':'))
+    .find((fields) => fields[0] === name);
+  if (!entry)
+    return fail(
+      'E_RUN_USER_MISSING',
+      `The run user ${name} does not exist.`,
+      `BLOCKED: make it as in docs/OWNER_RUN.md (useradd --system --user-group --no-create-home --shell /usr/sbin/nologin ${name}).`,
+      3
+    );
+  const uid = Number(entry[2]);
+  const gid = Number(entry[3]);
+  if (!Number.isSafeInteger(uid) || !Number.isSafeInteger(gid) || entry[2] === '' || entry[3] === '') return fail('E_RUN_USER', `The passwd entry of ${name} is not valid.`);
+  if (uid === 0 || gid === 0) fail('E_RUN_USER', `The run user ${name} has user id or group id 0.`, 'The run user must be unprivileged.');
+  if (uid === runnerUid) fail('E_RUN_USER', `The run user ${name} is the user of the runner.`, 'The run user must be a separate user.');
+  for (const line of (group ?? '').split('\n')) {
+    const [groupName = '', , groupId = '', members = ''] = line.split(':');
+    if (groupName === '') continue;
+    const member = Number(groupId) === gid || members.split(',').includes(name);
+    if (member && (Number(groupId) === 0 || (privilegedGroups as readonly string[]).includes(groupName)))
+      fail('E_RUN_USER', `The run user ${name} is in the group ${show(groupName)}.`, 'Remove it from administrative groups.');
+  }
+  return { name, uid, gid };
+}
+
+/** Commands that start third-party Python must start as root, because only root can start a process as the run user. */
+export function requireRoot(host: Host): void {
+  if (!host.isRoot) fail('E_ROOT_REQUIRED', 'This command must start as root on the Pod.', 'BLOCKED: the runner starts all third-party Python as the run user, and only root can do that.', 3);
+}
+
+const othersCanWrite = (mode: number): boolean => (mode & 0o022) !== 0;
+
+/** The path and each parent directory: a real directory of root or the runner user, not writable by others unless sticky (like /tmp). */
+export function checkTrustedPath(path: string, host: Host, label: string): void {
+  let current = resolve(path);
+  if (realpathSync(current) !== current) fail('E_PERMISSIONS', `The path of ${label} contains a link.`, 'Give the real path.');
+  for (;;) {
+    const info = lstatSync(current);
+    if (!info.isDirectory()) fail('E_PERMISSIONS', `${current} is not a directory.`);
+    if (info.uid !== 0 && info.uid !== host.uid) fail('E_PERMISSIONS', `${current} (a parent of ${label}) belongs to another user.`, 'Use a path that only root controls.');
+    if (othersCanWrite(info.mode) && (info.mode & 0o1000) === 0) fail('E_PERMISSIONS', `${current} (a parent of ${label}) is writable by group or others.`, 'Use a path that only root can change.');
+    const parent = dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
+}
+
+/** The bundle directory and every file in it: owned by the runner user or root, not writable by group or others, no links. */
+export function checkBundlePermissions(root: string, host: Host): void {
+  checkTrustedPath(root, host, 'the bundle');
+  for (const name of readdirSync(root)) {
+    const info = lstatSync(join(root, name));
+    if (!info.isFile()) fail('E_BUNDLE_PERMISSIONS', `The bundle entry ${show(name)} is not a regular file.`, 'Copy the bundle again.');
+    if (info.uid !== 0 && info.uid !== host.uid) fail('E_BUNDLE_PERMISSIONS', `The bundle file ${show(name)} belongs to another user.`, 'Run chown -R root:root on the bundle.');
+    if (othersCanWrite(info.mode)) fail('E_BUNDLE_PERMISSIONS', `The bundle file ${show(name)} is writable by group or others.`, 'Run chmod -R go-w on the bundle.');
+  }
+}
+
+/**
+ * A tree that the run user may read but not change: every entry belongs to the runner user (or root) and is not writable by group or
+ * others. Links are allowed only where allowLinks is true (the venv has links to the system Python); their targets are not followed.
+ */
+export function checkSealedTree(root: string, host: Host, label: string, allowLinks = false): number {
+  let count = 0;
+  const visit = (path: string): void => {
+    const info = lstatSync(path);
+    count += 1;
+    if (info.uid !== 0 && info.uid !== host.uid) fail('E_PERMISSIONS', `${label}: ${show(path)} belongs to another user.`, `Remove ${label} and run prepare again.`);
+    if (info.isSymbolicLink()) {
+      if (!allowLinks) fail('E_PERMISSIONS', `${label}: ${show(path)} is a link.`, `Remove ${label} and run prepare again.`);
+      return;
+    }
+    if (othersCanWrite(info.mode)) fail('E_PERMISSIONS', `${label}: ${show(path)} is writable by group or others.`, `Remove ${label} and run prepare again.`);
+    if (info.isDirectory()) for (const name of readdirSync(path)) visit(join(path, name));
+    else if (!info.isFile()) fail('E_PERMISSIONS', `${label}: ${show(path)} is a special file.`);
+  };
+  visit(root);
+  return count;
+}
+
+/** Gives a tree to the runner user and removes write rights for group and others. Links are changed, never followed. */
+export function sealTree(root: string, host: Host): void {
+  const visit = (path: string): void => {
+    host.chown(path, host.uid, host.gid);
+    const info = lstatSync(path);
+    if (info.isSymbolicLink()) return;
+    chmodNoFollow(path, info.mode & 0o0755);
+    if (info.isDirectory()) for (const name of readdirSync(path)) visit(join(path, name));
+  };
+  visit(root);
+}
+
+/** A directory that only the run user can write (mode 0700). Its parent must already exist. */
+export function runUserDirectory(lay: Layout, relative: string, identity: RunIdentity, host: Host): string {
+  const path = realDirectoryBelow(lay.work, relative, 0o700);
+  host.chown(path, identity.uid, identity.gid);
+  chmodNoFollow(path, 0o700);
+  return path;
+}
+
+/** run/ and its parts belong to the run user: home, temporary files, caches, and the guard logs. Nothing else is writable for it. */
+export function prepareRunDirectories(lay: Layout, identity: RunIdentity, host: Host): void {
+  for (const directory of ['run', 'run/home', 'run/tmp', 'run/mpl', 'run/cache', 'run/torch', 'run/logs']) runUserDirectory(lay, directory, identity, host);
+}
+
+/** Each existing secret path must not be readable by others: the run user is an other. */
+export function checkHostSecrets(host: Host): void {
+  for (const path of host.secretPaths) {
+    let info;
+    try {
+      info = lstatSync(path);
+    } catch {
+      continue;
+    }
+    if ((info.mode & (info.isDirectory() ? 0o005 : 0o004)) !== 0)
+      fail('E_HOST_SECRET_READABLE', `${path} is readable by other users. It can hold credentials.`, `Run chmod o-rwx ${path} before any third-party Python runs.`);
+  }
 }
 
 const repositoryFolder = (repository: string): string => `models--${repository.replace('/', '--')}`;
@@ -524,6 +777,45 @@ export async function checkSource(lay: Layout, manifest: Manifest): Promise<'ver
       fail('E_SOURCE', `The See-through file ${file.path} is missing.`, 'Remove the checkout and run prepare again.');
   }
   return 'verified';
+}
+
+/**
+ * The Hugging Face home must hold only hub/ with the two pinned repository folders, and each folder only refs/main and the pinned files
+ * in snapshots/<revision>/ (a .part file of a pinned file is an interrupted download). No token file, no other revision, no blobs, no links.
+ * Then the offline lookup of the pinned revision can find only the pinned files.
+ */
+export function checkModelCache(lay: Layout, manifest: Manifest): void {
+  if (kind(lay.hfHome) === 'missing') return;
+  const extra = (path: string): never => fail('E_MODEL_CACHE_EXTRA', `The model cache has an entry that is not pinned: ${show(path)}.`, 'Remove it. The cache must hold only the pinned files.');
+  for (const name of readdirSync(lay.hfHome)) if (name !== 'hub') extra(`hf/${name}`);
+  if (kind(lay.hfCache) === 'missing') return;
+  for (const name of readdirSync(lay.hfCache)) {
+    const repository = modelRepositories.find((item) => repositoryFolder(item.repository) === name);
+    if (!repository) {
+      extra(`hf/hub/${name}`);
+      continue;
+    }
+    const allowed = new Set(['refs/main']);
+    for (const file of manifest.models.files.filter((item) => item.repo === repository.key)) {
+      allowed.add(`snapshots/${repository.revision}/${file.path}`);
+      allowed.add(`snapshots/${repository.revision}/${file.path}.part`);
+    }
+    const folder = join(lay.hfCache, name);
+    const only = (directory: string, names: readonly string[]): void => {
+      if (kind(join(folder, directory)) === 'directory') for (const entry of readdirSync(join(folder, directory))) if (!names.includes(entry)) extra(`hf/hub/${name}/${directory}/${entry}`);
+    };
+    for (const entry of readdirSync(folder)) if (entry !== 'refs' && entry !== 'snapshots') extra(`hf/hub/${name}/${entry}`);
+    only('refs', ['main']);
+    only('snapshots', [repository.revision]);
+    for (const path of walk(folder)) if (!allowed.has(path)) extra(`hf/hub/${name}/${path}`);
+  }
+}
+
+/** The wheelhouse must hold only the pinned wheels (and .part files of interrupted downloads). */
+export function checkWheelhouse(lay: Layout, manifest: Manifest): void {
+  if (kind(lay.wheelhouse) === 'missing') return;
+  const allowed = new Set(manifest.python.wheels.flatMap((wheel) => [wheel.file, `${wheel.file}.part`]));
+  for (const path of walk(lay.wheelhouse)) if (!allowed.has(path)) fail('E_WHEELHOUSE_EXTRA', `The wheelhouse has a file that is not pinned: ${show(path)}.`, 'Remove it.');
 }
 
 /** Reads the installed distributions from the venv metadata. No Python is started. */
@@ -620,6 +912,39 @@ export async function preflight(
   const { manifest } = bundle;
   await run('node', () => (versionAtLeast(process.versions.node, minimumNode) ? null : fail('E_NODE', `Node.js ${process.versions.node} is older than ${minimumNode}.`)));
   await run('platform', () => (host.platform === 'linux' && host.arch === 'x64' ? null : fail('E_PLATFORM', 'The GPU host must be Linux x86_64.')));
+  await run('glibc', () => {
+    const needed = requiredGlibc(manifest.python.wheels);
+    const actual = host.glibc();
+    if (actual === null || !versionAtLeast(actual, `2.${needed}.0`)) fail('E_GLIBC', `The host glibc is ${show(actual)}. The pinned wheels need glibc 2.${needed} or later.`);
+    return null;
+  });
+  await run('run-user', () => {
+    try {
+      identityFor(host);
+      return null;
+    } catch (error) {
+      if (error instanceof RunnerError && error.code === 'E_RUN_USER_MISSING') return `${error.message} ${error.hint ?? ''}`.trim();
+      throw error;
+    }
+  });
+  await run('host-secrets', () => {
+    checkHostSecrets(host);
+    return null;
+  });
+  await run('permissions', () => {
+    checkBundlePermissions(bundle.root, host);
+    checkTrustedPath(lay.work, host, 'the work directory');
+    for (const [path, label] of [
+      [lay.seeThrough, 'see-through'],
+      [lay.wheelhouse, 'wheelhouse'],
+      [lay.hfHome, 'hf'],
+      [lay.inputDirectory, 'input'],
+      [lay.control, 'control']
+    ] as const)
+      if (kind(path) !== 'missing') checkSealedTree(path, host, label);
+    if (kind(lay.venv) !== 'missing') checkSealedTree(lay.venv, host, 'venv', true);
+    return null;
+  });
   await run('python', () => (kind(lay.venv) === 'missing' && findPython(env.PATH) === null ? 'python3.12 is not in PATH. prepare needs it to make the venv.' : null));
   await run('disk', () => {
     const free = host.freeBytes(lay.work);
@@ -627,11 +952,13 @@ export async function preflight(
   });
   await run('see-through', async () => ((await checkSource(lay, manifest)) === 'missing' ? 'The See-through checkout is missing.' : null));
   await run('wheels', async () => {
+    checkWheelhouse(lay, manifest);
     let missing = 0;
     for (const wheel of manifest.python.wheels) if ((await checkExisting(inside(lay.wheelhouse, wheel.file), wheel.size, wheelCheck(wheel), wheel.file)) === 'missing') missing += 1;
     return missing === 0 ? null : `${missing} of ${manifest.python.wheels.length} wheels are missing.`;
   });
   await run('models', async () => {
+    checkModelCache(lay, manifest);
     let missing = 0;
     for (const file of manifest.models.files) {
       if (file.sha256 !== null && kind(modelPath(lay, file)) === 'file') log.progress(`Checking SHA-256 of ${file.repo}/${file.path} ...`);
@@ -672,9 +999,51 @@ function freeBytes(path: string): number {
   return info.bavail * info.bsize;
 }
 
-/** Host facts that preflight checks. Tests give synthetic values. */
-export type Host = { readonly platform: string; readonly arch: string; readonly freeBytes: (path: string) => number };
-export const realHost: Host = { platform: process.platform, arch: process.arch, freeBytes };
+function readSystemText(path: string): string | null {
+  try {
+    return readSmall(path, 4 * 1024 * 1024, path).toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+function runtimeGlibc(): string | null {
+  const report = process.report.getReport() as { header?: { glibcVersionRuntime?: unknown } };
+  const value = report.header?.glibcVersionRuntime;
+  return typeof value === 'string' ? value : null;
+}
+
+/**
+ * Host facts and the one host change (chown) that the runner uses. Tests give synthetic values.
+ * isRoot and uid are separate only for tests: on the Pod, isRoot is uid === 0.
+ */
+export type Host = {
+  readonly platform: string;
+  readonly arch: string;
+  readonly freeBytes: (path: string) => number;
+  readonly isRoot: boolean;
+  readonly uid: number;
+  readonly gid: number;
+  readonly readText: (path: string) => string | null;
+  readonly secretPaths: readonly string[];
+  readonly glibc: () => string | null;
+  readonly chown: (path: string, uid: number, gid: number) => void;
+};
+const processUid = process.getuid?.() ?? -1;
+export const realHost: Host = {
+  platform: process.platform,
+  arch: process.arch,
+  freeBytes,
+  isRoot: processUid === 0,
+  uid: processUid,
+  gid: process.getgid?.() ?? -1,
+  readText: readSystemText,
+  secretPaths: hostSecretPaths,
+  glibc: runtimeGlibc,
+  chown: lchownSync
+};
+
+export const identityFor = (host: Host): RunIdentity => resolveRunUser(host.readText('/etc/passwd'), host.readText('/etc/group'), host.uid);
 
 // ---------------------------------------------------------------- subprocesses
 
@@ -716,13 +1085,18 @@ export function seeThroughEnvironment(lay: Layout, pathValue: string | undefined
   };
 }
 
-export type Spawner = (command: string, args: readonly string[], options: { cwd: string; env: Record<string, string>; timeoutSeconds: number; logPath: string }) => Promise<ProcessResult>;
+export type SpawnOptions = { cwd: string; env: Record<string, string>; timeoutSeconds: number; logPath: string; user?: RunIdentity };
+export type Spawner = (command: string, args: readonly string[], options: SpawnOptions) => Promise<ProcessResult>;
 
-/** Starts a process with an argument array (no shell). Output goes to a log file. A timeout kills the process. */
+/**
+ * Starts a process with an argument array (no shell). Output goes to a log file that the runner opens (the child gets only the
+ * descriptor). With user, the child runs with that user id and group id and no supplementary groups. A timeout kills the process.
+ */
 export const spawnProcess: Spawner = (command, args, options) =>
   new Promise((resolvePromise, reject) => {
     const fd = openSync(options.logPath, constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | constants.O_NOFOLLOW, 0o600);
-    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env, shell: false, stdio: ['ignore', fd, fd] });
+    const identity = options.user === undefined ? {} : { uid: options.user.uid, gid: options.user.gid };
+    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env, shell: false, stdio: ['ignore', fd, fd], ...identity });
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
@@ -740,12 +1114,13 @@ export const spawnProcess: Spawner = (command, args, options) =>
     });
   });
 
-/** Runs a process and captures its standard output (small). Used for nvidia-smi only. */
-export type Capture = (command: string, args: readonly string[], env: Record<string, string>) => Promise<{ code: number | null; stdout: string }>;
+/** Runs a process and captures its standard output (small). Used for nvidia-smi and the network isolation check only. */
+export type Capture = (command: string, args: readonly string[], env: Record<string, string>, user?: RunIdentity) => Promise<{ code: number | null; stdout: string }>;
 
-export const captureProcess: Capture = (command, args, env) =>
+export const captureProcess: Capture = (command, args, env, user) =>
   new Promise((resolvePromise, reject) => {
-    const child = spawn(command, [...args], { env, shell: false, stdio: ['ignore', 'pipe', 'ignore'] });
+    const identity = user === undefined ? {} : { uid: user.uid, gid: user.gid };
+    const child = spawn(command, [...args], { env, shell: false, stdio: ['ignore', 'pipe', 'ignore'], ...identity });
     let stdout = '';
     const timer = setTimeout(() => child.kill('SIGKILL'), 30_000);
     child.stdout.setEncoding('utf8');
@@ -762,45 +1137,137 @@ export const captureProcess: Capture = (command, args, env) =>
     });
   });
 
+// ---------------------------------------------------------------- network isolation
+
+/** The command prefix that starts a process in a new user and network namespace. The process keeps its user id (no root mapping). */
+export const isolationPrefix = ['unshare', '--user', '--net', '--map-current-user', '--'] as const;
+
+export type IsolationReport = {
+  readonly status: 'ISOLATED' | 'UNAVAILABLE';
+  readonly method: 'network-namespace';
+  readonly interfaces: readonly string[];
+  readonly message: string;
+};
+
+/** Interface names from /proc/self/net/dev. */
+export function parseNetDev(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .slice(2)
+    .map((line) => line.split(':')[0]?.trim() ?? '')
+    .filter((name) => name !== '');
+}
+
+/**
+ * Checks, as the run user, that a new network namespace can be made and that it has only the loopback interface.
+ * It starts only unshare and cat (system tools). A host that does not allow user namespaces gives UNAVAILABLE. It never changes
+ * firewall rules or other host settings.
+ */
+export async function isolationCheck(lay: Layout, identity: RunIdentity, capture: Capture, env: NodeJS.ProcessEnv, log: Logger): Promise<IsolationReport> {
+  let result;
+  try {
+    result = await capture(isolationPrefix[0], [...isolationPrefix.slice(1), 'cat', '/proc/self/net/dev'], baseEnvironment(lay, env.PATH), identity);
+  } catch {
+    result = { code: null, stdout: '' };
+  }
+  const interfaces = result.code === 0 ? parseNetDev(result.stdout) : [];
+  const report: IsolationReport =
+    result.code === 0 && interfaces.length === 1 && interfaces[0] === 'lo'
+      ? { status: 'ISOLATED', method: 'network-namespace', interfaces, message: 'A new network namespace with only the loopback interface is available.' }
+      : {
+          status: 'UNAVAILABLE',
+          method: 'network-namespace',
+          interfaces: interfaces.map(show),
+          message:
+            result.code === 0
+              ? 'The new network namespace has other interfaces than lo.'
+              : 'The host does not allow a new user and network namespace for the run user (for example a seccomp profile or a kernel setting).'
+        };
+  log.event('isolation', report);
+  return report;
+}
+
+export type NetworkMode = { readonly mode: 'network-namespace' | 'guard-only-owner-accepted'; readonly report: IsolationReport };
+
+/** The network decision for qualify and run: isolated, or BLOCKED unless the owner gave --accept-guard-only-network. Never silent. */
+export function networkMode(report: IsolationReport, acceptGuardOnly: boolean): NetworkMode {
+  if (report.status === 'ISOLATED') return { mode: 'network-namespace', report };
+  if (acceptGuardOnly) return { mode: 'guard-only-owner-accepted', report };
+  return fail(
+    'E_NETWORK_ISOLATION_UNAVAILABLE',
+    `Network isolation is not available: ${report.message}`,
+    'BLOCKED. The owner decides: stop here, or accept the weaker guard-only mode with --accept-guard-only-network (see SECURITY.md).',
+    3
+  );
+}
+
+/** The command and arguments for a Python process in the chosen network mode. */
+export function isolatedCommand(mode: NetworkMode, command: string, args: readonly string[]): [string, string[]] {
+  return mode.mode === 'network-namespace' ? [isolationPrefix[0], [...isolationPrefix.slice(1), command, ...args]] : [command, [...args]];
+}
+
 // ---------------------------------------------------------------- downloads
 
 export type FetchFunction = (url: string, init?: RequestInit) => Promise<Response>;
 
-export function allowedHost(url: string): boolean {
+export function allowedHost(url: string, source: DownloadSource): boolean {
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
     return false;
   }
-  return parsed.protocol === 'https:' && parsed.username === '' && parsed.password === '' && parsed.port === '' && downloadHosts.some((pattern) => pattern.test(parsed.hostname));
+  return parsed.protocol === 'https:' && parsed.username === '' && parsed.password === '' && parsed.port === '' && downloadHosts[source].some((pattern) => pattern.test(parsed.hostname));
 }
 
-/** Downloads one file to a .part name, follows at most 5 redirects to allowed HTTPS hosts, and checks size and hash before the rename. */
-export async function download(fetcher: FetchFunction, url: string, target: string, size: number, check: (path: string) => Promise<boolean>, log: Logger): Promise<void> {
-  let current = url;
-  let response: Response | null = null;
-  for (let hop = 0; hop <= 5; hop += 1) {
-    if (!allowedHost(current)) fail('E_DOWNLOAD_HOST', `The download host of ${show(new URL(current).hostname)} is not allowed.`);
-    response = await fetcher(current, { redirect: 'manual', headers: { 'user-agent': 'aigg-l0-seethrough-runner' } });
-    if (response.status >= 300 && response.status < 400) {
-      await response.body?.cancel();
-      const location = response.headers.get('location');
-      if (location === null) fail('E_DOWNLOAD', 'A redirect has no location.');
-      current = new URL(location, current).toString();
-      continue;
-    }
-    break;
+const redirectStatus = new Set([301, 302, 303, 307, 308]);
+const maxRedirects = 5;
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '<not a URL>';
   }
-  if (response === null || response.status !== 200 || response.body === null) fail('E_DOWNLOAD', `The download of ${show(url.split('?')[0])} failed with HTTP ${response?.status ?? 'none'}.`);
+};
+
+/**
+ * Downloads one file of a source to a .part name. It follows at most 5 redirects; each target must be HTTPS on an allowed host of
+ * that source. TLS certificates are checked by Node.js (no option turns this off). The size and the hash are checked before the
+ * rename. A Content-Length that is not the pinned size stops the download before the body is read.
+ */
+export async function download(fetcher: FetchFunction, source: DownloadSource, url: string, target: string, size: number, check: (path: string) => Promise<boolean>, log: Logger): Promise<void> {
+  const name = show(url.split('?')[0]);
+  let current = url;
+  let response: Response;
+  for (let hop = 0; ; hop += 1) {
+    if (!allowedHost(current, source)) fail('E_DOWNLOAD_HOST', `The download host ${show(hostOf(current))} is not allowed for ${source}.`, 'Nothing was kept. Stop and report it.');
+    response = await fetcher(current, { redirect: 'manual', headers: { 'user-agent': 'aigg-l0-seethrough-runner', 'accept-encoding': 'identity' } });
+    if (!redirectStatus.has(response.status)) break;
+    await response.body?.cancel();
+    if (hop >= maxRedirects) fail('E_DOWNLOAD_REDIRECT', `The download of ${name} has more than ${maxRedirects} redirects.`);
+    const location = response.headers.get('location');
+    if (location === null || location === '') fail('E_DOWNLOAD_REDIRECT', `A redirect of ${name} has no location.`);
+    try {
+      current = new URL(location, current).toString();
+    } catch {
+      fail('E_DOWNLOAD_REDIRECT', `A redirect of ${name} has a location that is not a URL.`);
+    }
+  }
+  if (response.status !== 200 || response.body === null) fail('E_DOWNLOAD', `The download of ${name} failed with HTTP ${response.status}.`);
+  const length = response.headers.get('content-length');
+  const encoded = (response.headers.get('content-encoding') ?? 'identity') !== 'identity';
+  if (length !== null && !encoded && length !== String(size)) {
+    await response.body.cancel();
+    fail('E_DOWNLOAD_SIZE', `The download of ${name} has Content-Length ${show(length)}, not the pinned ${size}.`);
+  }
   const part = `${target}.part`;
   rmSync(part, { force: true });
-  const fd = openSync(part, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  const fd = openSync(part, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o644);
   let written = 0;
   try {
     for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
       written += chunk.length;
-      if (written > size) fail('E_DOWNLOAD_SIZE', `The download of ${show(url.split('?')[0])} is larger than the pinned ${size} bytes.`);
+      if (written > size) fail('E_DOWNLOAD_SIZE', `The download of ${name} is larger than the pinned ${size} bytes.`);
       writeSync(fd, chunk);
     }
   } catch (error) {
@@ -811,8 +1278,9 @@ export async function download(fetcher: FetchFunction, url: string, target: stri
   closeSync(fd);
   if (written !== size || !(await check(part))) {
     rmSync(part, { force: true });
-    fail('E_DOWNLOAD_HASH', `The download of ${show(url.split('?')[0])} does not agree with the pinned size and hash.`, 'Nothing was kept. Run prepare again. If it repeats, stop and report it.');
+    fail('E_DOWNLOAD_HASH', `The download of ${name} does not agree with the pinned size and hash.`, 'Nothing was kept. Run prepare again. If it repeats, stop and report it.');
   }
+  chmodSync(part, 0o644);
   renameSync(part, target);
   log.event('download', { url: url.split('?')[0], bytes: size });
 }
@@ -830,12 +1298,25 @@ export function requiredPrepareBytes(lay: Layout, manifest: Manifest): number {
 
 export type PrepareDependencies = { readonly fetcher: FetchFunction; readonly spawner: Spawner; readonly env: NodeJS.ProcessEnv; readonly host?: Host };
 
-/** prepare: gets the pinned code, wheels and model files, and installs the venv from the local wheels. It never runs See-through. */
+/**
+ * prepare: gets the pinned code, wheels and model files as root, and installs the venv from the local wheels as the run user.
+ * Then it gives the venv to root (read-only for the run user). It never runs See-through.
+ */
 export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, deps: PrepareDependencies): Promise<Record<string, unknown>> {
   const { manifest } = bundle;
-  for (const directory of ['evidence', 'run/home', 'run/tmp', 'wheelhouse']) realDirectoryBelow(lay.work, directory);
+  const host = deps.host ?? realHost;
+  requireRoot(host);
+  const identity = identityFor(host);
+  checkHostSecrets(host);
+  checkBundlePermissions(bundle.root, host);
+  checkTrustedPath(lay.work, host, 'the work directory');
+  realDirectoryBelow(lay.work, 'evidence', 0o700);
+  realDirectoryBelow(lay.work, 'wheelhouse');
+  prepareRunDirectories(lay, identity, host);
+  checkWheelhouse(lay, manifest);
+  checkModelCache(lay, manifest);
   const needed = requiredPrepareBytes(lay, manifest);
-  if ((deps.host ?? realHost).freeBytes(lay.work) < needed) fail('E_DISK', `${needed} bytes must be free in the work directory for prepare.`, 'BLOCKED: use a larger volume.', 3);
+  if (host.freeBytes(lay.work) < needed) fail('E_DISK', `${needed} bytes must be free in the work directory for prepare.`, 'BLOCKED: use a larger volume.', 3);
   const env = baseEnvironment(lay, deps.env.PATH);
   const summary: Record<string, unknown> = {};
 
@@ -870,7 +1351,7 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     const target = inside(lay.wheelhouse, wheel.file);
     if ((await checkExisting(target, wheel.size, wheelCheck(wheel), wheel.file)) === 'verified') continue;
     log.progress(`Downloading ${wheel.file} ...`);
-    await download(deps.fetcher, wheel.url, target, wheel.size, wheelCheck(wheel), log);
+    await download(deps.fetcher, 'wheels', wheel.url, target, wheel.size, wheelCheck(wheel), log);
     downloadedWheels += 1;
   }
   summary.wheels = { total: manifest.python.wheels.length, downloaded: downloadedWheels };
@@ -882,7 +1363,7 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     realDirectoryBelow(lay.work, `${folder}/refs`);
     realDirectoryBelow(lay.work, `${folder}/snapshots/${repository.revision}`);
     const reference = join(lay.work, ...folder.split('/'), 'refs', 'main');
-    if (kind(reference) === 'missing') writeAtomic(reference, repository.revision);
+    if (kind(reference) === 'missing') writeAtomic(reference, repository.revision, 0o644);
     else if (readSmall(reference, 64, 'refs/main').toString('utf8') !== repository.revision) fail('E_MODEL_REF', `refs/main of ${repository.repository} is not the pinned revision.`);
   }
   for (const file of manifest.models.files) {
@@ -894,20 +1375,23 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     if ((await checkExisting(target, file.size, modelCheck(file), `${file.repo}/${file.path}`)) === 'verified') continue;
     log.progress(`Downloading ${file.repo}/${file.path} (${file.size} bytes) ...`);
     const url = `https://huggingface.co/${repository.repository}/resolve/${repository.revision}/${file.path}`;
-    await download(deps.fetcher, url, target, file.size, modelCheck(file), log);
+    await download(deps.fetcher, 'models', url, target, file.size, modelCheck(file), log);
     downloadedModels += 1;
   }
   summary.models = { total: manifest.models.files.length, downloaded: downloadedModels };
 
-  // 4. The venv: Python 3.12 without pip, then pip from the checked pip wheel, offline, hash-checked wheels only.
+  // 4. The venv, as the run user: Python 3.12 without pip, then pip from the checked pip wheel, offline, hash-checked wheels only.
+  //    Then root takes the venv, so that the run user cannot change it later.
   if (checkVenv(lay, manifest).state === 'missing') {
     const python = findPython(deps.env.PATH);
     if (python === null) fail('E_PYTHON_MISSING', 'python3.12 is not in PATH.', 'Use a Pod image with Python 3.12 (see README.md). This is BLOCKED until Python 3.12 is available.', 3);
     const pip = manifest.python.wheels.find((wheel) => wheel.name === 'pip');
     if (!pip) return fail('E_MANIFEST', 'No pip wheel.');
     const installLog = join(lay.evidence, 'install.log');
-    log.progress('Making the venv ...');
-    const venv = await deps.spawner(python, ['-I', '-m', 'venv', '--without-pip', lay.venv], { cwd: lay.work, env, timeoutSeconds: 300, logPath: installLog });
+    log.progress('Making the venv as the run user ...');
+    runUserDirectory(lay, 'venv', identity, host);
+    chmodNoFollow(lay.venv, 0o755);
+    const venv = await deps.spawner(python, ['-I', '-m', 'venv', '--without-pip', lay.venv], { cwd: lay.work, env, timeoutSeconds: 300, logPath: installLog, user: identity });
     if (venv.code !== 0) fail('E_VENV', 'python3.12 -m venv failed (see evidence/install.log).', 'Remove venv and run prepare again.');
     log.progress('Installing the pinned wheels (offline, hash-checked) ...');
     const install = await deps.spawner(
@@ -931,11 +1415,20 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
         '--requirement',
         join(bundle.root, 'requirements.lock')
       ],
-      { cwd: lay.work, env: { ...env, PIP_CONFIG_FILE: '/dev/null', PIP_NO_INPUT: '1' }, timeoutSeconds: limits.commandTimeoutSeconds, logPath: installLog }
+      { cwd: lay.work, env: { ...env, PIP_CONFIG_FILE: '/dev/null', PIP_NO_INPUT: '1' }, timeoutSeconds: limits.commandTimeoutSeconds, logPath: installLog, user: identity }
     );
     if (install.code !== 0) fail('E_INSTALL', 'pip install failed (see evidence/install.log).', 'Remove venv and run prepare again. Do not install other versions.');
+    sealTree(lay.venv, host);
   }
   summary.venv = checkVenv(lay, manifest);
+  for (const [path, label] of [
+    [lay.seeThrough, 'see-through'],
+    [lay.wheelhouse, 'wheelhouse'],
+    [lay.hfHome, 'hf']
+  ] as const)
+    checkSealedTree(path, host, label);
+  checkSealedTree(lay.venv, host, 'venv', true);
+  summary.identity = { runUser: identity.name, uid: identity.uid };
   log.event('prepare', summary);
   return summary;
 }
@@ -1043,6 +1536,8 @@ export async function collectOutputs(lay: Layout): Promise<OutputFile[]> {
   const result: OutputFile[] = [];
   let total = 0;
   for (const path of files) {
+    if (!outputExtensions.some((extension) => path.toLowerCase().endsWith(extension)))
+      fail('E_OUTPUT_TYPE', `The output has a file that is not PSD, PNG, or JSON: ${show(path)}.`, 'Do not copy it. Report it.');
     const full = inside(lay.output, path);
     const bytes = lstatSync(full).size;
     total += bytes;
@@ -1061,11 +1556,164 @@ export type RunDependencies = {
   readonly env: NodeJS.ProcessEnv;
   readonly expectedInputSha256?: string;
   readonly host?: Host;
+  readonly acceptGuardOnlyNetwork?: boolean;
 };
 
-/** run: one guarded See-through decomposition of the pinned input. At most one run per work directory. */
+/** Copies a guard log of the run user into evidence/ (root only). A missing log gives no records. */
+function takeGuardLog(from: string, to: string): GuardRecord[] {
+  if (kind(from) !== 'file') return [];
+  const bytes = readSmall(from, 64 * 1024 * 1024, 'the guard log');
+  writeAtomic(to, bytes);
+  return parseGuardLog(bytes.toString('utf8'));
+}
+
+/** Writes a guard configuration into control/ (root, read-only for the run user). */
+function writeGuardConfig(lay: Layout, name: string, config: Record<string, unknown>): string {
+  realDirectoryBelow(lay.work, 'control');
+  const path = join(lay.control, name);
+  if (kind(path) !== 'missing') rmSync(path);
+  writeAtomic(path, `${JSON.stringify({ format: guardFormat, ...config }, null, 2)}\n`, 0o644);
+  return path;
+}
+
+/** preflight for qualify: everything must be PASS, except that the input image can be missing. */
+function requireReadyWithoutInput(report: PreflightReport): void {
+  const open = report.checks.filter((check) => check.status !== 'PASS' && !(check.id === 'input' && check.status === 'MISSING'));
+  if (open.length > 0)
+    fail(
+      'E_PREFLIGHT',
+      `preflight is not ready: ${open.map((check) => check.id).join(', ')}.`,
+      'Run preflight and fix each item that is not PASS.',
+      open.some((check) => check.status === 'FAIL') ? 1 : 3
+    );
+}
+
+export type QualifyOutput = {
+  readonly status: string;
+  readonly python: unknown;
+  readonly problems: readonly unknown[];
+  readonly modules: unknown;
+  readonly distributions: Record<string, unknown>;
+  readonly torch: Record<string, unknown> | null;
+};
+
+/** Checks the report of qualify.py again in the runner: exact distribution versions, all modules, and the CUDA runtime. */
+export function checkQualifyOutput(value: unknown, manifest: Manifest): string[] {
+  if (!isRecord(value) || value.format !== qualifyFormat) return ['E_QUALIFY_OUTPUT: the qualify report is missing or not valid.'];
+  const out = value as unknown as QualifyOutput;
+  const problems: string[] = [];
+  if (out.status !== 'PASS') problems.push(`E_QUALIFY: qualify.py gave ${show(out.status)}: ${show(out.problems)}.`);
+  const distributions = isRecord(out.distributions) ? out.distributions : {};
+  const expected = new Map(manifest.python.wheels.map((wheel) => [normalizeName(wheel.name), wheel.version]));
+  for (const [name, version] of expected) if (distributions[name] !== version) problems.push(`E_QUALIFY_VERSION: ${name} is ${show(distributions[name])}, not ${version}.`);
+  for (const name of Object.keys(distributions)) if (!expected.has(name)) problems.push(`E_QUALIFY_EXTRA: ${show(name)} is installed but not pinned.`);
+  const torch = isRecord(out.torch) ? out.torch : {};
+  if (torch.cuda !== cudaVersion) problems.push(`E_QUALIFY_CUDA: PyTorch CUDA is ${show(torch.cuda)}, not ${cudaVersion}.`);
+  if (torch.cudaAvailable !== true || torch.operation !== 'PASS') problems.push('E_QUALIFY_CUDA: the CUDA runtime did not run a small operation.');
+  return problems;
+}
+
+/**
+ * qualify: an owner-approved gate between prepare and run. As the run user, in the network mode, with the guard, it imports every
+ * direct requirement, compares the installed distributions with the pins, and runs one small CUDA operation. It loads no model file.
+ */
+export async function qualify(bundle: LoadedBundle, lay: Layout, log: Logger, deps: RunDependencies): Promise<Record<string, unknown>> {
+  const { manifest } = bundle;
+  const host = deps.host ?? realHost;
+  requireRoot(host);
+  const identity = identityFor(host);
+  realDirectoryBelow(lay.work, 'evidence', 0o700);
+  requireReadyWithoutInput(await preflight(bundle, lay, null, log, deps.env, deps.expectedInputSha256 ?? input.sha256, host));
+  const gpu = await gpuCheck(lay, log, deps.capture, deps.env);
+  if (gpu.status !== 'PASS') return fail('E_GPU_BLOCKED', gpu.message, 'BLOCKED: use a GPU that meets the limits in README.md.', 3);
+  const network = networkMode(await isolationCheck(lay, identity, deps.capture, deps.env, log), deps.acceptGuardOnlyNetwork === true);
+  prepareRunDirectories(lay, identity, host);
+  const out = join(lay.logs, 'qualify-out.json');
+  const guardLog = join(lay.logs, 'qualify-guard.jsonl');
+  for (const path of [out, guardLog]) rmSync(path, { force: true });
+  const expect = {
+    modules: qualifyModules,
+    packages: Object.fromEntries(manifest.python.wheels.map((wheel) => [normalizeName(wheel.name), wheel.version])),
+    cuda: cudaVersion,
+    requireCuda: true
+  };
+  realDirectoryBelow(lay.work, 'control');
+  const expectPath = join(lay.control, 'qualify-expect.json');
+  rmSync(expectPath, { force: true });
+  writeAtomic(expectPath, `${JSON.stringify(expect, null, 2)}\n`, 0o644);
+  const configPath = writeGuardConfig(lay, 'guard-qualify.json', {
+    kind: 'qualify',
+    seeThroughRoot: lay.seeThrough,
+    script: join(bundle.root, 'qualify.py'),
+    argv: ['--expect', expectPath, '--out', out],
+    writeRoots: [lay.runDirectory],
+    hfCache: lay.hfCache,
+    log: guardLog
+  });
+  const [command, args] = isolatedCommand(network, lay.python, ['-I', '-B', join(bundle.root, 'guard.py'), configPath]);
+  log.progress('Qualifying the Python environment (imports and one small CUDA operation, no model) ...');
+  const processResult = await deps.spawner(command, args, {
+    cwd: lay.seeThrough,
+    env: seeThroughEnvironment(lay, deps.env.PATH),
+    timeoutSeconds: limits.qualifyTimeoutSeconds,
+    logPath: join(lay.evidence, 'qualify.log'),
+    user: identity
+  });
+  const records = takeGuardLog(guardLog, join(lay.evidence, 'qualify-guard.jsonl'));
+  const problems: string[] = [];
+  if (processResult.timedOut) problems.push(`E_TIMEOUT: qualify ran longer than ${limits.qualifyTimeoutSeconds} s.`);
+  else if (processResult.code !== 0) problems.push(`E_QUALIFY_EXIT: qualify ended with code ${String(processResult.code)} (see evidence/qualify.log).`);
+  if (!records.some((record) => record.kind === 'start') || !records.some((record) => record.kind === 'end')) problems.push('E_GUARD: the guard log is not complete.');
+  const denied = records.filter((record) => record.kind === 'deny');
+  if (denied.length > 0) problems.push(`E_GUARD_DENIED: the guard stopped ${denied.length} actions (see evidence/qualify-guard.jsonl).`);
+  let output: unknown = null;
+  if (kind(out) === 'file') {
+    try {
+      output = JSON.parse(readSmall(out, 4 * 1024 * 1024, 'the qualify report').toString('utf8'));
+    } catch (error) {
+      if (error instanceof RunnerError) throw error;
+      output = null;
+    }
+  }
+  problems.push(...checkQualifyOutput(output, manifest));
+  const report = {
+    format: qualifyFormat,
+    status: problems.length === 0 ? 'PASS' : 'FAIL',
+    problems,
+    bundle: bundle.manifestSha256,
+    identity: { runUser: identity.name, uid: identity.uid },
+    network,
+    gpu,
+    exit: processResult,
+    output
+  };
+  writeAtomic(join(lay.evidence, 'qualify.json'), `${JSON.stringify(report, null, 2)}\n`);
+  log.event('qualify', { status: report.status, problems });
+  return report;
+}
+
+/** run needs a PASS of qualify for the same bundle in this work directory. */
+export function requireQualified(lay: Layout, bundle: LoadedBundle): string {
+  const path = join(lay.evidence, 'qualify.json');
+  if (kind(path) !== 'file') return fail('E_NOT_QUALIFIED', 'qualify has not passed in this work directory.', 'BLOCKED: run qualify first (an owner-approved step).', 3);
+  const bytes = readSmall(path, 16 * 1024 * 1024, 'evidence/qualify.json');
+  let value: unknown;
+  try {
+    value = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    return fail('E_NOT_QUALIFIED', 'evidence/qualify.json is not valid JSON.', 'Run qualify again.', 3);
+  }
+  if (!isRecord(value) || value.status !== 'PASS') return fail('E_NOT_QUALIFIED', 'The last qualify did not pass.', 'BLOCKED: see evidence/qualify.json.', 3);
+  if (value.bundle !== bundle.manifestSha256) return fail('E_NOT_QUALIFIED', 'qualify passed for another bundle.', 'Run qualify again with this bundle.', 3);
+  return sha256(bytes);
+}
+
+/** run: one guarded See-through decomposition of the pinned input, as the run user. At most one run per work directory. */
 export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: string, log: Logger, deps: RunDependencies): Promise<Record<string, unknown>> {
   const { manifest } = bundle;
+  const host = deps.host ?? realHost;
+  requireRoot(host);
+  const identity = identityFor(host);
   const resultPath = join(lay.evidence, 'result.json');
   if (kind(resultPath) !== 'missing')
     fail(
@@ -1076,54 +1724,52 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
     );
   if (kind(lay.output) !== 'missing')
     fail('E_OUTPUT_EXISTS', 'The output directory exists. A previous run possibly stopped.', 'Keep it as evidence. A new run is an owner decision: use a new work directory.', 3);
+  const qualifySha256 = requireQualified(lay, bundle);
   const expectedInput = deps.expectedInputSha256 ?? input.sha256;
-  const report = await preflight(bundle, lay, inputPath, log, deps.env, expectedInput, deps.host ?? realHost);
+  const report = await preflight(bundle, lay, inputPath, log, deps.env, expectedInput, host);
   if (report.status !== 'READY') return fail('E_PREFLIGHT', `preflight is ${report.status}.`, 'Run preflight and fix each item that is not PASS.', report.status === 'FAIL' ? 1 : 3);
   const gpu = await gpuCheck(lay, log, deps.capture, deps.env);
   if (gpu.status !== 'PASS') return fail('E_GPU_BLOCKED', gpu.message, 'BLOCKED: use a GPU that meets the limits in README.md.', 3);
+  const network = networkMode(await isolationCheck(lay, identity, deps.capture, deps.env, log), deps.acceptGuardOnlyNetwork === true);
 
-  for (const directory of ['input', 'run/home', 'run/tmp', 'run/mpl', 'run/cache', 'run/torch', 'evidence']) realDirectoryBelow(lay.work, directory);
+  realDirectoryBelow(lay.work, 'input');
+  realDirectoryBelow(lay.work, 'evidence', 0o700);
+  prepareRunDirectories(lay, identity, host);
   if (inputPath !== lay.inputPath) {
     if (kind(lay.inputPath) !== 'missing') fail('E_INPUT', 'work/input already has an image.', 'Remove it or run without --input.', 2);
-    writeAtomic(lay.inputPath, readSmall(inputPath, input.maxBytes, 'The input image'));
+    writeAtomic(lay.inputPath, readSmall(inputPath, input.maxBytes, 'The input image'), 0o644);
   }
   checkInputFile(lay.inputPath, expectedInput);
-  mkdirSync(lay.output, { mode: 0o700 });
+  runUserDirectory(lay, 'output', identity, host);
 
-  const guardLog = join(lay.evidence, 'guard.jsonl');
-  const configPath = join(lay.runDirectory, 'guard-config.json');
-  if (kind(guardLog) !== 'missing') fail('E_ALREADY_RUN', 'evidence/guard.jsonl exists.', 'Use a new work directory.', 3);
+  const guardLog = join(lay.logs, 'guard.jsonl');
+  if (kind(guardLog) !== 'missing' || kind(join(lay.evidence, 'guard.jsonl')) !== 'missing') fail('E_ALREADY_RUN', 'A guard log of a run exists.', 'Use a new work directory.', 3);
   const argv = seeThroughArguments(lay.inputPath, lay.output);
   for (const forbidden of forbiddenArguments) if (argv.includes(forbidden)) fail('E_INTERNAL', `The argument ${forbidden} is forbidden.`);
-  writeAtomic(
-    configPath,
-    `${JSON.stringify(
-      {
-        format: guardFormat,
-        seeThroughRoot: lay.seeThrough,
-        script: inside(lay.seeThrough, seeThrough.script),
-        argv,
-        writeRoots: [lay.output, lay.runDirectory],
-        hfCache: lay.hfCache,
-        log: guardLog
-      },
-      null,
-      2
-    )}\n`
-  );
+  const configPath = writeGuardConfig(lay, 'guard-run.json', {
+    kind: 'see-through',
+    seeThroughRoot: lay.seeThrough,
+    script: inside(lay.seeThrough, seeThrough.script),
+    argv,
+    writeRoots: [lay.output, lay.runDirectory],
+    hfCache: lay.hfCache,
+    log: guardLog
+  });
   const started = new Date();
-  log.event('run.start', { argv, seed });
-  log.progress('Running See-through (guarded, offline). This can take some minutes ...');
-  const processResult = await deps.spawner(lay.python, ['-I', '-B', join(bundle.root, 'guard.py'), configPath], {
+  log.event('run.start', { argv, seed, network: network.mode, runUser: identity.name });
+  log.progress(`Running See-through as ${identity.name} (${network.mode}, guarded, offline). This can take some minutes ...`);
+  const [command, args] = isolatedCommand(network, lay.python, ['-I', '-B', join(bundle.root, 'guard.py'), configPath]);
+  const processResult = await deps.spawner(command, args, {
     cwd: lay.seeThrough,
     env: seeThroughEnvironment(lay, deps.env.PATH),
     timeoutSeconds: limits.runTimeoutSeconds,
-    logPath: join(lay.evidence, 'see-through.log')
+    logPath: join(lay.evidence, 'see-through.log'),
+    user: identity
   });
   const seconds = (Date.now() - started.getTime()) / 1000;
   log.event('run.end', { ...processResult, seconds });
 
-  const guard = checkGuard(kind(guardLog) === 'file' ? parseGuardLog(readSmall(guardLog, 64 * 1024 * 1024, 'guard.jsonl').toString('utf8')) : [], lay, manifest);
+  const guard = checkGuard(takeGuardLog(guardLog, join(lay.evidence, 'guard.jsonl')), lay, manifest);
   const problems: string[] = [];
   if (processResult.timedOut) problems.push(`E_TIMEOUT: See-through ran longer than ${limits.runTimeoutSeconds} s and was stopped.`);
   else if (processResult.code !== 0) problems.push(`E_SEETHROUGH_EXIT: See-through ended with code ${String(processResult.code)} (see evidence/see-through.log).`);
@@ -1131,14 +1777,14 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
   if (guard.denied.length > 0) problems.push(`E_GUARD_DENIED: the guard stopped ${guard.denied.length} actions (see evidence/guard.jsonl).`);
   if (guard.unexpectedReads.length > 0) problems.push('E_UNEXPECTED_READ: files below the model cache that are not pinned were read.');
   if (guard.missingReads.length > 0) problems.push(`E_FALLBACK_SUSPECTED: these pinned files were not read: ${guard.missingReads.join(', ')}.`);
+  // The run user must not change the outputs after the run: root takes them before the check.
+  sealTree(lay.output, host);
   let outputs: OutputFile[] = [];
-  if (problems.length === 0) {
-    try {
-      outputs = await collectOutputs(lay);
-    } catch (error) {
-      if (!(error instanceof RunnerError)) throw error;
-      problems.push(`${error.code}: ${error.message}`);
-    }
+  try {
+    outputs = await collectOutputs(lay);
+  } catch (error) {
+    if (!(error instanceof RunnerError)) throw error;
+    problems.push(`${error.code}: ${error.message}`);
   }
   const result = {
     format: resultFormat,
@@ -1149,6 +1795,10 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
     input: { name: input.name, sha256: input.sha256 },
     argv: argv.map((item) => item.replace(lay.work, '<work>')),
     seed,
+    identity: { runUser: identity.name, uid: identity.uid },
+    network,
+    qualify: { sha256: qualifySha256 },
+    bundle: bundle.manifestSha256,
     python: checkVenv(lay, manifest).python,
     packages: Object.fromEntries([...installedPackages(lay)].sort(([a], [b]) => (a < b ? -1 : 1))),
     gpu,
@@ -1161,10 +1811,42 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
     outputs
   };
   writeAtomic(resultPath, `${JSON.stringify(result, null, 2)}\n`);
+  await writeEvidenceSums(lay);
+  return result;
+}
+
+/** Writes evidence/SHA256SUMS and reads it back. */
+export async function writeEvidenceSums(lay: Layout): Promise<string> {
   const sums = await evidenceSums(lay);
   writeAtomic(join(lay.evidence, 'SHA256SUMS'), sums);
   if (readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8') !== sums) fail('E_WRITE', 'SHA256SUMS was not written correctly.');
-  return result;
+  return sums;
+}
+
+/**
+ * collect: after any stop (PASS, FAIL, or BLOCKED), checks that evidence/ and output/ hold only regular files (output: PSD, PNG, JSON
+ * only, within the limits) and writes evidence/SHA256SUMS. The owner then archives exactly these two directories.
+ */
+export async function collect(lay: Layout, host: Host): Promise<Record<string, unknown>> {
+  realDirectoryBelow(lay.work, 'evidence', 0o700);
+  if (kind(lay.output) === 'directory') sealTree(lay.output, host);
+  const evidence = walk(lay.evidence).filter((path) => path !== 'SHA256SUMS');
+  let outputs = 0;
+  if (kind(lay.output) === 'directory') {
+    const files = walk(lay.output);
+    if (files.length > limits.outputFiles) fail('E_OUTPUT_LIMIT', `The output has ${files.length} files.`);
+    let total = 0;
+    for (const path of files) {
+      if (!outputExtensions.some((extension) => path.toLowerCase().endsWith(extension)))
+        fail('E_OUTPUT_TYPE', `The output has a file that is not PSD, PNG, or JSON: ${show(path)}.`, 'Do not copy it. Report it.');
+      total += lstatSync(inside(lay.output, path)).size;
+    }
+    if (total > limits.outputBytes) fail('E_OUTPUT_LIMIT', `The output is larger than ${limits.outputBytes} bytes.`);
+    outputs = files.length;
+  }
+  for (const path of evidence) if (lstatSync(inside(lay.evidence, path)).size > limits.evidenceFileBytes) fail('E_EVIDENCE_LIMIT', `evidence/${show(path)} is too large.`);
+  await writeEvidenceSums(lay);
+  return { status: 'COLLECTED', evidence: evidence.length, outputs, archive: 'tar -czf l0-1-results.tar.gz -C <work> evidence output' };
 }
 
 /** SHA256SUMS over evidence/ and output/, with paths relative to the work directory. */
@@ -1182,16 +1864,24 @@ export async function evidenceSums(lay: Layout): Promise<string> {
 
 // ---------------------------------------------------------------- command line
 
-const help = `Usage: sh run.sh <command> --work <dir> [--input <concept-mirrored.png>]
+const help = `Usage: sh run.sh <command> --work <dir> [--input <concept-mirrored.png>] [--accept-guard-only-network]
 
-Commands:
-  preflight   Check the bundle, the work directory, and every file that exists. Reads files only: no network, no process,
+Commands (the owner runs them in this order and can stop after each one):
+  preflight   Check the bundle, permissions, the run user, and every file that exists. Reads files only: no network, no process,
               no See-through code. Result READY, INCOMPLETE (files missing), or FAIL.
-  prepare     Get See-through at the pinned commit, the pinned wheels and model files, and install the venv offline from
-              the checked wheels. Downloads about 18 GB. Does not run See-through.
+  prepare     As root: get See-through at the pinned commit, the pinned wheels and model files (about 18 GB, pinned URLs only).
+              As the run user: make the venv and install the checked wheels offline. Then root takes the venv. No See-through.
   gpu         Check the GPU with nvidia-smi (memory and driver). Starts no Python.
-  run         preflight, gpu, then one guarded See-through run of the pinned input. Writes output/ and evidence/.
+  isolation   Check, as the run user, that a new network namespace with only loopback is available. Starts unshare and cat only.
+  qualify     As the run user, isolated, guarded: import each direct requirement, compare the installed versions with the pins,
+              and run one small CUDA operation. No model file is loaded. Needs a separate owner permission.
+  run         preflight, gpu, isolation, a passed qualify, then one guarded See-through run of the pinned input as the run user.
+              Needs a separate owner permission. Writes output/ and evidence/.
+  collect     Check evidence/ and output/ (only regular files; output only PSD, PNG, JSON) and write evidence/SHA256SUMS.
   status      Print evidence/result.json, if it exists.
+
+--accept-guard-only-network (qualify and run only): the owner accepts the weaker mode when isolation is not available.
+Without it, qualify and run are BLOCKED on such a host. The choice is written to the evidence.
 
 Exit status: 0 PASS or READY, 1 FAIL, 2 usage or input error, 3 INCOMPLETE or BLOCKED.
 `;
@@ -1199,7 +1889,12 @@ Exit status: 0 PASS or READY, 1 FAIL, 2 usage or input error, 3 INCOMPLETE or BL
 export async function main(argv: readonly string[], deps: PrepareDependencies & RunDependencies): Promise<number> {
   let parsed;
   try {
-    parsed = parseArgs({ args: [...argv], allowPositionals: true, strict: true, options: { work: { type: 'string' }, input: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: { work: { type: 'string' }, input: { type: 'string' }, 'accept-guard-only-network': { type: 'boolean' }, help: { type: 'boolean' } }
+    });
   } catch (error) {
     process.stderr.write(`E_USAGE: ${show(error instanceof Error ? error.message : 'arguments')}\n${help}`);
     return 2;
@@ -1210,10 +1905,14 @@ export async function main(argv: readonly string[], deps: PrepareDependencies & 
     return command === undefined && !parsed.values.help ? 2 : 0;
   }
   try {
-    if (rest.length > 0 || !['preflight', 'prepare', 'gpu', 'run', 'status'].includes(command)) fail('E_USAGE', 'Unknown command or extra arguments.', 'Run sh run.sh --help.', 2);
+    if (rest.length > 0 || !['preflight', 'prepare', 'gpu', 'isolation', 'qualify', 'run', 'collect', 'status'].includes(command))
+      fail('E_USAGE', 'Unknown command or extra arguments.', 'Run sh run.sh --help.', 2);
     if (parsed.values.work === undefined) fail('E_USAGE', '--work <dir> is required.', undefined, 2);
     if (parsed.values.input !== undefined && command !== 'preflight' && command !== 'run') fail('E_USAGE', `--input is not valid for ${command}.`, undefined, 2);
-    const lay = checkWork(parsed.values.work);
+    const acceptGuardOnlyNetwork = parsed.values['accept-guard-only-network'] === true;
+    if (acceptGuardOnlyNetwork && command !== 'qualify' && command !== 'run') fail('E_USAGE', `--accept-guard-only-network is not valid for ${command}.`, undefined, 2);
+    const host = deps.host ?? realHost;
+    const lay = checkWork(parsed.values.work, host);
     if (command === 'status') {
       const path = join(lay.evidence, 'result.json');
       if (kind(path) === 'missing') {
@@ -1224,7 +1923,7 @@ export async function main(argv: readonly string[], deps: PrepareDependencies & 
       return 0;
     }
     const bundle = loadBundle(dirname(fileURLToPath(import.meta.url)));
-    realDirectoryBelow(lay.work, 'evidence');
+    realDirectoryBelow(lay.work, 'evidence', 0o700);
     const log = fileLogger(join(lay.evidence, 'runner.log'));
     log.event('command', { command, bundle: bundleFormat });
     if (command === 'preflight') {
@@ -1241,8 +1940,24 @@ export async function main(argv: readonly string[], deps: PrepareDependencies & 
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
       return report.status === 'PASS' ? 0 : 3;
     }
+    if (command === 'isolation') {
+      requireRoot(host);
+      const report = await isolationCheck(lay, identityFor(host), deps.capture, deps.env, log);
+      writeAtomic(join(lay.evidence, 'isolation.json'), `${JSON.stringify(report, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+      return report.status === 'ISOLATED' ? 0 : 3;
+    }
+    if (command === 'collect') {
+      process.stdout.write(`${JSON.stringify(await collect(lay, host), null, 2)}\n`);
+      return 0;
+    }
+    if (command === 'qualify') {
+      const report = await qualify(bundle, lay, log, { ...deps, acceptGuardOnlyNetwork });
+      process.stdout.write(`${JSON.stringify({ status: report.status, problems: report.problems }, null, 2)}\n`);
+      return report.status === 'PASS' ? 0 : 1;
+    }
     const inputPath = parsed.values.input === undefined ? lay.inputPath : resolve(parsed.values.input);
-    const result = await runOnce(bundle, lay, inputPath, log, deps);
+    const result = await runOnce(bundle, lay, inputPath, log, { ...deps, acceptGuardOnlyNetwork });
     process.stdout.write(`${JSON.stringify({ status: result.status, problems: result.problems, seconds: result.seconds }, null, 2)}\n`);
     return result.status === 'PASS' ? 0 : 1;
   } catch (error) {

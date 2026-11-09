@@ -10,7 +10,7 @@ import { RunnerError, show } from '@seethrough-bundle/runner';
 
 const help = `Usage: aigg-seethrough-bundle bundle --out <dir> [--dry-run] [--force]
 
-Write the L0-1 See-through owner-run bundle: run.sh, runner.mjs, guard.py, manifest.json, requirements.lock, README.md, and SHA256SUMS.
+Write the L0-1 See-through owner-run bundle: run.sh, runner.mjs, guard.py, qualify.py, manifest.json, requirements.lock, README.md, and SHA256SUMS.
 The command reads the pinned data files of this package. It uses no network, starts no process, and runs no model.
 The owner copies the bundle to the GPU host. See docs/OWNER_RUN.md.
 
@@ -56,6 +56,7 @@ export function loadData(root: string): Parameters<typeof bundleFiles>[0] {
     modelFiles: data('model-files.json'),
     sourceFiles: data('seethrough-files.json'),
     guard: readPackageFile(join(root, 'assets', 'guard.py'), 1024 * 1024),
+    qualify: readPackageFile(join(root, 'assets', 'qualify.py'), 1024 * 1024),
     runner: readPackageFile(join(root, 'dist', 'src', 'runner.js'), 4 * 1024 * 1024)
   };
 }

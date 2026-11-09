@@ -11,8 +11,12 @@ It records reads below the Hugging Face cache, so the runner can check which con
 Every record goes to the log file as one JSON line. The runner treats any denial as FAIL, also when the
 See-through code catches the exception.
 
+The guard runs as the unprivileged run user. Its configuration and this file belong to root and the run user cannot change them.
+Two kinds of target: "see-through" (a script inside the See-through checkout) and "qualify" (qualify.py next to this file).
+
 Limits: an audit hook does not see native code (for example C, C++ or Rust libraries, ctypes calls, CUDA drivers).
-It is a detection and containment layer for Python code, not a sandbox.
+It is a detection and containment layer for Python code (defense in depth), not a sandbox. The process can change its own
+guard log, so the log is evidence of what the guard saw, not proof of what the process did.
 """
 
 import json
@@ -20,7 +24,8 @@ import os
 import runpy
 import sys
 
-FORMAT = "aigg.l0-seethrough-guard/0.1"
+FORMAT = "aigg.l0-seethrough-guard/0.2"
+KINDS = ("see-through", "qualify")
 FORBIDDEN_ARGS = ("--tblr_split", "--group_offload", "--vae_ckpt", "--unet_ckpt")
 NETWORK_EVENTS = {
     "socket.connect",
@@ -72,6 +77,8 @@ def load_config(path):
         config = json.load(handle)
     if not isinstance(config, dict) or config.get("format") != FORMAT:
         fail("The configuration format is not " + FORMAT + ".")
+    if config.get("kind") not in KINDS:
+        fail("The configuration kind must be see-through or qualify.")
     for key in ("seeThroughRoot", "script", "hfCache", "log"):
         if not isinstance(config.get(key), str) or not os.path.isabs(config[key]):
             fail("The configuration value " + key + " must be an absolute path.")
@@ -96,6 +103,13 @@ def main():
         fail("Usage: python -I -B guard.py <config.json>")
     config = load_config(sys.argv[1])
     real = os.path.realpath
+    st_root = real(config["seeThroughRoot"])
+    script = real(config["script"])
+    if config["kind"] == "qualify":
+        if script != os.path.join(os.path.dirname(real(__file__)), "qualify.py"):
+            fail("The qualify script must be qualify.py next to guard.py.")
+    elif script != st_root and not script.startswith(st_root + os.sep):
+        fail("The script is not inside the See-through checkout.")
     write_roots = tuple(real(r) for r in config["writeRoots"])
     hf_cache = real(config["hfCache"])
     log_fd = os.open(config["log"], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_APPEND, 0o600)
@@ -155,10 +169,6 @@ def main():
             check_write(event, args[0])
             check_write(event, args[1])
 
-    st_root = real(config["seeThroughRoot"])
-    script = real(config["script"])
-    if not inside(script, (st_root,)):
-        fail("The script is not inside the See-through checkout.")
     sys.path.insert(0, os.path.join(st_root, "common"))
     os.chdir(st_root)
     record("start", "guard", {"python": sys.version.split()[0], "argv": config["argv"]})
