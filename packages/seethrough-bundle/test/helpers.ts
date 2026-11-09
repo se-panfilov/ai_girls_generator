@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,7 +31,8 @@ export const sha256 = (bytes: Uint8Array | string): string => createHash('sha256
 export const quietLog: Logger = { event: () => undefined, progress: () => undefined };
 
 export function temporaryDirectory(prefix: string): string {
-  const path = mkdtempSync(join(tmpdir(), `aigg-${prefix}-`));
+  // The real path: on macOS the temporary directory is below /var, which is a link to /private/var. The runner refuses paths with links.
+  const path = realpathSync(mkdtempSync(join(tmpdir(), `aigg-${prefix}-`)));
   chmodSync(path, 0o700);
   return path;
 }
