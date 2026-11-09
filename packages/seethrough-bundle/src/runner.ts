@@ -1028,6 +1028,8 @@ export type Host = {
   readonly secretPaths: readonly string[];
   readonly glibc: () => string | null;
   readonly chown: (path: string, uid: number, gid: number) => void;
+  /** Kills the remaining processes of a user id (collect after a stop). Tests record the call. */
+  readonly reapUser: (uid: number) => Promise<{ killed: number; survivors: number[] }>;
 };
 const processUid = process.getuid?.() ?? -1;
 export const realHost: Host = {
@@ -1040,14 +1042,127 @@ export const realHost: Host = {
   readText: readSystemText,
   secretPaths: hostSecretPaths,
   glibc: runtimeGlibc,
-  chown: lchownSync
+  chown: lchownSync,
+  reapUser: (uid) => reapProcesses(byUid(uid))
 };
 
 export const identityFor = (host: Host): RunIdentity => resolveRunUser(host.readText('/etc/passwd'), host.readText('/etc/group'), host.uid);
 
 // ---------------------------------------------------------------- subprocesses
 
-export type ProcessResult = { readonly code: number | null; readonly signal: string | null; readonly timedOut: boolean };
+/**
+ * The end of a process. cancelled: the runner got SIGINT, SIGTERM, or SIGHUP and stopped the process.
+ * leftovers: processes of the same selection (the run user) that were still alive after the process ended. The runner kills them;
+ * survivors are those that were still alive after the bounded wait. Fakes in tests can leave out the optional fields.
+ */
+export type ProcessResult = {
+  readonly code: number | null;
+  readonly signal: string | null;
+  readonly timedOut: boolean;
+  readonly cancelled?: boolean;
+  readonly leftovers?: { readonly killed: number; readonly survivors: readonly number[] };
+};
+
+/** Problems in a process result that make a stage FAIL: cancel, leftover processes, and survivors. */
+export function processProblems(result: ProcessResult, label: string): string[] {
+  const problems: string[] = [];
+  if (result.cancelled === true) problems.push(`E_CANCELLED: ${label} was stopped by a signal to the runner.`);
+  if ((result.leftovers?.killed ?? 0) > 0)
+    problems.push(`E_ORPHAN_PROCESSES: ${result.leftovers?.killed ?? 0} processes of the run user were still alive after ${label} ended. The runner killed them.`);
+  if ((result.leftovers?.survivors.length ?? 0) > 0)
+    problems.push(`E_PROCESS_SURVIVED: processes of the run user are still alive after the kill: ${(result.leftovers?.survivors ?? []).join(', ')}. Terminate the Pod.`);
+  return problems;
+}
+
+// ---------------------------------------------------------------- process tree control (Linux /proc)
+
+/** Selects a process by its pid. */
+export type ProcessSelector = (pid: number) => boolean;
+
+function procText(pid: number, file: string): string | null {
+  try {
+    return readFileSync(`/proc/${pid}/${file}`, 'latin1');
+  } catch {
+    return null;
+  }
+}
+
+/** Live processes (not zombies) in /proc. A zombie holds no memory, no GPU context, and runs no code. */
+export function liveProcesses(): number[] {
+  let names: string[];
+  try {
+    names = readdirSync('/proc');
+  } catch {
+    return [];
+  }
+  return names
+    .filter((name) => /^\d+$/.test(name))
+    .map(Number)
+    .filter((pid) => pid !== process.pid && !/^State:\s+[ZX]/m.test(procText(pid, 'status') ?? 'State:\tZ'));
+}
+
+/** Processes with this real, effective, saved, or file-system user id. A process cannot leave its user id without privileges. */
+export const byUid =
+  (uid: number): ProcessSelector =>
+  (pid) => {
+    const line = /^Uid:\s+(.+)$/m.exec(procText(pid, 'status') ?? '')?.[1];
+    return line !== undefined && line.split(/\s+/).some((value) => Number(value) === uid);
+  };
+
+/** Processes whose environment holds this exact NAME=value entry. For tests that cannot use a separate user. */
+export const byEnvironmentEntry =
+  (entry: string): ProcessSelector =>
+  (pid) =>
+    (procText(pid, 'environ') ?? '').split('\0').includes(entry);
+
+const pause = (ms: number): Promise<void> => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+
+/**
+ * Kills every selected process with SIGKILL and repeats until none is alive or the time limit is reached. The repeat also stops
+ * processes that a process made between two passes. Returns the number of killed processes and the pids that survived.
+ */
+export async function reapProcesses(select: ProcessSelector, limitMs = 10_000): Promise<{ killed: number; survivors: number[] }> {
+  const killed = new Set<number>();
+  const end = Date.now() + limitMs;
+  for (;;) {
+    const alive = liveProcesses().filter(select);
+    if (alive.length === 0) return { killed: killed.size, survivors: [] };
+    if (Date.now() > end) return { killed: killed.size, survivors: alive };
+    for (const pid of alive) {
+      try {
+        process.kill(pid, 'SIGKILL');
+        killed.add(pid);
+      } catch {
+        // The process ended between the scan and the kill.
+      }
+    }
+    await pause(100);
+  }
+}
+
+/** The pids of the processes that use the GPU, from nvidia-smi. An empty list means no compute process is on the GPU. */
+export async function gpuProcesses(capture: Capture, env: Record<string, string>): Promise<string[] | null> {
+  try {
+    const result = await capture('nvidia-smi', ['--query-compute-apps=pid', '--format=csv,noheader'], env);
+    if (result.code !== 0) return null;
+    return result.stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !/^no running/i.test(line));
+  } catch {
+    return null;
+  }
+}
+
+/** Waits (at most limitMs) until nvidia-smi shows no compute process. null: nvidia-smi gave no answer. */
+export async function waitGpuFree(capture: Capture, env: Record<string, string>, limitMs = 15_000): Promise<string[] | null> {
+  const end = Date.now() + limitMs;
+  for (;;) {
+    const found = await gpuProcesses(capture, env);
+    if (found === null || found.length === 0 || Date.now() > end) return found;
+    await pause(500);
+  }
+}
 
 /** The base environment for every subprocess. Nothing from the caller's environment is passed except PATH. */
 export function baseEnvironment(lay: Layout, pathValue: string | undefined): Record<string, string> {
@@ -1085,34 +1200,66 @@ export function seeThroughEnvironment(lay: Layout, pathValue: string | undefined
   };
 }
 
-export type SpawnOptions = { cwd: string; env: Record<string, string>; timeoutSeconds: number; logPath: string; user?: RunIdentity };
+export type SpawnOptions = { cwd: string; env: Record<string, string>; timeoutSeconds: number; logPath: string; user?: RunIdentity; reap?: ProcessSelector };
 export type Spawner = (command: string, args: readonly string[], options: SpawnOptions) => Promise<ProcessResult>;
 
 /**
  * Starts a process with an argument array (no shell). Output goes to a log file that the runner opens (the child gets only the
- * descriptor). With user, the child runs with that user id and group id and no supplementary groups. A timeout kills the process.
+ * descriptor). With user, the child runs with that user id and group id and no supplementary groups.
+ *
+ * Stop control (Linux): the child starts in a new session and process group. On timeout, or when the runner gets SIGINT, SIGTERM, or
+ * SIGHUP, the runner kills the whole process group with SIGKILL. A descendant can leave the group (setsid) or ignore its parent, so
+ * after the end of the child the runner also kills every process of the selection (default with user: all processes of the run user)
+ * and waits at most 10 s until none is alive. The selection must be empty before the start: a busy run user is an error.
  */
-export const spawnProcess: Spawner = (command, args, options) =>
-  new Promise((resolvePromise, reject) => {
+export const spawnProcess: Spawner = async (command, args, options) => {
+  const select = options.reap ?? (options.user === undefined ? undefined : byUid(options.user.uid));
+  if (select !== undefined) {
+    const busy = liveProcesses().filter(select);
+    if (busy.length > 0) fail('E_RUN_USER_BUSY', `Processes of the run user are already alive: ${busy.join(', ')}.`, 'Stop them (pkill -KILL -u aigg-l0) and check with ps -u aigg-l0.', 3);
+  }
+  const ended = await new Promise<ProcessResult>((resolvePromise, reject) => {
     const fd = openSync(options.logPath, constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | constants.O_NOFOLLOW, 0o600);
     const identity = options.user === undefined ? {} : { uid: options.user.uid, gid: options.user.gid };
-    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env, shell: false, stdio: ['ignore', fd, fd], ...identity });
+    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env, shell: false, stdio: ['ignore', fd, fd], detached: true, ...identity });
     let timedOut = false;
+    let cancelled = false;
+    const killGroup = (): void => {
+      if (child.pid === undefined) return;
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        child.kill('SIGKILL');
+      }
+    };
+    const onSignal = (): void => {
+      cancelled = true;
+      killGroup();
+    };
+    const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
+    for (const signal of signals) process.on(signal, onSignal);
+    const done = (): void => {
+      clearTimeout(timer);
+      for (const signal of signals) process.off(signal, onSignal);
+      closeSync(fd);
+    };
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGKILL');
+      killGroup();
     }, options.timeoutSeconds * 1000);
     child.on('error', (error) => {
-      clearTimeout(timer);
-      closeSync(fd);
+      done();
       reject(error);
     });
     child.on('close', (code, signal) => {
-      clearTimeout(timer);
-      closeSync(fd);
-      resolvePromise({ code, signal, timedOut });
+      done();
+      resolvePromise({ code, signal, timedOut, cancelled });
     });
   });
+  if (select === undefined) return ended;
+  const leftovers = await reapProcesses(select);
+  return { ...ended, leftovers };
+};
 
 /** Runs a process and captures its standard output (small). Used for nvidia-smi and the network isolation check only. */
 export type Capture = (command: string, args: readonly string[], env: Record<string, string>, user?: RunIdentity) => Promise<{ code: number | null; stdout: string }>;
@@ -1392,6 +1539,8 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     runUserDirectory(lay, 'venv', identity, host);
     chmodNoFollow(lay.venv, 0o755);
     const venv = await deps.spawner(python, ['-I', '-m', 'venv', '--without-pip', lay.venv], { cwd: lay.work, env, timeoutSeconds: 300, logPath: installLog, user: identity });
+    const venvProblems = processProblems(venv, 'python3.12 -m venv');
+    if (venvProblems.length > 0) fail('E_PROCESS', venvProblems.join(' '), 'Remove venv. Stop here and report it.');
     if (venv.code !== 0) fail('E_VENV', 'python3.12 -m venv failed (see evidence/install.log).', 'Remove venv and run prepare again.');
     log.progress('Installing the pinned wheels (offline, hash-checked) ...');
     const install = await deps.spawner(
@@ -1417,6 +1566,8 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
       ],
       { cwd: lay.work, env: { ...env, PIP_CONFIG_FILE: '/dev/null', PIP_NO_INPUT: '1' }, timeoutSeconds: limits.commandTimeoutSeconds, logPath: installLog, user: identity }
     );
+    const installProblems = processProblems(install, 'pip install');
+    if (installProblems.length > 0) fail('E_PROCESS', installProblems.join(' '), 'Remove venv. Stop here and report it.');
     if (install.code !== 0) fail('E_INSTALL', 'pip install failed (see evidence/install.log).', 'Remove venv and run prepare again. Do not install other versions.');
     sealTree(lay.venv, host);
   }
@@ -1557,6 +1708,8 @@ export type RunDependencies = {
   readonly expectedInputSha256?: string;
   readonly host?: Host;
   readonly acceptGuardOnlyNetwork?: boolean;
+  /** How long to wait until nvidia-smi shows no compute process after the stage. Tests use a short time. */
+  readonly gpuReleaseMs?: number;
 };
 
 /** Copies a guard log of the run user into evidence/ (root only). A missing log gives no records. */
@@ -1663,6 +1816,9 @@ export async function qualify(bundle: LoadedBundle, lay: Layout, log: Logger, de
   const problems: string[] = [];
   if (processResult.timedOut) problems.push(`E_TIMEOUT: qualify ran longer than ${limits.qualifyTimeoutSeconds} s.`);
   else if (processResult.code !== 0) problems.push(`E_QUALIFY_EXIT: qualify ended with code ${String(processResult.code)} (see evidence/qualify.log).`);
+  problems.push(...processProblems(processResult, 'qualify'));
+  const gpuAfter = await waitGpuFree(deps.capture, baseEnvironment(lay, deps.env.PATH), deps.gpuReleaseMs);
+  if (gpuAfter !== null && gpuAfter.length > 0) problems.push(`E_GPU_PROCESS_REMAINS: nvidia-smi still shows compute processes: ${gpuAfter.map(show).join(', ')}.`);
   if (!records.some((record) => record.kind === 'start') || !records.some((record) => record.kind === 'end')) problems.push('E_GUARD: the guard log is not complete.');
   const denied = records.filter((record) => record.kind === 'deny');
   if (denied.length > 0) problems.push(`E_GUARD_DENIED: the guard stopped ${denied.length} actions (see evidence/qualify-guard.jsonl).`);
@@ -1685,6 +1841,7 @@ export async function qualify(bundle: LoadedBundle, lay: Layout, log: Logger, de
     network,
     gpu,
     exit: processResult,
+    gpuAfter,
     output
   };
   writeAtomic(join(lay.evidence, 'qualify.json'), `${JSON.stringify(report, null, 2)}\n`);
@@ -1773,6 +1930,9 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
   const problems: string[] = [];
   if (processResult.timedOut) problems.push(`E_TIMEOUT: See-through ran longer than ${limits.runTimeoutSeconds} s and was stopped.`);
   else if (processResult.code !== 0) problems.push(`E_SEETHROUGH_EXIT: See-through ended with code ${String(processResult.code)} (see evidence/see-through.log).`);
+  problems.push(...processProblems(processResult, 'See-through'));
+  const gpuAfter = await waitGpuFree(deps.capture, baseEnvironment(lay, deps.env.PATH), deps.gpuReleaseMs);
+  if (gpuAfter !== null && gpuAfter.length > 0) problems.push(`E_GPU_PROCESS_REMAINS: nvidia-smi still shows compute processes: ${gpuAfter.map(show).join(', ')}.`);
   if (!guard.started || !guard.ended) problems.push('E_GUARD: the guard log is not complete.');
   if (guard.denied.length > 0) problems.push(`E_GUARD_DENIED: the guard stopped ${guard.denied.length} actions (see evidence/guard.jsonl).`);
   if (guard.unexpectedReads.length > 0) problems.push('E_UNEXPECTED_READ: files below the model cache that are not pinned were read.');
@@ -1806,6 +1966,7 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
     started: started.toISOString(),
     seconds,
     exit: processResult,
+    gpuAfter,
     guard: { denied: guard.denied.length, reads: guard.reads, unexpectedReads: guard.unexpectedReads, missingReads: guard.missingReads },
     modelFiles: modelFileHashes(lay, manifest),
     outputs
@@ -1829,6 +1990,18 @@ export async function writeEvidenceSums(lay: Layout): Promise<string> {
  */
 export async function collect(lay: Layout, host: Host): Promise<Record<string, unknown>> {
   realDirectoryBelow(lay.work, 'evidence', 0o700);
+  // A runner that was killed itself (for example kill -9) cannot stop its child. collect stops what is left, as root.
+  let processes: { killed: number; survivors: number[] } | null = null;
+  if (host.isRoot) {
+    let identity: RunIdentity | null;
+    try {
+      identity = identityFor(host);
+    } catch {
+      identity = null;
+    }
+    if (identity !== null) processes = await host.reapUser(identity.uid);
+    if (processes !== null && processes.survivors.length > 0) fail('E_PROCESS_SURVIVED', `Processes of the run user survived SIGKILL: ${processes.survivors.join(', ')}.`, 'Terminate the Pod.');
+  }
   if (kind(lay.output) === 'directory') sealTree(lay.output, host);
   const evidence = walk(lay.evidence).filter((path) => path !== 'SHA256SUMS');
   let outputs = 0;
@@ -1846,7 +2019,7 @@ export async function collect(lay: Layout, host: Host): Promise<Record<string, u
   }
   for (const path of evidence) if (lstatSync(inside(lay.evidence, path)).size > limits.evidenceFileBytes) fail('E_EVIDENCE_LIMIT', `evidence/${show(path)} is too large.`);
   await writeEvidenceSums(lay);
-  return { status: 'COLLECTED', evidence: evidence.length, outputs, archive: 'tar -czf l0-1-results.tar.gz -C <work> evidence output' };
+  return { status: 'COLLECTED', evidence: evidence.length, outputs, runUserProcessesKilled: processes?.killed ?? null, archive: 'tar -czf l0-1-results.tar.gz -C <work> evidence output' };
 }
 
 /** SHA256SUMS over evidence/ and output/, with paths relative to the work directory. */

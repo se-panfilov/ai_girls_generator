@@ -49,7 +49,8 @@ export function testHost(chowns: { path: string; uid: number }[] = []): Host {
     glibc: () => '2.39',
     chown: (path, uid) => {
       chowns.push({ path, uid });
-    }
+    },
+    reapUser: () => Promise.resolve({ killed: 0, survivors: [] })
   };
 }
 

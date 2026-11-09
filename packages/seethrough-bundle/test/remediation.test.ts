@@ -34,8 +34,16 @@ const noSpawn: Spawner = () => Promise.reject(new Error('No process may start in
 const noFetch: FetchFunction = () => Promise.reject(new Error('No network access may happen in this test.'));
 const gpu =
   (isolation: string | null): Capture =>
-  (command) =>
-    Promise.resolve(command === 'unshare' ? (isolation === null ? { code: 1, stdout: '' } : { code: 0, stdout: isolation }) : { code: 0, stdout: 'NVIDIA RTX A5000, 24564, 575.57.08\n' });
+  (command, args) =>
+    Promise.resolve(
+      command === 'unshare'
+        ? isolation === null
+          ? { code: 1, stdout: '' }
+          : { code: 0, stdout: isolation }
+        : args.includes('--query-compute-apps=pid')
+          ? { code: 0, stdout: '' }
+          : { code: 0, stdout: 'NVIDIA RTX A5000, 24564, 575.57.08\n' }
+    );
 
 async function codeOf(action: () => unknown): Promise<string> {
   try {

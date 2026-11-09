@@ -139,7 +139,8 @@ ps -u aigg-l0
 ```
 
 The run stops after 3600 s. The result is PASS or FAIL. Each problem has a code, for example `E_GUARD_DENIED` or `E_FALLBACK_SUSPECTED`.
-`ps -u aigg-l0` must show no process. Do not run it again in the same work directory. A second run is a new owner decision.
+`ps -u aigg-l0` must show no process. The runner kills all processes of the run user after the timeout or when you press Ctrl+C, and the result is then FAIL (`E_TIMEOUT` or `E_CANCELLED`).
+If `ps -u aigg-l0` shows a process (for example after the SSH connection was lost), run `collect` (section 7): it kills them. Do not run it again in the same work directory. A second run is a new owner decision.
 
 ## 7. Collect the evidence (after every stop: PASS, FAIL, or BLOCKED)
 
@@ -151,7 +152,7 @@ cd /workspace/l0-1 && tar -czf /workspace/l0-1-results.tar.gz evidence $( [ -d o
 tar -tzvf /workspace/l0-1-results.tar.gz
 ```
 
-`collect` refuses links, special files, and output files that are not PSD, PNG, or JSON, and writes `evidence/SHA256SUMS`.
+`collect` first kills every remaining process of `aigg-l0`. It refuses links, special files, and output files that are not PSD, PNG, or JSON, and writes `evidence/SHA256SUMS`.
 The list from `tar -tzvf` must show only `evidence/...` and `output/...` entries: no `.safetensors`, no `.whl`, no `venv/`, no `hf/`, no `run/`. If it shows more, do not copy the archive. Report it.
 
 On your computer:

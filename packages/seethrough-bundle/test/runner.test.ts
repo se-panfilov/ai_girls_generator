@@ -36,8 +36,11 @@ import { describe, expect, it } from 'vitest';
 import { loopbackOnly, quietLog, readyWork, sha256, syntheticImage, syntheticManifest, temporaryDirectory, testHost, writeBundle, writeQualified } from './helpers';
 
 const host: Host = testHost();
-/** nvidia-smi gives an RTX A5000. unshare gives a namespace with only loopback. */
-const gpuOk: Capture = (command) => Promise.resolve(command === 'unshare' ? { code: 0, stdout: loopbackOnly } : { code: 0, stdout: 'NVIDIA RTX A5000, 24564, 575.57.08\n' });
+/** nvidia-smi gives an RTX A5000 and no compute process. unshare gives a namespace with only loopback. */
+const gpuOk: Capture = (command, args) =>
+  Promise.resolve(
+    command === 'unshare' ? { code: 0, stdout: loopbackOnly } : args.includes('--query-compute-apps=pid') ? { code: 0, stdout: '' } : { code: 0, stdout: 'NVIDIA RTX A5000, 24564, 575.57.08\n' }
+  );
 const noSpawn: Spawner = () => Promise.reject(new Error('No process may start in this test.'));
 const noFetch: FetchFunction = () => Promise.reject(new Error('No network access may happen in this test.'));
 

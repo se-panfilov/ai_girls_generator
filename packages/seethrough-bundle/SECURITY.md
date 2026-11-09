@@ -45,26 +45,27 @@ Guard-only mode limits: the offline settings and the guard stop network calls fr
 
 ## Threats and controls
 
-| Threat                                             | Control                                                                                                                                                                                 |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A changed bundle file                              | `run.sh` checks `SHA256SUMS`. The runner checks `manifest.json` against the pins in its source, each listed bundle file against `manifest.json`, and the owner and mode of each file.   |
-| Third-party code changes the guard or its config   | `guard.py`, `qualify.py`, and `control/*.json` belong to root and are read-only for the run user.                                                                                       |
-| Third-party code changes code, venv, or models     | These trees belong to root after prepare. The run user can write only in `run/` and `output/`.                                                                                          |
-| Third-party code reads credentials                 | It runs as the run user without a password, sudo, SSH key, or token. Credential paths must not be readable by others. The environment has no secrets.                                   |
-| A changed or extra See-through file                | Every file in `common/` and `inference/scripts/` must have its pinned SHA-256. Extra files, links, special files, and `__pycache__` are errors.                                         |
-| A changed model or wheel download                  | Pinned size and hash. A download goes to a `.part` file and gets its name only after the check. An existing file with other content stops the runner. Nothing is replaced.              |
-| A download from another host                       | Per-source host lists (see Network). Each redirect target is checked. A malformed or missing location and more than 5 redirects stop the download.                                      |
-| Another revision or file in the model cache        | `hf/` may hold only `hub/` with the two pinned repository folders, and each only `refs/main` (the pinned revision) and the pinned files in `snapshots/<revision>/`. No token file.      |
-| Pickle-based model files (SAM `.pt`, LaMa `.ckpt`) | The manifest refuses `.bin`, `.pt`, `.pth`, `.ckpt`, `.pkl`. `--tblr_split` (the only path to LaMa) is forbidden in the runner and in the guard. The guard denies pickle class lookups. |
-| Automatic downloads at run time                    | Network namespace, `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, a run-local `HF_HOME` with only pinned files, and the guard denies all network calls.                                  |
-| Silent fallback in See-through                     | The runner requires that the LayerDiff3D `scheduler/scheduler_config.json` and both `model_index.json` files were read from the pinned cache. A read of another cache file is an error. |
-| Source builds and floating dependencies            | pip runs with `--no-index`, `--require-hashes`, `--only-binary :all:`, `--no-deps`, `--isolated`, and only the local checked wheels. The venv must contain exactly the pinned packages. |
-| Wheels for another platform                        | The manifest accepts only wheels with tags for CPython 3.12 (or abi3, or py3) and `manylinux` up to glibc 2.28 on x86_64. `preflight` checks the glibc of the host.                     |
-| A broken installation                              | `qualify` (owner gate) imports each direct requirement, compares every installed distribution with the pins, and runs one CUDA operation. `run` needs its PASS for the same bundle.     |
-| New processes from See-through                     | The guard denies `subprocess`, `os.system`, `exec`, `spawn`, and `fork`.                                                                                                                |
-| A large or strange output                          | At most 2000 files and 4 GiB, only `.psd`, `.png`, `.json`. Links and special files are errors. Root takes `output/` before the check. The run stops after 3600 s.                      |
-| Repeated runs                                      | One run per work directory. `result.json`, an existing `output/`, or a guard log of a run stops a second run.                                                                           |
-| Hidden model execution during preparation or tests | `preflight`, `gpu`, `isolation`, `collect`, and `status` start no Python. `prepare` runs no See-through code and loads no model. Tests and CI use synthetic files only.                 |
+| Threat                                             | Control                                                                                                                                                                                              |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A changed bundle file                              | `run.sh` checks `SHA256SUMS`. The runner checks `manifest.json` against the pins in its source, each listed bundle file against `manifest.json`, and the owner and mode of each file.                |
+| Third-party code changes the guard or its config   | `guard.py`, `qualify.py`, and `control/*.json` belong to root and are read-only for the run user.                                                                                                    |
+| Third-party code changes code, venv, or models     | These trees belong to root after prepare. The run user can write only in `run/` and `output/`.                                                                                                       |
+| Third-party code reads credentials                 | It runs as the run user without a password, sudo, SSH key, or token. Credential paths must not be readable by others. The environment has no secrets.                                                |
+| A changed or extra See-through file                | Every file in `common/` and `inference/scripts/` must have its pinned SHA-256. Extra files, links, special files, and `__pycache__` are errors.                                                      |
+| A changed model or wheel download                  | Pinned size and hash. A download goes to a `.part` file and gets its name only after the check. An existing file with other content stops the runner. Nothing is replaced.                           |
+| A download from another host                       | Per-source host lists (see Network). Each redirect target is checked. A malformed or missing location and more than 5 redirects stop the download.                                                   |
+| Another revision or file in the model cache        | `hf/` may hold only `hub/` with the two pinned repository folders, and each only `refs/main` (the pinned revision) and the pinned files in `snapshots/<revision>/`. No token file.                   |
+| Pickle-based model files (SAM `.pt`, LaMa `.ckpt`) | The manifest refuses `.bin`, `.pt`, `.pth`, `.ckpt`, `.pkl`. `--tblr_split` (the only path to LaMa) is forbidden in the runner and in the guard. The guard denies pickle class lookups.              |
+| Automatic downloads at run time                    | Network namespace, `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, a run-local `HF_HOME` with only pinned files, and the guard denies all network calls.                                               |
+| Silent fallback in See-through                     | The runner requires that the LayerDiff3D `scheduler/scheduler_config.json` and both `model_index.json` files were read from the pinned cache. A read of another cache file is an error.              |
+| Source builds and floating dependencies            | pip runs with `--no-index`, `--require-hashes`, `--only-binary :all:`, `--no-deps`, `--isolated`, and only the local checked wheels. The venv must contain exactly the pinned packages.              |
+| Wheels for another platform                        | The manifest accepts only wheels with tags for CPython 3.12 (or abi3, or py3) and `manylinux` up to glibc 2.28 on x86_64. `preflight` checks the glibc of the host.                                  |
+| A broken installation                              | `qualify` (owner gate) imports each direct requirement, compares every installed distribution with the pins, and runs one CUDA operation. `run` needs its PASS for the same bundle.                  |
+| New processes from See-through                     | The guard denies `subprocess`, `os.system`, `exec`, `spawn`, and `fork`.                                                                                                                             |
+| A process that continues after timeout or cancel   | The process group and every process of the run user are killed, with a bounded wait. A remaining process makes the result FAIL. `collect` kills processes of the run user again. See the guarantees. |
+| A large or strange output                          | At most 2000 files and 4 GiB, only `.psd`, `.png`, `.json`. Links and special files are errors. Root takes `output/` before the check. The run stops after 3600 s.                                   |
+| Repeated runs                                      | One run per work directory. `result.json`, an existing `output/`, or a guard log of a run stops a second run.                                                                                        |
+| Hidden model execution during preparation or tests | `preflight`, `gpu`, `isolation`, `collect`, and `status` start no Python. `prepare` runs no See-through code and loads no model. Tests and CI use synthetic files only.                              |
 
 ## Guarantees and best-effort protections
 
@@ -75,6 +76,7 @@ These hold by construction when the runner runs as described (Linux, root, the r
 - Only pinned bytes are accepted: each downloaded file has its pinned size and hash before it gets its name, and `preflight` checks every file again.
 - `run` needs a passed `qualify` for the same `manifest.json`, a READY `preflight`, a PASS GPU check, and the network decision.
 - With ISOLATED, the Python process of `qualify` and `run` has no network interface except `lo` (kernel network namespace).
+- Stop control (Linux): each process of the run user starts in a new session and process group. On timeout, and when the runner gets SIGINT, SIGTERM, or SIGHUP, the runner kills the process group with SIGKILL. After the end of the direct child, it kills every remaining process of the run user (also a process that left the group with `setsid`) and waits at most 10 s. A remaining process gives `E_ORPHAN_PROCESSES` (killed) or `E_PROCESS_SURVIVED` (still alive), and the result is FAIL. Before the start, a live process of the run user gives `E_RUN_USER_BUSY`. After `qualify` and `run`, the runner waits at most 15 s until `nvidia-smi` shows no compute process, else `E_GPU_PROCESS_REMAINS`.
 
 These are best effort (defense in depth or detection):
 
@@ -82,7 +84,8 @@ These are best effort (defense in depth or detection):
 - Guard-only network mode, when the owner accepts it.
 - The credential path list is short. Other files on the image that are readable by others are not checked.
 - The run user can write in system temporary directories (`/tmp`, `/dev/shm`) and can see other world-readable files of the image.
-- The Python process can start no new process through Python, but native code can. A process that is still alive after the run can change files in `run/`. `ps -u aigg-l0` after the run is a manual check.
+- The Python process can start no new process through Python, but native code can. The stop control below kills such processes, but only while the runner is alive.
+- `waitGpuFree` uses `nvidia-smi --query-compute-apps`. In a container, this list can be empty although a process uses the GPU. The `/proc` check of the run user is the main control.
 
 ## Python in this package
 
@@ -98,4 +101,5 @@ The runner starts them with `python -I -B` (isolated mode, no bytecode files). T
 - The static analysis of the See-through run path covers the import closure of `inference_psd.py` and the files, network, and deserialization calls in 17 files. The model logic was not reviewed line by line.
 - The installation, the imports, and the CUDA runtime are not tested in CI. Only `qualify` on the GPU host shows them. A static tag check of each wheel is not a proof of a working installation.
 - bf16 inference on a GPU is not bit-exact. The run records the seed, the hashes, the versions, and the logs instead.
+- If the runner itself is killed with SIGKILL (`kill -9`) or the Pod stops, it cannot stop the run user's processes. `collect` kills them later, and `ps -u aigg-l0` is the manual check.
 - The work directory is on a rented host. Terminate the Pod (not only Stop) after the copy of the evidence.
