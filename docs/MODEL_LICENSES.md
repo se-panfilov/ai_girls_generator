@@ -71,7 +71,7 @@ Conditions of use:
 - Before the first use, calculate the SHA-256 of each downloaded file and compare it with the published value. If a value is different, do not load the file. Record the calculated values in this table and in the run provenance.
 - Use the files only on a host that the owner approved for experiment C. Do not redistribute the files.
 - Obey the use restrictions of CreativeML Open RAIL++-M (Attachment A) for the model and its output. They forbid, among other uses, use that violates law, harm to minors, harassment and defamation, and harmful false content.
-  The project content rules also apply: explicitly adult characters, no sexual or explicit content, a human approves each result.
+  The project content rules also apply: a human approves each result.
 - Keep generated images out of Git until decision D15 is made.
 - If the license or the files change in the repositories, the approval does not move to the new version. Ask the owner again.
 
