@@ -9,6 +9,7 @@ The repository does not keep IDE configuration in Git. Each developer sets these
 
 WebStorm keeps project settings in `.idea/`. The `.gitignore` file ignores `.idea/` and `*.iml`.
 Some `.idea/` files can run commands: run configurations, file watchers, external tools, and startup tasks. A pull request that adds these files can run a command on the computer of the person who opens the project.
+`npm run check:config` rejects tracked files in an `.idea/` folder. See [Enforced rules](ENFORCED_RULES.md).
 Shared settings come from the tool configuration files in the repository root and in `configs/`. WebStorm reads these files.
 
 | Tool         | Configuration file                            | WebStorm reads it through   |

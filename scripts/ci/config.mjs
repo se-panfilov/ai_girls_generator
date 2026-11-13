@@ -54,7 +54,8 @@ export const binaryAssetAllowlist = [];
 export const skillToolAllowlist = ['Read', 'Grep', 'Glob', 'LSP', 'Task', 'AskUserQuestion', 'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet'];
 // Skills that this repository maintains. All other skills in .agents/skills must be in docs/skill-provenance.json.
 export const localSkills = ['asset-factory', 'new-package'];
-// Agent host files that can run commands, grant tool permissions, start MCP servers, or replace AGENTS.md.
+// Agent host and IDE files that can run commands, grant tool permissions, start MCP servers, or replace AGENTS.md.
+// WebStorm .idea/ files can contain run configurations, file watchers, external tools, and startup tasks.
 // A pull request can add them without a review of the instruction files. Add an entry only after a human decision.
 export const hostConfigAllowlist = [];
 const hostConfig = [
@@ -64,6 +65,7 @@ const hostConfig = [
   /^\.codex\/config\.toml$/,
   /^\.cursor\//,
   /^\.vscode\/(tasks|settings|mcp)\.json$/,
+  /(^|\/)\.idea\//,
   /(^|\/)AGENTS\.override\.md$/i,
   /(^|\/)(CLAUDE|GEMINI)\.local\.md$/i,
   /(^|\/)\.(cursorrules|windsurfrules|clinerules)$/
