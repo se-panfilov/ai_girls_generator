@@ -23,10 +23,9 @@ graph.svg
 __temp*
 *.tgz
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# IDE files. The project IDE is JetBrains WebStorm. Its .idea/ settings are personal and stay out of Git (docs/WEBSTORM.md).
+.idea/
+*.iml
 .DS_Store
 *.suo
 *.ntvs*
