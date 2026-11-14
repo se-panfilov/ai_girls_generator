@@ -202,6 +202,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> => value !==
 const hex64 = /^[0-9a-f]{64}$/;
 const hex40 = /^[0-9a-f]{40}$/;
 const plainPath = /^[A-Za-z0-9_.][A-Za-z0-9._-]*(\/[A-Za-z0-9_.][A-Za-z0-9._-]*)*$/;
+const outputPart = /^[A-Za-z0-9_.-]+(?: [A-Za-z0-9_.-]+)*$/;
+const windowsDevice = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:[ .]|$)/i;
 const wheelName = /^[A-Za-z0-9_.+-]+\.whl$/;
 const packageName = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
@@ -238,6 +240,14 @@ function isSafePlainPath(path: string): boolean {
 export function inside(root: string, relative: string): string {
   if (!isSafePlainPath(relative)) fail('E_PATH', `The path ${show(relative)} is not a plain relative path.`, undefined, 2);
   return join(root, ...relative.split('/'));
+}
+
+/** Output paths may have single internal ASCII spaces. Other bundle paths keep the stricter syntax. */
+export function outputPath(root: string, relative: string): string {
+  const parts = relative.split('/');
+  if (parts.some((part) => !outputPart.test(part) || part === '.' || part === '..' || part.endsWith('.') || part.includes(' .') || part.includes('. ') || windowsDevice.test(part)))
+    fail('E_PATH', `The path ${show(relative)} is not a plain relative path.`, undefined, 2);
+  return join(root, ...parts);
 }
 
 /** Kind of an existing path, without following links. */
@@ -1698,7 +1708,7 @@ export async function collectOutputs(lay: Layout): Promise<OutputFile[]> {
   for (const path of files) {
     if (!outputExtensions.some((extension) => path.toLowerCase().endsWith(extension)))
       fail('E_OUTPUT_TYPE', `The output has a file that is not PSD, PNG, or JSON: ${show(path)}.`, 'Do not copy it. Report it.');
-    const full = inside(lay.output, path);
+    const full = outputPath(lay.output, path);
     const bytes = lstatSync(full).size;
     total += bytes;
     if (total > limits.outputBytes) fail('E_OUTPUT_LIMIT', `The output is larger than ${limits.outputBytes} bytes.`);
@@ -2023,7 +2033,7 @@ export async function collect(lay: Layout, host: Host): Promise<Record<string, u
     for (const path of files) {
       if (!outputExtensions.some((extension) => path.toLowerCase().endsWith(extension)))
         fail('E_OUTPUT_TYPE', `The output has a file that is not PSD, PNG, or JSON: ${show(path)}.`, 'Do not copy it. Report it.');
-      total += lstatSync(inside(lay.output, path)).size;
+      total += lstatSync(outputPath(lay.output, path)).size;
     }
     if (total > limits.outputBytes) fail('E_OUTPUT_LIMIT', `The output is larger than ${limits.outputBytes} bytes.`);
     outputs = files.length;
@@ -2041,7 +2051,8 @@ export async function evidenceSums(lay: Layout): Promise<string> {
     [lay.output, 'output']
   ] as const) {
     if (kind(base) !== 'directory') continue;
-    for (const path of walk(base)) if (!(prefix === 'evidence' && path === 'SHA256SUMS')) lines.push(`${await fileSha256(inside(base, path))}  ${prefix}/${path}`);
+    for (const path of walk(base))
+      if (!(prefix === 'evidence' && path === 'SHA256SUMS')) lines.push(`${await fileSha256(prefix === 'output' ? outputPath(base, path) : inside(base, path))}  ${prefix}/${path}`);
   }
   return `${lines.join('\n')}\n`;
 }

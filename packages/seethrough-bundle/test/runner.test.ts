@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -10,7 +10,10 @@ import {
   checkSource,
   checkVenv,
   checkWork,
+  collect,
+  collectOutputs,
   download,
+  evidenceSums,
   type FetchFunction,
   forbiddenArguments,
   gitBlobSha1,
@@ -20,6 +23,7 @@ import {
   loadBundle,
   modelCheck,
   modelPath,
+  outputPath,
   parseGpu,
   parseGuardLog,
   parseManifest,
@@ -201,6 +205,74 @@ describe('existing files', () => {
   it('computes the Git blob id like git hash-object', () => {
     expect(gitBlobSha1(Buffer.from(''))).toBe('e69de29bb2d1d6434b8b29ae775ad8c2e48c5391');
     expect(gitBlobSha1(Buffer.from('hello\n'))).toBe('ce013625030ba8dba906f756967f9e9ca394464a');
+  });
+});
+
+describe('output paths', () => {
+  it('accepts a See-through layer name with an internal space in output checks and checksums', async () => {
+    const lay = layout(temporaryDirectory('output-spaces'));
+    mkdirSync(lay.output);
+    mkdirSync(lay.evidence);
+    mkdirSync(join(lay.output, 'concept-mirrored'));
+    for (const name of ['concept-mirrored.psd', 'concept-mirrored_depth.psd', 'concept-mirrored.psd.json']) writeFileSync(join(lay.output, name), name);
+    writeFileSync(join(lay.output, 'concept-mirrored', 'back hair.png'), 'layer');
+
+    const files = await collectOutputs(lay);
+    expect(files.map((file) => file.path)).toContain('concept-mirrored/back hair.png');
+    expect(await evidenceSums(lay)).toContain('  output/concept-mirrored/back hair.png\n');
+    expect((await collect(lay, host)).status).toBe('COLLECTED');
+    expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('  output/concept-mirrored/back hair.png\n');
+  });
+
+  it('keeps output files within the root with portable, printable names', () => {
+    const root = temporaryDirectory('output-names');
+    expect(outputPath(root, 'concept-mirrored/front hair.png')).toBe(join(root, 'concept-mirrored', 'front hair.png'));
+    for (const name of [
+      '/absolute.png',
+      '../outside.png',
+      'part/../outside.png',
+      'part//hair.png',
+      'part\\hair.png',
+      'C:/hair.png',
+      'front\thair.png',
+      'front\nhair.png',
+      'front\0hair.png',
+      'frönt hair.png',
+      'front  hair.png',
+      ' front hair.png',
+      'front hair .png',
+      'front hair.png ',
+      'folder./hair.png',
+      'CON.png',
+      'part/Lpt1.png'
+    ])
+      expect(
+        code(() => outputPath(root, name)),
+        name
+      ).toBe('E_PATH');
+  });
+
+  it('rejects links and unexpected extensions in output', async () => {
+    const lay = layout(temporaryDirectory('output-types'));
+    mkdirSync(lay.output);
+    writeFileSync(join(lay.output, 'layer.png'), 'layer');
+    symlinkSync(join(lay.output, 'layer.png'), join(lay.output, 'link.png'));
+    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_TREE');
+    rmSync(join(lay.output, 'link.png'));
+    writeFileSync(join(lay.output, 'script.txt'), 'text');
+    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_OUTPUT_TYPE');
+  });
+
+  it('enforces output byte and file count limits before hashing oversized data', async () => {
+    const lay = layout(temporaryDirectory('output-limits'));
+    mkdirSync(lay.output);
+    const oversized = join(lay.output, 'large.png');
+    writeFileSync(oversized, '');
+    truncateSync(oversized, 4 * 1024 * 1024 * 1024 + 1);
+    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_OUTPUT_LIMIT');
+    rmSync(oversized);
+    for (let index = 0; index <= 2000; index++) writeFileSync(join(lay.output, `part-${index}.png`), '');
+    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_OUTPUT_LIMIT');
   });
 });
 
