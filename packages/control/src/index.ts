@@ -4,6 +4,7 @@ export { annotatePageCommand, type AnnotatePageOptions, parseAutomaticLandmarks,
 export { buildExport, type Entry, reduce, startHistory } from '@control/annotator';
 export { type CommandResult, overlayCommand, type OverlayOptions, parseContractBytes, poseCommand, workflowCommand, type WorkflowOptions } from '@control/commands';
 export { type ControlContract, parseControlContract } from '@control/contract';
+export { compareLandmarksCommand, type CompareOptions, parseRun } from '@control/landmarkcompare';
 export { analyzedLayers, drawOrder, parseSeeThroughMetadata, type SeeThroughMetadata, splitLayersCommand, type SplitLayersOptions, splitTargets } from '@control/layersplit';
 export { marksFormat, measure, type Measurement, parseMarks, type PoseMarks, scoredKeypoints } from '@control/measure';
 export { decodePng, defaultPngLimits, encodePng, pixelHash, type PngLimits } from '@control/png';

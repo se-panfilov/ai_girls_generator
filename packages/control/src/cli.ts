@@ -8,6 +8,7 @@ import { alignStudyCommand, maxLandmarkBytes } from '@control/alignstudy';
 import { annotatePageCommand } from '@control/annotatepage';
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
+import { compareLandmarksCommand } from '@control/landmarkcompare';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
@@ -69,6 +70,11 @@ Commands:
       browser from the disk. It needs no server and no network. It shows the image, the automatic landmarks and their ranges,
       and exports landmarks-manual.json in the format that align-study --landmarks reads. --manual loads earlier marks.
 
+  compare-landmarks --image <src.png> --before-landmarks <a/landmarks.json> --before-study <a/correspondence.json>
+                    --after-landmarks <b/landmarks.json> --after-study <b/correspondence.json> --out <dir>
+      Experiment L0-1d (prototype): compare two align-study runs (for example automatic and manual landmarks). Writes
+      comparison.json, before-after-landmarks.png, alignment-before-after.png, error-vectors.png, and contact-sheet.png.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -101,6 +107,10 @@ const options = {
   metadata: { type: 'string' },
   landmarks: { type: 'string' },
   manual: { type: 'string' },
+  'before-landmarks': { type: 'string' },
+  'before-study': { type: 'string' },
+  'after-landmarks': { type: 'string' },
+  'after-study': { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -117,7 +127,8 @@ const allowed: Record<string, readonly string[]> = {
   template: ['contract', 'out', 'size'],
   'split-layers': ['layers', 'metadata', 'out'],
   'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
-  'annotate-page': ['image', 'landmarks', 'manual', 'out']
+  'annotate-page': ['image', 'landmarks', 'manual', 'out'],
+  'compare-landmarks': ['image', 'before-landmarks', 'before-study', 'after-landmarks', 'after-study', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -206,6 +217,21 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   if (command === 'template') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     return { result: templateCommand({ contractBytes, toolVersion: packageVersion(), ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+  }
+  if (command === 'compare-landmarks') {
+    const read = (name: 'before-landmarks' | 'before-study' | 'after-landmarks' | 'after-study'): Buffer => readInput(required(values[name], name), 1024 * 1024, `The --${name} file`);
+    const imageBytes = readInput(required(values.image, 'image'), layerPngLimits.maxBytes, 'The image');
+    return {
+      result: compareLandmarksCommand({
+        imageBytes,
+        before: { landmarks: read('before-landmarks'), correspondence: read('before-study') },
+        after: { landmarks: read('after-landmarks'), correspondence: read('after-study') },
+        toolVersion: packageVersion()
+      }),
+      dryRun,
+      out,
+      force
+    };
   }
   if (command === 'annotate-page') {
     const imagePath = required(values.image, 'image');
