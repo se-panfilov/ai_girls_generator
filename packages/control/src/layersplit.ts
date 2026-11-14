@@ -119,7 +119,7 @@ function outsideXyxy(mask: Uint8Array, width: number, xyxy: readonly number[]): 
 }
 
 /** Source-over composite of layers in order onto a transparent canvas. */
-function composite(width: number, height: number, layers: readonly Raster[]): Raster {
+export function composite(width: number, height: number, layers: readonly Raster[]): Raster {
   const out = new Raster(width, height);
   for (const layer of layers) {
     for (let p = 0; p < width * height; p += 1) {
@@ -216,7 +216,7 @@ function motionMap(before: Raster, after: Raster, movedBefore: Uint8Array, moved
 
 // Review images: half size, checkerboard for transparency, labels.
 
-function checker(width: number, height: number): Raster {
+export function checker(width: number, height: number): Raster {
   const out = new Raster(width, height);
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -227,7 +227,7 @@ function checker(width: number, height: number): Raster {
   return out;
 }
 
-function half(source: Raster): Raster {
+export function half(source: Raster): Raster {
   const out = new Raster(Math.ceil(source.width / 2), Math.ceil(source.height / 2));
   for (let y = 0; y < out.height; y += 1) {
     for (let x = 0; x < out.width; x += 1) {
@@ -253,7 +253,7 @@ function half(source: Raster): Raster {
   return out;
 }
 
-function panel(content: Raster, title: string, lines: readonly string[] = [], background?: Raster): Raster {
+export function panel(content: Raster, title: string, lines: readonly string[] = [], background?: Raster): Raster {
   const small = half(content);
   const out = background ? half(background) : checker(small.width, small.height);
   if (background) out.draw(checker(small.width, small.height), 0, 0, 0.35);

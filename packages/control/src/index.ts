@@ -1,3 +1,5 @@
+export { type Affine, applyAffine, decompose, fitAffine, fitBend, fitSimilarity, fitUniform, triangleAffine } from '@control/align';
+export { alignFormat, alignStudyCommand, type AlignStudyOptions, type Landmark, landmarkFormat, landmarkIds, manualTemplate, measureLandmarks, parseManualLandmarks } from '@control/alignstudy';
 export { type CommandResult, overlayCommand, type OverlayOptions, parseContractBytes, poseCommand, workflowCommand, type WorkflowOptions } from '@control/commands';
 export { type ControlContract, parseControlContract } from '@control/contract';
 export { analyzedLayers, drawOrder, parseSeeThroughMetadata, type SeeThroughMetadata, splitLayersCommand, type SplitLayersOptions, splitTargets } from '@control/layersplit';
