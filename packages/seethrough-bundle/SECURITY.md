@@ -67,6 +67,8 @@ Guard-only mode limits: the offline settings and the guard stop network calls fr
 | Repeated runs                                      | One run per work directory. `result.json`, an existing `output/`, or a guard log of a run stops a second run.                                                                                        |
 | Hidden model execution during preparation or tests | `preflight`, `gpu`, `isolation`, `collect`, and `status` start no Python. `prepare` runs no See-through code and loads no model. Tests and CI use synthetic files only.                              |
 
+Output paths may contain single internal ASCII spaces, such as `back hair.png`. The output path check rejects traversal, control characters, Unicode, Windows device names, leading or trailing spaces, repeated spaces, and trailing dots. Bundle paths retain their stricter syntax.
+
 ## Guarantees and best-effort protections
 
 These hold by construction when the runner runs as described (Linux, root, the run user exists):
