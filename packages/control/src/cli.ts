@@ -4,6 +4,7 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { alignStudyCommand, maxLandmarkBytes } from '@control/alignstudy';
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
@@ -53,6 +54,15 @@ Commands:
       for each tag in the metadata. Writes the parts, the residual pixels, component maps, compositions, trial motion
       diagnostics, contact-sheet.png, and l0-1b.json. The inputs are not changed. The output is not a Spine-ready package.
 
+  align-study --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png> --out <dir>
+              [--landmarks <manual landmarks.json>]
+      Experiment L0-1c (prototype): measure anatomical landmarks on the See-through layers, align them with the C0.5
+      template joints under both near/far hypotheses (uniform, similarity, affine, per bone, per triangle), and propose
+      cut lines without a cut. --image is the See-through input at the layer frame size. Manual landmarks replace the
+      automatic entries with the same id. Writes landmarks.json, correspondence.json, landmarks-manual.template.json,
+      a-anatomy-overlay.png, b-skeleton-comparison.png, c-alignment-diagnostics.png, d-segmentation-map.png,
+      e-uncertainty-map.png, and contact-sheet.png. The inputs are not changed. The art is not warped.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -83,6 +93,7 @@ const options = {
   experiment: { type: 'string' },
   layers: { type: 'string' },
   metadata: { type: 'string' },
+  landmarks: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -97,7 +108,8 @@ const allowed: Record<string, readonly string[]> = {
   depth: ['contract', 'out', 'size'],
   bundle: ['contract', 'out', 'experiment'],
   template: ['contract', 'out', 'size'],
-  'split-layers': ['layers', 'metadata', 'out']
+  'split-layers': ['layers', 'metadata', 'out'],
+  'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -187,7 +199,7 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     return { result: templateCommand({ contractBytes, toolVersion: packageVersion(), ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
   }
-  if (command === 'split-layers') {
+  if (command === 'split-layers' || command === 'align-study') {
     const metadataPath = required(values.metadata, 'metadata');
     const metadataBytes = readInput(metadataPath, maxMetadataBytes, 'The See-through metadata');
     const directory = required(values.layers, 'layers');
@@ -198,7 +210,26 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       if (!existsSync(path)) continue;
       layerFiles.set(layer.tag, { name, bytes: readInput(path, layerPngLimits.maxBytes, `The layer file ${name}`) });
     }
-    return { result: splitLayersCommand({ metadataBytes, metadataName: basename(metadataPath), layerFiles, toolVersion: packageVersion() }), dryRun, out, force };
+    if (command === 'split-layers') return { result: splitLayersCommand({ metadataBytes, metadataName: basename(metadataPath), layerFiles, toolVersion: packageVersion() }), dryRun, out, force };
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    const imagePath = required(values.image, 'image');
+    const imageBytes = readInput(imagePath, layerPngLimits.maxBytes, 'The image');
+    const manualBytes = values.landmarks === undefined ? undefined : readInput(values.landmarks, maxLandmarkBytes, 'The landmark file');
+    return {
+      result: alignStudyCommand({
+        contractBytes,
+        metadataBytes,
+        metadataName: basename(metadataPath),
+        imageBytes,
+        imageName: basename(imagePath),
+        layerFiles,
+        toolVersion: packageVersion(),
+        ...(manualBytes ? { manualBytes } : {})
+      }),
+      dryRun,
+      out,
+      force
+    };
   }
   if (command === 'depth') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');

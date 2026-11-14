@@ -4,15 +4,16 @@
 
 ## Inputs
 
-| Input                  | Trust     | Controls                                                                                                                                                                                                                              |
-| ---------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rig.contract.json`    | Untrusted | Size limit 1 MiB. Run-time checks of all used fields (ids, numbers, parents, rectangles, tolerances) with stable `E_CONTRACT_*` codes. The contract is not changed.                                                                   |
-| Images (PNG)           | Untrusted | Size limit 64 MiB on disk. Width, height and pixel count are checked from IHDR before the pixel data is inflated. Inflate output is limited to the exact size. CRC of each chunk is checked. Only 8-bit RGB and RGBA, not interlaced. |
-| Spine `skeleton.json`  | Untrusted | Size limit 16 MiB. Only rotate and translate bone timelines are read. Each key value must be a finite number. Other timelines are listed and ignored.                                                                                 |
-| Manual marks JSON      | Untrusted | Size limit 1 MiB. Format id, known keypoint names, finite numbers, image size, the optional image SHA-256, confidence values, text lengths, and extent order are checked.                                                             |
-| See-through metadata   | Untrusted | `split-layers` only. Size limit 256 KiB. Tags must match `^[a-z][a-z ]{0,31}$` before they become file names. `xyxy`, `part_id`, `depth_median`, and `frame_size` (at most 2048) are checked.                                         |
-| See-through layer PNGs | Untrusted | `split-layers` only. Size limit 32 MiB each, at most 2048 x 2048. RGBA only. Each layer must have the frame size. The input files are only read. Their hashes are in the report.                                                      |
-| Command-line arguments | Operator  | `node:util` `parseArgs` in strict mode. Options that a command does not use are refused. Model and image names in workflows must be plain file names.                                                                                 |
+| Input                  | Trust     | Controls                                                                                                                                                                                                                                  |
+| ---------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rig.contract.json`    | Untrusted | Size limit 1 MiB. Run-time checks of all used fields (ids, numbers, parents, rectangles, tolerances) with stable `E_CONTRACT_*` codes. The contract is not changed.                                                                       |
+| Images (PNG)           | Untrusted | Size limit 64 MiB on disk. Width, height and pixel count are checked from IHDR before the pixel data is inflated. Inflate output is limited to the exact size. CRC of each chunk is checked. Only 8-bit RGB and RGBA, not interlaced.     |
+| Spine `skeleton.json`  | Untrusted | Size limit 16 MiB. Only rotate and translate bone timelines are read. Each key value must be a finite number. Other timelines are listed and ignored.                                                                                     |
+| Manual marks JSON      | Untrusted | Size limit 1 MiB. Format id, known keypoint names, finite numbers, image size, the optional image SHA-256, confidence values, text lengths, and extent order are checked.                                                                 |
+| See-through metadata   | Untrusted | `split-layers` and `align-study`. Size limit 256 KiB. Tags must match `^[a-z][a-z ]{0,31}$` before they become file names. `xyxy`, `part_id`, `depth_median`, and `frame_size` (at most 2048) are checked.                                |
+| See-through layer PNGs | Untrusted | `split-layers` and `align-study`. Size limit 32 MiB each, at most 2048 x 2048. RGBA only. Each layer must have the frame size. The input files are only read. Their hashes are in the report.                                             |
+| Manual landmarks JSON  | Untrusted | `align-study` only. Size limit 256 KiB. Format id, `markedBy`, known landmark ids, no duplicates, visibility and confidence values, points and ranges inside the frame, no point for an `unknown` landmark, and text lengths are checked. |
+| Command-line arguments | Operator  | `node:util` `parseArgs` in strict mode. Options that a command does not use are refused. Model and image names in workflows must be plain file names.                                                                                     |
 
 Color space: pixel values are used as stored and are assumed to be sRGB. ICC profile and gamma chunks are ignored and are listed in the report. PNG alpha is straight alpha.
 
@@ -45,6 +46,13 @@ The output is a prototype. It is not evidence that the parts animate correctly. 
 The command reads one directory of layer PNG files and the metadata file. It reads only `<tag>.png` for the tags in the metadata, after the tag pattern check. A path with `/` or `..` cannot come from a tag.
 It uses deterministic math only: no model, no random values, no subprocess, no network. It keeps all decoded layers in memory (4 bytes and 1 mask byte for each pixel and layer, about 0.2 GB for 18 layers at 1280 x 1280) and runs in about 16 s for that size. The size limits above bound the memory use.
 The outputs are derivatives of the input art. The paid L0 concept and its derivatives must not go into Git or a public place. The tool does not check this. The operator keeps the output directory outside the repository.
+
+## Alignment study (`align-study`)
+
+The command reads the same layer directory and metadata as `split-layers`, the contract, the input image (same PNG limits as a layer, and it must have the frame size), and an optional manual landmark file. It only reads them. Their hashes are in `correspondence.json`.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It runs in about 7 s for 18 layers at 1280 x 1280.
+The command refuses a contract that is not the C0.5 candidate (`three_quarter_right`, `near_far`). It does not change the contract.
+The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
 
 ## Experiment C runner (`runner.mjs` in the bundle)
 

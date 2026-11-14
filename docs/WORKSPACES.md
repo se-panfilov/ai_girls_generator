@@ -43,7 +43,7 @@ The shared configuration comes from the Toolchain repository with the same tool 
 
 | Directory           | Kind          | Stage     | Purpose                                                                                                                                                                                                                        |
 | ------------------- | ------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `control`           | library + cli | S4, S7    | Pose control images, proportion references, ComfyUI workflow files, and rig overlays for experiment C0. Layer split prototype for L0-1b. No model runs. See its README.                                                        |
+| `control`           | library + cli | S4, S7    | Pose control images, proportion references, ComfyUI workflow files, and rig overlays for experiment C0. Layer split prototype for L0-1b. Alignment study prototype for L0-1c. No model runs. See its README.                   |
 | `rig-runtime`       | library + cli | S9, S11   | Shared runtime skeleton, character skins from `character.json` without blank placeholder regions, part modules (draft), atlas cache, and asset manifests with the macOS metadata policy. See its README.                       |
 | `seethrough-bundle` | cli           | S5 (L0-1) | Owner-run bundle for one standalone See-through decomposition of the pinned L0-1 concept: pinned code, models, and wheels, a guarded runner, and offline preflight. No model runs in the package or its tests. See its README. |
 

@@ -19,6 +19,7 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `depth`        | The C0.5 candidate `rig.contract.json`        | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
 | `bundle`       | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
 | `split-layers` | See-through layer PNGs and `<stem>.psd.json`  | L0-1b prototype: `parts/`, `residual/`, `analysis/`, `compose/`, `motion/`, `contact-sheet.png`, `l0-1b.json` (see below)              |
+| `align-study`  | C0.5 contract, See-through layers, the input  | L0-1c prototype: `landmarks.json`, `correspondence.json`, a manual landmark template, five diagnostic images (see below)               |
 | `template`     | The C0.5 candidate `rig.contract.json`        | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`   |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
@@ -121,6 +122,22 @@ node packages/control/dist/src/cli.js split-layers --layers <run>/output/concept
 - Checks: S1 exact partition (no lost, duplicated, changed, or extra pixel), S2 the reference pose from the parts equals the reference pose from the source layers, S3 the required layers exist. A layer that does not split is a valid result. It does not fail the command.
 - Trial motion turns the parts about a pivot hypothesis (top 20 rows of the part). The pivots, the side names, and the bounds are not rig data. The output is not a Spine package.
 - The output images are derivatives of the input art. Do not commit them.
+
+## Alignment study (L0-1c)
+
+**Prototype.** `align-study` measures anatomical landmarks on the See-through layers and compares them with the C0.5 template joints. It does not cut or warp the art. See [the L0-1c report](../../docs/proposals/L0_1C_ALIGNMENT_FEASIBILITY.md).
+
+```sh
+node packages/control/dist/src/cli.js align-study --contract packages/control/test/fixtures/c05-candidate/rig.contract.json \
+  --layers <run>/output/concept-mirrored --metadata <run>/output/concept-mirrored.psd.json \
+  --image <run>/output/concept-mirrored/src_img.png --out ./l0-1c-output [--landmarks manual.json]
+```
+
+- `--image` is the See-through input at the layer frame size. The tool compares each layer pixel with it: a pixel that does not match is a See-through completion under another part, not drawn evidence.
+- Landmarks have image side names (`_image_left`, `_image_right`), a visibility (`visible`, `occluded`, `inferred`, `unknown`), a confidence, the method, the source layers, and a note. An `unknown` landmark has no point, only a range. The color and shape rules are data-specific assumptions and are listed in `landmarks.json`.
+- Fits: uniform scale, similarity, and affine, with residuals in percent of the template body height, for two hypotheses (`near_is_image_left`, `near_is_image_right`) and two landmark sets (confidence medium or more, low or more). Also per segment length ratios and angle differences, triangle maps (anisotropy, reflection), near and far cues, and cut-line candidates.
+- Manual landmarks: `landmarks-manual.template.json` (format `aigg.l0-1c.landmarks/0.1`) lists all ids as unknown. A person adds `x` and `y` only for points that they can see or derive from visible geometry. A manual entry replaces the automatic entry with the same id.
+- Images: `a-anatomy-overlay.png`, `b-skeleton-comparison.png`, `c-alignment-diagnostics.png`, `d-segmentation-map.png`, `e-uncertainty-map.png`, and `contact-sheet.png`. They are derivatives of the input art. Do not commit them.
 
 ## Measurement
 
