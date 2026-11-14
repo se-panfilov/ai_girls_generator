@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { alignStudyCommand, maxLandmarkBytes } from '@control/alignstudy';
+import { annotatePageCommand } from '@control/annotatepage';
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
@@ -63,6 +64,11 @@ Commands:
       a-anatomy-overlay.png, b-skeleton-comparison.png, c-alignment-diagnostics.png, d-segmentation-map.png,
       e-uncertainty-map.png, and contact-sheet.png. The inputs are not changed. The art is not warped.
 
+  annotate-page --image <src.png> --landmarks <align-study landmarks.json> --out <dir> [--manual <manual landmarks.json>]
+      Experiment L0-1d (prototype): write annotate.html, one self-contained page for manual landmark marks. Open it in a
+      browser from the disk. It needs no server and no network. It shows the image, the automatic landmarks and their ranges,
+      and exports landmarks-manual.json in the format that align-study --landmarks reads. --manual loads earlier marks.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -94,6 +100,7 @@ const options = {
   layers: { type: 'string' },
   metadata: { type: 'string' },
   landmarks: { type: 'string' },
+  manual: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -109,7 +116,8 @@ const allowed: Record<string, readonly string[]> = {
   bundle: ['contract', 'out', 'experiment'],
   template: ['contract', 'out', 'size'],
   'split-layers': ['layers', 'metadata', 'out'],
-  'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out']
+  'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
+  'annotate-page': ['image', 'landmarks', 'manual', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -198,6 +206,19 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   if (command === 'template') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     return { result: templateCommand({ contractBytes, toolVersion: packageVersion(), ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+  }
+  if (command === 'annotate-page') {
+    const imagePath = required(values.image, 'image');
+    const imageBytes = readInput(imagePath, layerPngLimits.maxBytes, 'The image');
+    const landmarkBytes = readInput(required(values.landmarks, 'landmarks'), maxLandmarkBytes, 'The automatic landmark file');
+    const manualBytes = values.manual === undefined ? undefined : readInput(values.manual, maxLandmarkBytes, 'The manual landmark file');
+    const pageCode = readInput(join(dirname(fileURLToPath(import.meta.url)), 'annotator.js'), 1024 * 1024, 'The compiled page code');
+    return {
+      result: annotatePageCommand({ imageBytes, imageName: basename(imagePath), landmarkBytes, pageCode, toolVersion: packageVersion(), ...(manualBytes ? { manualBytes } : {}) }),
+      dryRun,
+      out,
+      force
+    };
   }
   if (command === 'split-layers' || command === 'align-study') {
     const metadataPath = required(values.metadata, 'metadata');
