@@ -1,10 +1,12 @@
 #!/usr/bin/env node
+import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
+import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
@@ -45,6 +47,12 @@ Commands:
       masks/<slot>.visible.png, overlay-sheet.png, review.md, and mock-package/ (flat parts and character.json).
       Prototype only: it does not show that the parts animate correctly. The default size is the contract generation resolution.
 
+  split-layers --layers <dir> --metadata <stem.psd.json> --out <dir>
+      Experiment L0-1b (prototype): analyze the See-through layers handwear, legwear, footwear, topwear and bottomwear,
+      and try to split arms, legs and feet into image-left and image-right parts without a cut line. Reads <dir>/<tag>.png
+      for each tag in the metadata. Writes the parts, the residual pixels, component maps, compositions, trial motion
+      diagnostics, contact-sheet.png, and l0-1b.json. The inputs are not changed. The output is not a Spine-ready package.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -73,6 +81,8 @@ const options = {
   skeleton: { type: 'string' },
   marks: { type: 'string' },
   experiment: { type: 'string' },
+  layers: { type: 'string' },
+  metadata: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -86,7 +96,8 @@ const allowed: Record<string, readonly string[]> = {
   calibrate: ['before', 'after', 'skeleton', 'size', 'out'],
   depth: ['contract', 'out', 'size'],
   bundle: ['contract', 'out', 'experiment'],
-  template: ['contract', 'out', 'size']
+  template: ['contract', 'out', 'size'],
+  'split-layers': ['layers', 'metadata', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -104,6 +115,12 @@ function mappingList(text: string | undefined, allowBoth: boolean): SideMapping[
   if (allowBoth && text === 'both') return [...sideMappings];
   if (!(sideMappings as readonly string[]).includes(text)) fail('E_USAGE', `--mapping must be ${allowBoth ? 'detector, anatomical, or both' : 'detector or anatomical'}.`);
   return [text as SideMapping];
+}
+
+function packageVersion(): string {
+  const packageJson: unknown = JSON.parse(readInput(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json'), 64 * 1024, 'The package metadata').toString('utf8'));
+  if (!isRecord(packageJson) || typeof packageJson.version !== 'string') fail('E_INPUT', 'The package metadata has no version.');
+  return packageJson.version;
 }
 
 function run(argv: readonly string[]): { result: CommandResult | null; dryRun: boolean; out: string | null; force: boolean } {
@@ -168,9 +185,20 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   }
   if (command === 'template') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
-    const packageJson: unknown = JSON.parse(readInput(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json'), 64 * 1024, 'The package metadata').toString('utf8'));
-    if (!isRecord(packageJson) || typeof packageJson.version !== 'string') fail('E_INPUT', 'The package metadata has no version.');
-    return { result: templateCommand({ contractBytes, toolVersion: packageJson.version, ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+    return { result: templateCommand({ contractBytes, toolVersion: packageVersion(), ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+  }
+  if (command === 'split-layers') {
+    const metadataPath = required(values.metadata, 'metadata');
+    const metadataBytes = readInput(metadataPath, maxMetadataBytes, 'The See-through metadata');
+    const directory = required(values.layers, 'layers');
+    const layerFiles = new Map<string, { name: string; bytes: Buffer }>();
+    for (const layer of parseSeeThroughMetadata(metadataBytes).layers) {
+      const name = `${layer.tag}.png`;
+      const path = join(directory, name);
+      if (!existsSync(path)) continue;
+      layerFiles.set(layer.tag, { name, bytes: readInput(path, layerPngLimits.maxBytes, `The layer file ${name}`) });
+    }
+    return { result: splitLayersCommand({ metadataBytes, metadataName: basename(metadataPath), layerFiles, toolVersion: packageVersion() }), dryRun, out, force };
   }
   if (command === 'depth') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');

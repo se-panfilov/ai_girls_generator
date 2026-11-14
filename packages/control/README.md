@@ -9,16 +9,17 @@ It does not run a model, does not contact a server, and does not detect keypoint
 
 Build first: `npm run build --workspace @aigg/control`. Then run `node packages/control/dist/src/cli.js <command>` from the root.
 
-| Command     | Input                                         | Output                                                                                                                                 |
-| ----------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pose`      | `rig.contract.json`, optional `--size WxH`    | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                 |
-| `workflow`  | An OpenPose image, model file names, seeds    | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                         |
-| `overlay`   | `rig.contract.json`, a PNG, optional marks    | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`       |
-| `candidate` | A base `rig.contract.json`, optional `--yaw`  | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
-| `calibrate` | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
-| `depth`     | The C0.5 candidate `rig.contract.json`        | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
-| `bundle`    | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
-| `template`  | The C0.5 candidate `rig.contract.json`        | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`   |
+| Command        | Input                                         | Output                                                                                                                                 |
+| -------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `pose`         | `rig.contract.json`, optional `--size WxH`    | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                 |
+| `workflow`     | An OpenPose image, model file names, seeds    | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                         |
+| `overlay`      | `rig.contract.json`, a PNG, optional marks    | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`       |
+| `candidate`    | A base `rig.contract.json`, optional `--yaw`  | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
+| `calibrate`    | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
+| `depth`        | The C0.5 candidate `rig.contract.json`        | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
+| `bundle`       | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
+| `split-layers` | See-through layer PNGs and `<stem>.psd.json`  | L0-1b prototype: `parts/`, `residual/`, `analysis/`, `compose/`, `motion/`, `contact-sheet.png`, `l0-1b.json` (see below)              |
+| `template`     | The C0.5 candidate `rig.contract.json`        | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`   |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -105,6 +106,22 @@ The C2 bundle (format `aigg.exp-c-bundle/0.2`) has six runs: condition A (OpenPo
 The runner accepts only these six runs (fixed seeds, run ids, and workflow files). Other seeds give `E_BUNDLE_RUNS` before any request to ComfyUI. The runner does not stop or terminate the GPU host; the spend limit and the teardown are owner actions.
 The runner refuses a C2 bundle in which A and B of a seed differ in more than the depth nodes. See [the C2 preparation report](../../docs/proposals/C2_PREPARATION.md).
 
+## Layer split (L0-1b)
+
+**Prototype.** `split-layers` analyzes the See-through layers `handwear`, `legwear`, `footwear`, `topwear`, and `bottomwear`, and tries to split arms, legs, and shoes into image-left and image-right parts. See [the L0-1b report](../../docs/proposals/L0_1B_SPLIT_FEASIBILITY.md).
+
+```sh
+node packages/control/dist/src/cli.js split-layers --layers <run>/output/concept-mirrored --metadata <run>/output/concept-mirrored.psd.json --out ./l0-1b-output
+```
+
+- Input: one full-canvas 8-bit RGBA PNG for each tag in the metadata (`<dir>/<tag>.png`, at most 2048 x 2048). Missing files of other layers are listed. The five analyzed layers are required.
+- Draw order: `depth_median` from far to near (See-through writes the PSD layers in this order).
+- Split without a cut line: connected components, then higher alpha thresholds, then erosion, and for legs the scan rows that background separates. Pixels that need a guess stay in a residual file (`merged`, `contact`, `isolated`, `unsplit`).
+- Each part PNG has the full canvas and the source RGBA values. The RGB values of alpha-0 source pixels are not kept.
+- Checks: S1 exact partition (no lost, duplicated, changed, or extra pixel), S2 the reference pose from the parts equals the reference pose from the source layers, S3 the required layers exist. A layer that does not split is a valid result. It does not fail the command.
+- Trial motion turns the parts about a pivot hypothesis (top 20 rows of the part). The pivots, the side names, and the bounds are not rig data. The output is not a Spine package.
+- The output images are derivatives of the input art. Do not commit them.
+
 ## Measurement
 
 `overlay --marks marks.json` compares keypoints that a person marked on the image with the rig. The tool does not find keypoints itself.
@@ -136,5 +153,5 @@ The overlay draws each mark as a cross: white inside tolerance, red outside tole
 
 ## Dependencies and limits
 
-No runtime dependencies. PNG files are written and read with `node:zlib`, because only 8-bit RGB and RGBA control images are necessary. The experiment C runner uses only Node.js built-ins (`fetch`, `node:fs`, `node:crypto`). See [SECURITY.md](SECURITY.md).
+No runtime dependencies. PNG files are written and read with `node:zlib`, because only 8-bit RGB and RGBA images are necessary. The experiment C runner uses only Node.js built-ins (`fetch`, `node:fs`, `node:crypto`). See [SECURITY.md](SECURITY.md).
 Supported view: `three_quarter_right` with `near_far` side names. Other views stop with `E_VIEW_UNSUPPORTED`.
