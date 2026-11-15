@@ -24,6 +24,7 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `compare-landmarks` | The input image, two `align-study` runs (`landmarks.json`, `correspondence.json`)                                         | L0-1d prototype: before and after images and `comparison.json` (see below)                                                                                |
 | `limb-study`        | The C0.5 contract, the See-through layers, the input image, the manual landmarks, the `align-study` `correspondence.json` | L0-1e prototype: the near arm cut into three parts, overlap and rotation measurements, and review images (see below)                                      |
 | `underlay-study`    | The same inputs as `limb-study`                                                                                           | L0-1f prototype: deterministic joint underlay (nearest edge, directional) at the elbow and the wrist, compared with the `limb-study` baseline (see below) |
+| `geometry-study`    | The same inputs as `limb-study`                                                                                           | L0-1g prototype: three diagnostic underlay regions with and without the occlusion-safe rule, wider diagnostic angles, and shifted joint marks (see below) |
 | `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`                      |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
@@ -204,6 +205,27 @@ node packages/control/dist/src/cli.js underlay-study --contract <C0.5 rig.contra
 - Every new pixel has the provenance `generated_by_deterministic_extension` with its source pixel and rule in `provenance.json`.
 - `metrics.json` (format `aigg.l0-1f.underlay-study/0.1`): the regions, the fill counts, the invariant checks, the neutral pose difference, and per test the L0-1e metrics of each variant. The exit status is 0 when the invariants hold. It does not measure art quality.
 - Images: `1-new-pixel-masks.png`, `2-comparison-on-body.png`, `3-comparison-on-magenta.png`, `4-problem-heatmaps.png`, `5-zoom-elbow.png`, `5-zoom-wrist.png`, `6-source-pose.png`, and `<method>/{parts,rotations}/...`. They are derivatives of the input art. Do not commit them.
+
+## Joint geometry (L0-1g)
+
+**Prototype.** `geometry-study` compares three diagnostic underlay regions at the elbow and the wrist, each with and without the occlusion-safe rule, with the two L0-1f fill methods. The regions B and C are research alternatives, not a change of the C0.5 overlap rule. See [the L0-1g report](../../docs/proposals/L0_1G_JOINT_GEOMETRY.md).
+
+```sh
+node packages/control/dist/src/cli.js geometry-study --contract <C0.5 rig.contract.json> --layers <run>/output/concept-mirrored \
+  --metadata <run>/output/concept-mirrored.psd.json --image <run>/output/concept-mirrored/src_img.png \
+  --landmarks landmarks-manual.json --study <align-study with these landmarks>/correspondence.json --out ./l0-1g
+```
+
+- Region A `circle`: the L0-1f region. Region B `wide_circle`: the same rule with the largest cross-section extent as radius (not smaller than the C0.5 radius). Region C `tube`: the parent cross-section swept along the parent axis past the cut line, to the C0.5 radius in depth.
+- Occlusion-safe rule (`_safe` variants): only region pixels where the child is fully opaque in the source pose. Then the source pose stays bit-exact.
+- Angles: the L0-1e angles and a group of wider diagnostic angles (±2, ±45, ±60 at the elbow; ±2, ±30, ±45 at the wrist). They are not animation limits.
+- Sensitivity: the elbow and wrist marks shifted by ±2 and ±4 px in x and y, with the L0-1e angles.
+- `metrics.json` (format `aigg.l0-1g.geometry-study/0.1`). Images: `1-regions.png`, `2-sheet-{body,transparent,magenta}.png`, `3-zoom-{elbow,wrist}-{body,transparent,magenta}.png`, `4-problem-heatmaps.png`, `5-source-pose-difference.png`, and `transparent/<variant>/<test>.png`. They are derivatives of the input art. Do not commit them.
+- The run takes several minutes.
+
+## Exit status
+
+Each command writes `status` in its report: `PASS` (exit 0), `FAIL` (exit 1), or `INCOMPLETE` (exit 3). A usage or input error gives `ERROR` (exit 2). For the study commands, `status` covers only the technical invariants. A PARTIAL research result (for example `study.cut` of `limb-study`) is in other report fields and does not change the exit status.
 
 ## Measurement
 

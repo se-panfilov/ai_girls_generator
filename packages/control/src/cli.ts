@@ -8,6 +8,7 @@ import { alignStudyCommand, maxLandmarkBytes } from '@control/alignstudy';
 import { annotatePageCommand } from '@control/annotatepage';
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
+import { geometryStudyCommand } from '@control/jointgeometry';
 import { compareLandmarksCommand } from '@control/landmarkcompare';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
 import { limbStudyCommand, maxStudyBytes } from '@control/limbstudy';
@@ -89,6 +90,11 @@ Commands:
       deterministic raster methods (nearest edge, directional), then repeat the limb-study rotation tests and metrics.
       New pixels only inside the underlay regions, tagged generated_by_deterministic_extension. No model.
 
+  geometry-study --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+                 --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      Experiment L0-1g (prototype): compare three diagnostic underlay regions (C0.5 circle, wide circle, tube) with and
+      without the occlusion-safe rule, on the L0-1e angles, wider diagnostic angles, and shifted joint marks. No model.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -145,7 +151,8 @@ const allowed: Record<string, readonly string[]> = {
   'annotate-page': ['image', 'landmarks', 'manual', 'out'],
   'compare-landmarks': ['image', 'before-landmarks', 'before-study', 'after-landmarks', 'after-study', 'out'],
   'limb-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
-  'underlay-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out']
+  'underlay-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'geometry-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -263,7 +270,7 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       force
     };
   }
-  if (command === 'split-layers' || command === 'align-study' || command === 'limb-study' || command === 'underlay-study') {
+  if (command === 'split-layers' || command === 'align-study' || command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study') {
     const metadataPath = required(values.metadata, 'metadata');
     const metadataBytes = readInput(metadataPath, maxMetadataBytes, 'The See-through metadata');
     const directory = required(values.layers, 'layers');
@@ -274,10 +281,11 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       if (!existsSync(path)) continue;
       layerFiles.set(layer.tag, { name, bytes: readInput(path, layerPngLimits.maxBytes, `The layer file ${name}`) });
     }
-    if (command === 'limb-study' || command === 'underlay-study') {
+    if (command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study') {
       const imagePath = required(values.image, 'image');
+      const study = command === 'limb-study' ? limbStudyCommand : command === 'underlay-study' ? underlayStudyCommand : geometryStudyCommand;
       return {
-        result: (command === 'limb-study' ? limbStudyCommand : underlayStudyCommand)({
+        result: study({
           contractBytes: readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file'),
           metadataBytes,
           metadataName: basename(metadataPath),

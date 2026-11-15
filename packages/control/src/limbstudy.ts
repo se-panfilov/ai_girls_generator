@@ -673,7 +673,7 @@ export type Evaluation = {
 };
 
 /** Tasks A to C of `limb-study`: inputs, the three-part cut, and the overlap of the source parts. Shared with `underlay-study`. */
-export function prepareLimb(options: LimbStudyOptions): LimbContext {
+export function prepareLimb(options: LimbStudyOptions, jointShift: Vector = { x: 0, y: 0 }): LimbContext {
   // A. Inputs and provenance.
   const contract = parseContractBytes(options.contractBytes);
   if (!contract.rigId.endsWith('_c05_candidate') || contract.view !== 'three_quarter_right' || contract.sideNaming !== 'near_far')
@@ -696,7 +696,10 @@ export function prepareLimb(options: LimbStudyOptions): LimbContext {
   const scale = studyScale(options.studyBytes, landmarkSha, imageSha);
   const manual = parseManualLandmarks(options.landmarkBytes, metadata.frame);
   const marks = (['shoulder_image_left', 'elbow_image_left', 'wrist_image_left'] as const).map((id) => landmarkOf(manual, id));
-  const [shoulder, elbow, wrist] = marks.map((item) => item.point) as [Joint, Joint, Joint];
+  const [shoulder, markedElbow, markedWrist] = marks.map((item) => item.point) as [Joint, Joint, Joint];
+  // A diagnostic shift of the elbow and wrist marks (L0-1g sensitivity study). limb-study uses no shift.
+  const elbow = { x: markedElbow.x + jointShift.x, y: markedElbow.y + jointShift.y };
+  const wrist = { x: markedWrist.x + jointShift.x, y: markedWrist.y + jointShift.y };
   const order = drawOrder(metadata);
   const layers = new Map<string, Raster>();
   const inputs: Record<string, unknown>[] = [];
@@ -821,13 +824,13 @@ export function prepareLimb(options: LimbStudyOptions): LimbContext {
  * Task D and E of `limb-study`: the rotation tests and their metrics for a set of parts (upper arm, forearm, hand).
  * `underlay-study` calls it with parts that have new underlay pixels. The renderer and the metrics are the same.
  */
-export function evaluateRotations(context: LimbContext, parts: readonly Raster[]): Evaluation {
+export function evaluateRotations(context: LimbContext, parts: readonly Raster[], testList: readonly RotationTest[] = rotationTests): Evaluation {
   const { width, height, elbow, wrist, below, above, otherHandwear, residual, specs, sections, silhouette, reference, layers, order, overlap } = context;
   const gapUnion = specs.map(() => new Uint8Array(width * height));
   const heatGap = new Uint16Array(width * height);
   const heatOverlap = new Uint16Array(width * height);
   const coverUnion = new Uint8Array(width * height);
-  const rendered = rotationTests.map((test) => {
+  const rendered = testList.map((test) => {
     const placed = placeParts(parts, elbow, wrist, test);
     const frame = new Raster(width, height);
     frame.data.set(below.data);
@@ -1270,7 +1273,9 @@ export function limbStudyCommand(options: LimbStudyOptions): CommandResult {
   return {
     report: {
       format: limbFormat,
-      status,
+      // Exit status: technical invariants only (exact partition, exact recomposition). A PARTIAL cut or rotation is a research result.
+      status: armConservation.exact && layerConservation.exact && recomposedDifferent === 0 ? 'PASS' : 'FAIL',
+      study: status,
       split: { parts: partReports.map((item) => `${item.part}:${item.pixels}`), residualPixels: report.split.residualPixels, conservationExact: armConservation.exact },
       jointSummary,
       files: files.length

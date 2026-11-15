@@ -75,6 +75,11 @@ It uses deterministic math only: no model, no random values, no subprocess, no n
 The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs.
 It uses deterministic math only: no model, no random values, no subprocess, no network. It makes new pixels only inside the underlay region of each joint and only where the parent part has no pixel. The command counts changed source pixels, new pixels outside the regions, and frame changes outside the moved new pixels, and gives exit status 1 when one is not zero. Each new pixel has a provenance record. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
 
+## Joint geometry study (`geometry-study`)
+
+The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It makes new pixels only inside the diagnostic region of each variant and only where the parent part has no pixel. It counts changed source pixels, new pixels outside the region, and frame changes outside the moved new pixels for every variant and every mark shift, and gives exit status 1 when one is not zero. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
 ## Experiment C runner (`runner.mjs` in the bundle)
 
 The `bundle` command writes a directory that the owner copies to the GPU host. The runner runs there. It is the only part of this package with network access and model downloads.
