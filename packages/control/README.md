@@ -25,6 +25,8 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `limb-study`        | The C0.5 contract, the See-through layers, the input image, the manual landmarks, the `align-study` `correspondence.json` | L0-1e prototype: the near arm cut into three parts, overlap and rotation measurements, and review images (see below)                                      |
 | `underlay-study`    | The same inputs as `limb-study`                                                                                           | L0-1f prototype: deterministic joint underlay (nearest edge, directional) at the elbow and the wrist, compared with the `limb-study` baseline (see below) |
 | `geometry-study`    | The same inputs as `limb-study`                                                                                           | L0-1g prototype: three diagnostic underlay regions with and without the occlusion-safe rule, wider diagnostic angles, and shifted joint marks (see below) |
+| `spine-arm`         | The same inputs as `limb-study`                                                                                           | M0-F0a prototype: an import-ready Spine 4.3 skeleton JSON and cropped region PNGs of the near arm (tube and baseline), checks, previews (see below)       |
+| `spine-validate`    | The licensed Spine executable, a `spine-arm` output directory                                                             | M0-F0a: Spine CLI import and export of both variants, comparison with the intended skeleton, `cli-validation.json`, and logs (see below)                  |
 | `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`                      |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
@@ -222,6 +224,34 @@ node packages/control/dist/src/cli.js geometry-study --contract <C0.5 rig.contra
 - Sensitivity: the elbow and wrist marks shifted by ±2 and ±4 px in x and y, with the L0-1e angles.
 - `metrics.json` (format `aigg.l0-1g.geometry-study/0.1`). Images: `1-regions.png`, `2-sheet-{body,transparent,magenta}.png`, `3-zoom-{elbow,wrist}-{body,transparent,magenta}.png`, `4-problem-heatmaps.png`, `5-source-pose-difference.png`, and `transparent/<variant>/<test>.png`. They are derivatives of the input art. Do not commit them.
 - The run takes several minutes.
+
+## Spine arm package (M0-F0a)
+
+**Prototype.** `spine-arm` makes a minimal Spine skeleton for the image-left (near) arm: `root > upper_arm_near > forearm_near > hand_near`, one slot and one region attachment per part, the draw order of the C0.5 candidate, and four test animations with linear rotate keys (`neutral`, `elbow_test`, `wrist_test`, `combined_test`). It uses only Spine Essential features: no mesh, no constraint, no clipping, no physics. See [the M0-F0a report](../../docs/proposals/M0_F0A_SPINE_ARM_VALIDATION.md).
+
+```sh
+node packages/control/dist/src/cli.js spine-arm --contract <C0.5 rig.contract.json> --layers <run>/output/concept-mirrored \
+  --metadata <run>/output/concept-mirrored.psd.json --image <run>/output/concept-mirrored/src_img.png \
+  --landmarks landmarks-manual.json --study <align-study with these landmarks>/correspondence.json --out ./m0-f0a
+```
+
+- Coordinates: Spine origin at the bottom center of the source canvas, x right, y up, 1 Spine unit = 1 image px. Bones start at the manual shoulder, elbow, and wrist marks and point along the limb. A region attachment is centered on its image box, with `rotation = -(bone world rotation)`.
+- Test angles are screen degrees in the L0-1e convention (clockwise positive). The Spine rotate value is the negative value. The angles are diagnostic values, not limits.
+- Variants: `spine/tube/` (the L0-1g tube underlay, method B) and `spine/baseline/` (the L0-1e parts). One crop box per part for both variants, so both use the same skeleton JSON bytes. A hidden `reference_source_pose` slot holds the source pose for comparison.
+- Offline checks (`evidence/validation.json`): Essential subset, bone hierarchy, joint positions, slots and draw order, region boxes, keyframes, crop preservation, setup pose, key poses against the L0-1e renderer, and the source pose on the body. The result is `JSON_GENERATED` only and `SPINE_IMPORT_UNVERIFIED`.
+- Files: `spine/<variant>/arm-spine.json`, `spine/<variant>/images/*.png`, `evidence/geometry.json`, `evidence/validation.json`, `evidence/preview-*.png`, `README.md`, `SHA256SUMS`, `PIXEL-SHA256SUMS`. The PNG files are derivatives of the input art. Do not commit them.
+
+`spine-validate` runs the owner's licensed Spine through its command-line interface. It does not use the GUI.
+
+```sh
+node packages/control/dist/src/cli.js spine-validate --spine /Applications/Spine.app/Contents/MacOS/Spine \
+  --package ./m0-f0a --out ./m0-f0a-cli [--spine-version 4.3.26]
+```
+
+- It checks the package against `SHA256SUMS` (JSON bytes) and `PIXEL-SHA256SUMS` (PNG pixels), then per variant runs `Spine --input <json> --output <dir>/<variant>/arm-near-<variant>.spine --import arm_near_<variant>` and `Spine --input <project> --output <dir>/<variant>/export --export json+pack`.
+- It compares the exported JSON with the intended skeleton (bones, parents, positions, rotations, lengths, slots, draw order, region attachments, rotate keys) and checks that the atlas has a region for every image.
+- `cli-validation.json` reports `CLI_VALIDATED: PASS` only when all steps exit with 0 and all checks pass. It keeps stdout, stderr, exit codes, and durations. `--dry-run` checks the package and prints the commands without running Spine.
+- The output directory must be new. `--force` is refused.
 
 ## Exit status
 

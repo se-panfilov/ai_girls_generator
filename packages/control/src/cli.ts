@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -16,6 +16,8 @@ import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
 import { ControlError, fail, isRecord } from '@control/problems';
+import { spineArmCommand } from '@control/spinearm';
+import { spineValidateCommand } from '@control/spinecli';
 import { templateCommand } from '@control/template';
 import { underlayStudyCommand } from '@control/underlay';
 
@@ -95,6 +97,18 @@ Commands:
       Experiment L0-1g (prototype): compare three diagnostic underlay regions (C0.5 circle, wide circle, tube) with and
       without the occlusion-safe rule, on the L0-1e angles, wider diagnostic angles, and shifted joint marks. No model.
 
+  spine-arm --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+            --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      Experiment M0-F0a (prototype): make a Spine 4.3 skeleton JSON and cropped region PNGs for the image-left (near) arm
+      (root > upper_arm_near > forearm_near > hand_near) in two variants (tube underlay, baseline), with test animations,
+      geometry.json, offline checks, previews, and hash manifests. Does not run Spine: the result is JSON_GENERATED only.
+
+  spine-validate --spine <absolute path of the Spine executable> --package <spine-arm output dir> --out <new dir>
+                 [--spine-version 4.3.26]
+      Experiment M0-F0a: run the licensed Spine CLI. Import each skeleton JSON into a new .spine project, export it to JSON
+      with a texture atlas, compare the export with the intended skeleton, and write cli-validation.json and all logs.
+      macOS: --spine /Applications/Spine.app/Contents/MacOS/Spine. --dry-run checks the package and prints the commands.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -132,6 +146,9 @@ const options = {
   'after-landmarks': { type: 'string' },
   'after-study': { type: 'string' },
   study: { type: 'string' },
+  spine: { type: 'string' },
+  package: { type: 'string' },
+  'spine-version': { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -152,7 +169,9 @@ const allowed: Record<string, readonly string[]> = {
   'compare-landmarks': ['image', 'before-landmarks', 'before-study', 'after-landmarks', 'after-study', 'out'],
   'limb-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
   'underlay-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
-  'geometry-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out']
+  'geometry-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'spine-arm': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'spine-validate': ['spine', 'package', 'spine-version', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -178,7 +197,7 @@ function packageVersion(): string {
   return packageJson.version;
 }
 
-function run(argv: readonly string[]): { result: CommandResult | null; dryRun: boolean; out: string | null; force: boolean } {
+function run(argv: readonly string[]): { result: CommandResult | null; dryRun: boolean; out: string | null; force: boolean; prepared?: boolean } {
   let parsed;
   try {
     parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true });
@@ -200,6 +219,21 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   const out = required(values.out, 'out');
   const dryRun = values['dry-run'] === true;
   const force = values.force === true;
+  if (command === 'spine-validate') {
+    // Spine writes into the output directory, so it must be new or empty before the run. No --force: an earlier result is never replaced.
+    if (force) fail('E_USAGE', 'spine-validate does not accept --force. Give a new output directory.');
+    const create = checkOutputDirectory(out, false);
+    if (!dryRun && create) mkdirSync(out);
+    const result = spineValidateCommand({
+      spine: required(values.spine, 'spine'),
+      packageDir: required(values.package, 'package'),
+      out,
+      dryRun,
+      toolVersion: packageVersion(),
+      ...(values['spine-version'] === undefined ? {} : { spineVersion: values['spine-version'] })
+    });
+    return { result, dryRun, out, force, prepared: true };
+  }
   if (command === 'pose') {
     const bytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     return { result: poseCommand(bytes, values.size, mappingList(values.mapping, true)), dryRun, out, force };
@@ -270,7 +304,7 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       force
     };
   }
-  if (command === 'split-layers' || command === 'align-study' || command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study') {
+  if (command === 'split-layers' || command === 'align-study' || command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study' || command === 'spine-arm') {
     const metadataPath = required(values.metadata, 'metadata');
     const metadataBytes = readInput(metadataPath, maxMetadataBytes, 'The See-through metadata');
     const directory = required(values.layers, 'layers');
@@ -281,9 +315,9 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       if (!existsSync(path)) continue;
       layerFiles.set(layer.tag, { name, bytes: readInput(path, layerPngLimits.maxBytes, `The layer file ${name}`) });
     }
-    if (command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study') {
+    if (command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study' || command === 'spine-arm') {
       const imagePath = required(values.image, 'image');
-      const study = command === 'limb-study' ? limbStudyCommand : command === 'underlay-study' ? underlayStudyCommand : geometryStudyCommand;
+      const study = command === 'limb-study' ? limbStudyCommand : command === 'underlay-study' ? underlayStudyCommand : command === 'geometry-study' ? geometryStudyCommand : spineArmCommand;
       return {
         result: study({
           contractBytes: readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file'),
@@ -342,9 +376,9 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
 
 function main(): number {
   try {
-    const { result, dryRun, out, force } = run(process.argv.slice(2));
+    const { result, dryRun, out, force, prepared } = run(process.argv.slice(2));
     if (!result || out === null) return 0;
-    const create = checkOutputDirectory(out, force);
+    const create = prepared === true ? false : checkOutputDirectory(out, force);
     if (!dryRun) writeFiles(out, result.files, create);
     process.stdout.write(`${JSON.stringify({ ...result.report, dryRun, written: !dryRun }, null, 2)}\n`);
     const status = result.report.status;
