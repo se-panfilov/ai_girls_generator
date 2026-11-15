@@ -26,7 +26,7 @@ A file name can have subdirectories (`template` writes `masks/` and `mock-packag
 
 ## External effects
 
-Except for the experiment C runner (below): no network access, no subprocess, no shell, and no environment variables. The `workflow` command writes ComfyUI API JSON files. It does not send them to a server and does not load or download a model.
+Except for the experiment C runner and `spine-validate` (below): no network access, no subprocess, no shell, and no environment variables. The `workflow` command writes ComfyUI API JSON files. It does not send them to a server and does not load or download a model.
 The prompts in the workflows ask for an explicitly adult character with a safe rating. The negative prompt excludes explicit content and minors.
 
 ## Depth image (`depth`)
@@ -80,6 +80,21 @@ It uses deterministic math only: no model, no random values, no subprocess, no n
 The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs.
 It uses deterministic math only: no model, no random values, no subprocess, no network. It makes new pixels only inside the diagnostic region of each variant and only where the parent part has no pixel. It counts changed source pixels, new pixels outside the region, and frame changes outside the moved new pixels for every variant and every mark shift, and gives exit status 1 when one is not zero. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
 
+## Spine arm package (`spine-arm`)
+
+The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs. Deterministic math only: no model, no random values, no subprocess, no network, no Spine. The skeleton JSON is built from fixed names and numbers; no input text goes into it. The PNG files and previews are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
+## Spine CLI validation (`spine-validate`)
+
+| Item         | Control                                                                                                                                                                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Executable   | Only the path that the owner gives with `--spine`. It must be absolute and resolve to a regular executable file. The command records its real path, size, and SHA-256. It never searches for Spine and never installs, copies, or updates it.        |
+| Subprocess   | `spawnSync` with an argument array and no shell. The arguments are fixed flags, the version (only `4.3.26`-style numbers or `latest`, `lateststable`, `stable`), and paths made by the command. Ten minutes per step. Output limit 4 MiB per stream. |
+| Environment  | Spine gets the environment of the owner's shell, because the editor needs its own settings and activation on that computer. The command reads no license file, asks for no activation code, and writes no environment value to a report.             |
+| Package      | Refused before any run when a skeleton JSON differs from `SHA256SUMS` or a PNG differs from `PIXEL-SHA256SUMS`. Size limits on the JSON (4 MiB) and the PNG files.                                                                                   |
+| Spine output | Spine writes the projects and exports into the new output directory. The command reads at most 64 export entries, a JSON up to 4 MiB, and an atlas up to 1 MiB, and treats them as untrusted data.                                                   |
+| Output       | The output directory must be new or empty and not a link. `--force` is refused, so an earlier validation result is never replaced. The command writes the logs and `cli-validation.json` with the same temporary-name rule.                          |
+
 ## Experiment C runner (`runner.mjs` in the bundle)
 
 The `bundle` command writes a directory that the owner copies to the GPU host. The runner runs there. It is the only part of this package with network access and model downloads.
@@ -97,6 +112,10 @@ The `bundle` command writes a directory that the owner copies to the GPU host. T
 | Log                  | `run.log` (JSON Lines): events, hashes, prompt ids, ComfyUI versions and GPU names. No environment values, no headers, and no query strings of redirected download URLs. Untrusted text is cut and limited to printable ASCII.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## Residual risks
+
+- `spine-validate` runs the owner's Spine with the owner's rights. The SHA-256 record shows which file ran; it does not prove that the file is the official Spine. The Spine launcher can download an editor update when `--spine-version` names a version that is not installed.
+- A step that reaches the time limit gets SIGTERM. Processes that the Spine launcher starts can stay alive; check the process list after a timeout.
+- The exported project files and atlas pages are derivatives of the input art. They stay in the owner's output directory.
 
 - A whole input file is read into memory (at most 64 MiB for an image).
 - An image at the pixel limit (4096 x 4096) needs about 64 MiB of RGBA memory, and the side-by-side sheet needs four times that.

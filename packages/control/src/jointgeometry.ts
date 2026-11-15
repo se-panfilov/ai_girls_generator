@@ -155,14 +155,14 @@ export const variantSpecs: readonly VariantSpec[] = regionKinds.flatMap((region)
 const visualIds = ['baseline', 'circle_B', 'wide_circle_B', 'tube_B', 'circle_safe_B', 'tube_safe_B'];
 const sensitivityIds = ['circle_B', 'wide_circle_B', 'tube_B', 'circle_safe_B', 'wide_circle_safe_B', 'tube_safe_B'];
 
-type JointRegions = {
+export type JointRegions = {
   readonly kind: Record<RegionKind, UnderlayRegion>;
   readonly safe: Record<RegionKind, UnderlayRegion & { removedPixels: number }>;
   readonly wideRadius: number;
   readonly depth: number;
 };
 
-function regionsOf(context: LimbContext): JointRegions[] {
+export function regionsOf(context: LimbContext): JointRegions[] {
   const { specs, parts, sections, shoulder, elbow, wrist } = context;
   const axes: Vector[] = [unit(sub(elbow, shoulder)), unit(sub(wrist, elbow))];
   return specs.map((spec, index) => {
@@ -181,7 +181,7 @@ function regionsOf(context: LimbContext): JointRegions[] {
   });
 }
 
-type Built = {
+export type Built = {
   readonly parts: Raster[];
   readonly fills: UnderlayFill[];
   readonly newMasks: Uint8Array[];
@@ -190,7 +190,7 @@ type Built = {
   readonly outsideCircle: number[];
 };
 
-function buildVariant(context: LimbContext, regions: readonly JointRegions[], variant: VariantSpec): Built {
+export function buildVariant(context: LimbContext, regions: readonly JointRegions[], variant: VariantSpec): Built {
   const { specs, parts, shoulder, elbow, wrist, width, height } = context;
   const axes: Vector[] = [unit(sub(elbow, shoulder)), unit(sub(wrist, elbow))];
   const fills = specs.map((spec, index) => {
