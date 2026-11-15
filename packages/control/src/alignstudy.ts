@@ -1203,7 +1203,7 @@ export function alignStudyCommand(options: AlignStudyOptions): CommandResult {
 }
 
 /** Slot overlap entries of a contract that `parseContractBytes` already accepted. Entries of another shape are skipped. */
-function overlapsOf(bytes: Buffer): { slot: string; childBone: string; radiusPx: number }[] {
+export function overlapsOf(bytes: Buffer): { slot: string; childBone: string; radiusPx: number }[] {
   const value: unknown = JSON.parse(bytes.toString('utf8'));
   if (!isRecord(value) || !Array.isArray(value.slots)) return [];
   return value.slots.flatMap((slot: unknown) => {

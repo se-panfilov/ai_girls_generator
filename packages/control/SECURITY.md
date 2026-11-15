@@ -65,6 +65,11 @@ The page stores unsaved marks in the browser local storage of the file origin. T
 The command reads the image (layer PNG limits, frame size of the runs) and four JSON files of two `align-study` runs (1 MiB each). It checks the format, the frame, the landmark ids, the points inside the frame, a positive body height, and the pairs at run time. It only reads them.
 It uses deterministic math only: no model, no subprocess, no network. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
 
+## Near arm study (`limb-study`)
+
+The command reads the contract (C0.5 candidate only), the See-through layers and metadata (layer PNG limits, frame size), the input image, the manual landmark file (reference parser, 256 KiB), and the `align-study` `correspondence.json` (4 MiB, run-time checks of the used fields). The study file must record the SHA-256 of the same manual file and image. The command only reads the inputs.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It copies source pixels and does not make new pixels. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
 ## Experiment C runner (`runner.mjs` in the bundle)
 
 The `bundle` command writes a directory that the owner copies to the GPU host. The runner runs there. It is the only part of this package with network access and model downloads.
