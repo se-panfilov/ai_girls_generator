@@ -1,14 +1,14 @@
 import { type Affine, applyAffine } from '@control/align';
 import { completedMask, type Landmark, maxLandmarkBytes, overlapsOf, parseManualLandmarks } from '@control/alignstudy';
 import { type CommandResult, type FileRecord, json, parseContractBytes, record, sheetOf } from '@control/commands';
-import type { Joint } from '@control/contract';
+import type { ControlContract, Joint } from '@control/contract';
 import { drawText } from '@control/glyphs';
 import { checker, composite, drawOrder, layerPngLimits, parseSeeThroughMetadata } from '@control/layersplit';
 import type { PlannedFile } from '@control/output';
 import { decodePng, encodePng, pixelHash, sha256 } from '@control/png';
 import { fail, isRecord, show } from '@control/problems';
 import { type Color, Raster } from '@control/raster';
-import { checkConservation, extractLabel, labelComponents, splitLayer } from '@control/split';
+import { checkConservation, type Conservation, extractLabel, labelComponents, splitLayer } from '@control/split';
 
 // `limb-study` (experiment L0-1e, prototype): cuts the image-left (near) arm of the handwear layer into upper arm, forearm, and hand
 // at the manual shoulder, elbow, and wrist marks, measures the joint overlap, and rotates the parts for diagnostics.
@@ -51,16 +51,16 @@ export type LimbStudyOptions = {
   readonly toolVersion: string;
 };
 
-type Vector = { x: number; y: number };
-const sub = (a: Joint, b: Joint): Vector => ({ x: a.x - b.x, y: a.y - b.y });
-const dot = (a: Vector, b: Vector): number => a.x * b.x + a.y * b.y;
-const unit = (v: Vector): Vector => {
+export type Vector = { x: number; y: number };
+export const sub = (a: Joint, b: Joint): Vector => ({ x: a.x - b.x, y: a.y - b.y });
+export const dot = (a: Vector, b: Vector): number => a.x * b.x + a.y * b.y;
+export const unit = (v: Vector): Vector => {
   const length = Math.hypot(v.x, v.y);
   return length === 0 ? { x: 0, y: 0 } : { x: v.x / length, y: v.y / length };
 };
-const round = (value: number, digits = 1): number => Math.round(value * 10 ** digits) / 10 ** digits;
+export const round = (value: number, digits = 1): number => Math.round(value * 10 ** digits) / 10 ** digits;
 const share = (part: number, whole: number): number => (whole === 0 ? 0 : round(part / whole, 4));
-const center = (p: number, width: number): Joint => {
+export const center = (p: number, width: number): Joint => {
   const x = p % width;
   return { x: x + 0.5, y: (p - x) / width + 0.5 };
 };
@@ -144,12 +144,12 @@ export function transformPart(source: Raster, forward: Affine): Raster {
   return out;
 }
 
-const opaque = (raster: Raster, threshold = 128): Uint8Array => {
+export const opaque = (raster: Raster, threshold = 128): Uint8Array => {
   const mask = new Uint8Array(raster.width * raster.height);
   for (let p = 0; p < mask.length; p += 1) if ((raster.data[p * 4 + 3] ?? 0) >= threshold) mask[p] = 1;
   return mask;
 };
-const count = (mask: Uint8Array): number => mask.reduce((sum, value) => sum + value, 0);
+export const count = (mask: Uint8Array): number => mask.reduce((sum, value) => sum + value, 0);
 
 // Labels of the near arm assignment.
 export const upperLabel = 1;
@@ -240,7 +240,7 @@ export function cutArm(arm: Raster, shoulder: Joint, elbow: Joint, wrist: Joint)
 }
 
 /** The cut line inside the arm: walks from the joint mark along the line in both directions while the pixels are arm pixels. */
-type Section = { from: Joint; to: Joint; widthPx: number; markOffsetPx: number; markInside: boolean; extentNegativePx: number; extentPositivePx: number };
+export type Section = { from: Joint; to: Joint; widthPx: number; markOffsetPx: number; markInside: boolean; extentNegativePx: number; extentPositivePx: number };
 
 function crossSection(mask: Uint8Array, width: number, height: number, cut: Cut): Section {
   const along = { x: -cut.normal.y, y: cut.normal.x };
@@ -280,7 +280,7 @@ function crossSection(mask: Uint8Array, width: number, height: number, cut: Cut)
   };
 }
 
-type JointSpec = { readonly id: 'elbow' | 'wrist'; readonly parent: number; readonly child: number; readonly cut: Cut; readonly radius: number; readonly radiusTemplate: number };
+export type JointSpec = { readonly id: 'elbow' | 'wrist'; readonly parent: number; readonly child: number; readonly cut: Cut; readonly radius: number; readonly radiusTemplate: number };
 
 /** Overlap of the parent part around the child pivot in the source pose (task C). Pixels are counted at alpha >= 128. */
 function overlapAt(spec: JointSpec, assignment: Uint8Array, arm: Raster, completed: Uint8Array): { report: Record<string, unknown>; missing: Uint8Array; disk: Uint8Array } {
@@ -342,7 +342,7 @@ function overlapAt(spec: JointSpec, assignment: Uint8Array, arm: Raster, complet
   };
 }
 
-type Placed = { readonly parts: readonly Raster[]; readonly transforms: readonly Affine[] };
+export type Placed = { readonly parts: readonly Raster[]; readonly transforms: readonly Affine[] };
 
 function placeParts(parts: readonly Raster[], elbow: Joint, wrist: Joint, test: RotationTest): Placed {
   const identity: Affine = { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 };
@@ -361,7 +361,7 @@ function over(target: Raster, layer: Raster): void {
   }
 }
 
-type GapResult = { gap: Uint8Array; gapPixels: number; protrusion: Uint8Array; protrusionPixels: number };
+export type GapResult = { gap: Uint8Array; gapPixels: number; protrusion: Uint8Array; protrusionPixels: number };
 
 /**
  * Opened gap and protrusion at one joint. The wedge is the set of points on the child side of the moved parent cut line and on the parent
@@ -413,7 +413,7 @@ function jointGap(
   return { gap, gapPixels, protrusion, protrusionPixels };
 }
 
-type SeamResult = { edgePixels: number; exposedEdgePixels: number; visibleSeamPixels: number; meanDifference: number; seam: Uint8Array };
+export type SeamResult = { edgePixels: number; exposedEdgePixels: number; visibleSeamPixels: number; meanDifference: number; seam: Uint8Array };
 
 /**
  * Seam test at a cut: for each child pixel next to its cut line (0 <= d < boundaryBand), the moved pixel is compared with the final image
@@ -470,9 +470,9 @@ const missingColor: Color = [230, 0, 0, 255];
 const white: Color = [255, 255, 255, 255];
 const black: Color = [0, 0, 0, 255];
 
-type Box = { left: number; top: number; right: number; bottom: number };
+export type Box = { left: number; top: number; right: number; bottom: number };
 
-function crop(source: Raster, box: Box): Raster {
+export function crop(source: Raster, box: Box): Raster {
   const out = new Raster(box.right - box.left, box.bottom - box.top);
   for (let y = box.top; y < box.bottom; y += 1) {
     const from = (y * source.width + box.left) * 4;
@@ -481,7 +481,7 @@ function crop(source: Raster, box: Box): Raster {
   return out;
 }
 
-function scaled(source: Raster, factor: number): Raster {
+export function scaled(source: Raster, factor: number): Raster {
   const out = new Raster(source.width * factor, source.height * factor);
   for (let y = 0; y < out.height; y += 1) {
     for (let x = 0; x < out.width; x += 1) {
@@ -492,13 +492,13 @@ function scaled(source: Raster, factor: number): Raster {
   return out;
 }
 
-function onWhite(source: Raster, opacity = 1): Raster {
+export function onWhite(source: Raster, opacity = 1): Raster {
   const out = new Raster(source.width, source.height, white);
   out.draw(source, 0, 0, opacity);
   return out;
 }
 
-function ring(target: Raster, at: Joint, radius: number, color: Color, lineWidth = 1.5): void {
+export function ring(target: Raster, at: Joint, radius: number, color: Color, lineWidth = 1.5): void {
   for (let y = Math.max(0, Math.floor(at.y - radius - 2)); y <= Math.min(target.height - 1, Math.ceil(at.y + radius + 2)); y += 1) {
     for (let x = Math.max(0, Math.floor(at.x - radius - 2)); x <= Math.min(target.width - 1, Math.ceil(at.x + radius + 2)); x += 1) {
       if (Math.abs(Math.hypot(x + 0.5 - at.x, y + 0.5 - at.y) - radius) <= lineWidth / 2) target.blend(x, y, color);
@@ -506,12 +506,12 @@ function ring(target: Raster, at: Joint, radius: number, color: Color, lineWidth
   }
 }
 
-function cross(target: Raster, at: Joint, color: Color, size = 6): void {
+export function cross(target: Raster, at: Joint, color: Color, size = 6): void {
   target.line({ x: at.x - size, y: at.y }, { x: at.x + size, y: at.y }, 2, color);
   target.line({ x: at.x, y: at.y - size }, { x: at.x, y: at.y + size }, 2, color);
 }
 
-function titled(content: Raster, title: string, lines: readonly string[] = []): Raster {
+export function titled(content: Raster, title: string, lines: readonly string[] = []): Raster {
   const out = new Raster(content.width, content.height + 22 + lines.length * 12, white);
   out.draw(content, 0, 22 + lines.length * 12);
   drawText(out, title, 4, 4, 2, black);
@@ -522,7 +522,7 @@ function titled(content: Raster, title: string, lines: readonly string[] = []): 
 }
 
 /** Moves a box in the frame and keeps it inside. */
-function boxAround(points: readonly Joint[], pad: number, width: number, height: number): Box {
+export function boxAround(points: readonly Joint[], pad: number, width: number, height: number): Box {
   const left = Math.max(0, Math.floor(Math.min(...points.map((p) => p.x)) - pad));
   const top = Math.max(0, Math.floor(Math.min(...points.map((p) => p.y)) - pad));
   const right = Math.min(width, Math.ceil(Math.max(...points.map((p) => p.x)) + pad));
@@ -530,7 +530,7 @@ function boxAround(points: readonly Joint[], pad: number, width: number, height:
   return { left, top, right, bottom };
 }
 
-function maskPoints(mask: Uint8Array, width: number): Joint[] {
+export function maskPoints(mask: Uint8Array, width: number): Joint[] {
   let left = Infinity;
   let top = Infinity;
   let right = -Infinity;
@@ -577,8 +577,103 @@ function studyScale(bytes: Buffer, landmarkSha: string, imageSha: string): numbe
   return fit.scale.s1;
 }
 
-/** `limb-study`: tasks A to F of experiment L0-1e for the image-left (near) arm. */
-export function limbStudyCommand(options: LimbStudyOptions): CommandResult {
+export type PartReport = { part: string | undefined; pixels: number; opaquePixels: number; boundaryPixels: number; seeThroughCompletedPixels: number; pixelSha256: string };
+export type OverlapResult = { report: Record<string, unknown>; missing: Uint8Array; disk: Uint8Array };
+
+export type LimbContext = {
+  readonly contract: ControlContract;
+  readonly scale: number;
+  readonly landmarkSha: string;
+  readonly imageSha: string;
+  readonly marks: readonly (Landmark & { point: Joint })[];
+  readonly shoulder: Joint;
+  readonly elbow: Joint;
+  readonly wrist: Joint;
+  readonly order: readonly string[];
+  readonly layers: ReadonlyMap<string, Raster>;
+  readonly inputs: readonly Record<string, unknown>[];
+  readonly handwear: Raster;
+  readonly width: number;
+  readonly height: number;
+  readonly image: Raster;
+  readonly arm: Raster;
+  readonly otherHandwear: Raster;
+  readonly armMask: Uint8Array;
+  readonly completed: Uint8Array;
+  readonly cut: ArmCut;
+  readonly parts: readonly Raster[];
+  readonly residual: Raster;
+  readonly armConservation: Conservation;
+  readonly layerConservation: Conservation;
+  readonly silhouette: Uint8Array;
+  readonly partReports: readonly PartReport[];
+  readonly sections: readonly Section[];
+  readonly specs: readonly JointSpec[];
+  readonly overlap: readonly OverlapResult[];
+  readonly elbowRadiusTemplate: number;
+  readonly below: Raster;
+  readonly above: Raster;
+  readonly reference: Raster;
+};
+
+export type JointResult = {
+  spec: JointSpec;
+  pivot: Joint;
+  gap: GapResult;
+  expectedOverlap: number;
+  unwantedOverlap: number;
+  overlapMask: Uint8Array;
+  seam: SeamResult;
+};
+export type RenderedTest = { test: RotationTest; frame: Raster; cover: Uint8Array; joints: JointResult[]; revealed: number; revealedEmpty: number; placed: Placed };
+export type JointMetrics = {
+  joint: string;
+  pivot: Joint;
+  gapPixels: number;
+  protrusionPixels: number;
+  expectedOverlapPixels: number;
+  unwantedOverlapPixels: number;
+  cutEdgePixels: number;
+  exposedCutEdgePixels: number;
+  visibleSeamPixels: number;
+  meanDifferenceAcrossCut: number;
+};
+export type TestMetrics = {
+  id: string;
+  elbowDegrees: number;
+  wristDegrees: number;
+  joints: JointMetrics[];
+  revealedArmPixels: number;
+  revealedTransparentPixels: number;
+  problemPixels: number;
+};
+export type JointSummary = {
+  joint: string;
+  sourcePoseGapPixels: number;
+  sourcePoseVisibleSeamPixels: number;
+  sourcePoseMeanDifferenceAcrossCut: number;
+  worstGapPixels: number;
+  worstProtrusionPixels: number;
+  worstUnwantedOverlapPixels: number;
+  worstVisibleSeamPixels: number;
+  gapUnionPixels: number;
+  missingParentPixelsInsideArm: number;
+};
+export type Evaluation = {
+  rendered: RenderedTest[];
+  tests: TestMetrics[];
+  jointSummary: JointSummary[];
+  gapUnion: Uint8Array[];
+  heatGap: Uint16Array;
+  heatOverlap: Uint16Array;
+  coverUnion: Uint8Array;
+  sourceFrame: Raster;
+  recomposedDifferent: number;
+  maxToFullComposite: number;
+};
+
+/** Tasks A to C of `limb-study`: inputs, the three-part cut, and the overlap of the source parts. Shared with `underlay-study`. */
+export function prepareLimb(options: LimbStudyOptions): LimbContext {
   // A. Inputs and provenance.
   const contract = parseContractBytes(options.contractBytes);
   if (!contract.rigId.endsWith('_c05_candidate') || contract.view !== 'three_quarter_right' || contract.sideNaming !== 'near_far')
@@ -685,6 +780,49 @@ export function limbStudyCommand(options: LimbStudyOptions): CommandResult {
   reference.data.set(below.data);
   over(reference, handwear);
   over(reference, above);
+  return {
+    contract,
+    scale,
+    landmarkSha,
+    imageSha,
+    marks,
+    shoulder,
+    elbow,
+    wrist,
+    order,
+    layers,
+    inputs,
+    handwear,
+    width,
+    height,
+    image,
+    arm,
+    otherHandwear,
+    armMask,
+    completed,
+    cut,
+    parts,
+    residual,
+    armConservation,
+    layerConservation,
+    silhouette,
+    partReports,
+    sections,
+    specs,
+    overlap,
+    elbowRadiusTemplate,
+    below,
+    above,
+    reference
+  };
+}
+
+/**
+ * Task D and E of `limb-study`: the rotation tests and their metrics for a set of parts (upper arm, forearm, hand).
+ * `underlay-study` calls it with parts that have new underlay pixels. The renderer and the metrics are the same.
+ */
+export function evaluateRotations(context: LimbContext, parts: readonly Raster[]): Evaluation {
+  const { width, height, elbow, wrist, below, above, otherHandwear, residual, specs, sections, silhouette, reference, layers, order, overlap } = context;
   const gapUnion = specs.map(() => new Uint8Array(width * height));
   const heatGap = new Uint16Array(width * height);
   const heatOverlap = new Uint16Array(width * height);
@@ -811,6 +949,42 @@ export function limbStudyCommand(options: LimbStudyOptions): CommandResult {
     };
   });
 
+  return { rendered, tests, jointSummary, gapUnion, heatGap, heatOverlap, coverUnion, sourceFrame, recomposedDifferent, maxToFullComposite };
+}
+
+/** `limb-study`: tasks A to F of experiment L0-1e for the image-left (near) arm. */
+export function limbStudyCommand(options: LimbStudyOptions): CommandResult {
+  const context = prepareLimb(options);
+  const {
+    contract,
+    scale,
+    landmarkSha,
+    imageSha,
+    marks,
+    shoulder,
+    elbow,
+    wrist,
+    inputs,
+    width,
+    height,
+    image,
+    arm,
+    armMask,
+    completed,
+    cut,
+    parts,
+    residual,
+    armConservation,
+    layerConservation,
+    silhouette,
+    partReports,
+    sections,
+    specs,
+    overlap,
+    elbowRadiusTemplate,
+    reference
+  } = context;
+  const { rendered, tests, jointSummary, gapUnion, heatGap, heatOverlap, coverUnion, sourceFrame, recomposedDifferent, maxToFullComposite } = evaluateRotations(context, parts);
   // F. Images. One crop for all images: the arm in all tests, with a margin.
   const bounds = boxAround([...maskPoints(coverUnion, width), ...maskPoints(silhouette, width)], 24, width, height);
   const files: PlannedFile[] = [];

@@ -1,80 +1,14 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-import { landmarkFormat } from '@control/alignstudy';
-import { composite } from '@control/layersplit';
 import { compose, cutArm, foreLabel, handLabel, limbStudyCommand, residualLabel, rotationAbout, rotationTests, transformPart, upperLabel } from '@control/limbstudy';
-import { encodePng, sha256 } from '@control/png';
+import { sha256 } from '@control/png';
 import { ControlError } from '@control/problems';
-import { type Color, Raster } from '@control/raster';
+import { Raster } from '@control/raster';
 import { describe, expect, it } from 'vitest';
+
+import { syntheticArm } from './helpers';
 
 // L0-1e limb-study tests with a synthetic See-through run: a straight arm of simple shapes on a 240 x 360 frame. No character image is used.
 
-const contractBytes = readFileSync(fileURLToPath(new URL('fixtures/c05-candidate/rig.contract.json', import.meta.url)));
-const width = 240;
-const height = 360;
-const skin: Color = [230, 190, 160, 255];
-const glove: Color = [40, 60, 150, 255];
-const cloth: Color = [60, 60, 70, 255];
-
-const shoulder = { x: 70, y: 60 };
-const elbow = { x: 70, y: 140 };
-const wrist = { x: 70, y: 220 };
-
-function layersOf(): Map<string, Raster> {
-  const handwear = new Raster(width, height);
-  handwear.line(shoulder, elbow, 30, skin);
-  handwear.line(elbow, wrist, 26, skin);
-  handwear.line(wrist, { x: 70, y: 260 }, 24, glove);
-  handwear.line({ x: 170, y: 60 }, { x: 170, y: 250 }, 24, skin);
-  const topwear = new Raster(width, height);
-  topwear.fillPolygon(
-    [
-      { x: 90, y: 50 },
-      { x: 150, y: 50 },
-      { x: 150, y: 200 },
-      { x: 90, y: 200 }
-    ],
-    cloth
-  );
-  return new Map([
-    ['topwear', topwear],
-    ['handwear', handwear]
-  ]);
-}
-
-const layers = layersOf();
-const image = composite(width, height, [...layers.values()]);
-const imageBytes = encodePng(image);
-const metadataBytes = Buffer.from(
-  JSON.stringify({
-    parts: Object.fromEntries([...layers.keys()].map((tag, index) => [tag, { xyxy: [0, 0, width, height], tag, part_id: index, depth_median: 0.9 - index * 0.1 }])),
-    frame_size: [width, height]
-  })
-);
-const layerFiles = new Map([...layers].map(([tag, raster]) => [tag, { name: `${tag}.png`, bytes: encodePng(raster) }]));
-
-function manual(points: Record<string, { x: number; y: number }>): Buffer {
-  return Buffer.from(
-    JSON.stringify({
-      format: landmarkFormat,
-      markedBy: 'synthetic test',
-      landmarks: Object.entries(points).map(([id, point]) => ({ id, visibility: 'visible', confidence: 'high', x: point.x, y: point.y, method: 'synthetic mark', note: 'synthetic' }))
-    })
-  );
-}
-
-const landmarkBytes = manual({ shoulder_image_left: shoulder, elbow_image_left: elbow, wrist_image_left: wrist });
-
-function study(landmarks: Buffer, scale = 1.2, imageSha = sha256(imageBytes)): Buffer {
-  return Buffer.from(
-    JSON.stringify({
-      inputs: { image: { sha256: imageSha }, manualLandmarks: sha256(landmarks) },
-      alignment: [{ hypothesis: 'near_is_image_left', fits: [{ name: 'similarity', landmarkSet: 'confidence >= medium', scale: { s1: scale } }] }]
-    })
-  );
-}
+const { contractBytes, metadataBytes, layerFiles, imageBytes, landmarkBytes, manual, study, width, height, skin, glove, shoulder, elbow } = syntheticArm;
 
 const run = (overrides: Partial<Parameters<typeof limbStudyCommand>[0]> = {}): ReturnType<typeof limbStudyCommand> =>
   limbStudyCommand({ contractBytes, metadataBytes, metadataName: 'synthetic.psd.json', layerFiles, imageBytes, landmarkBytes, studyBytes: study(landmarkBytes), toolVersion: '0', ...overrides });
