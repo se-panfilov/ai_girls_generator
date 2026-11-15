@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { alignStudyCommand, maxLandmarkBytes } from '@control/alignstudy';
+import { annotatePageCommand } from '@control/annotatepage';
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
+import { compareLandmarksCommand } from '@control/landmarkcompare';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
@@ -63,6 +65,16 @@ Commands:
       a-anatomy-overlay.png, b-skeleton-comparison.png, c-alignment-diagnostics.png, d-segmentation-map.png,
       e-uncertainty-map.png, and contact-sheet.png. The inputs are not changed. The art is not warped.
 
+  annotate-page --image <src.png> --landmarks <align-study landmarks.json> --out <dir> [--manual <manual landmarks.json>]
+      Experiment L0-1d (prototype): write annotate.html, one self-contained page for manual landmark marks. Open it in a
+      browser from the disk. It needs no server and no network. It shows the image, the automatic landmarks and their ranges,
+      and exports landmarks-manual.json in the format that align-study --landmarks reads. --manual loads earlier marks.
+
+  compare-landmarks --image <src.png> --before-landmarks <a/landmarks.json> --before-study <a/correspondence.json>
+                    --after-landmarks <b/landmarks.json> --after-study <b/correspondence.json> --out <dir>
+      Experiment L0-1d (prototype): compare two align-study runs (for example automatic and manual landmarks). Writes
+      comparison.json, before-after-landmarks.png, alignment-before-after.png, error-vectors.png, and contact-sheet.png.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -94,6 +106,11 @@ const options = {
   layers: { type: 'string' },
   metadata: { type: 'string' },
   landmarks: { type: 'string' },
+  manual: { type: 'string' },
+  'before-landmarks': { type: 'string' },
+  'before-study': { type: 'string' },
+  'after-landmarks': { type: 'string' },
+  'after-study': { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -109,7 +126,9 @@ const allowed: Record<string, readonly string[]> = {
   bundle: ['contract', 'out', 'experiment'],
   template: ['contract', 'out', 'size'],
   'split-layers': ['layers', 'metadata', 'out'],
-  'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out']
+  'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
+  'annotate-page': ['image', 'landmarks', 'manual', 'out'],
+  'compare-landmarks': ['image', 'before-landmarks', 'before-study', 'after-landmarks', 'after-study', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -198,6 +217,34 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   if (command === 'template') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     return { result: templateCommand({ contractBytes, toolVersion: packageVersion(), ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+  }
+  if (command === 'compare-landmarks') {
+    const read = (name: 'before-landmarks' | 'before-study' | 'after-landmarks' | 'after-study'): Buffer => readInput(required(values[name], name), 1024 * 1024, `The --${name} file`);
+    const imageBytes = readInput(required(values.image, 'image'), layerPngLimits.maxBytes, 'The image');
+    return {
+      result: compareLandmarksCommand({
+        imageBytes,
+        before: { landmarks: read('before-landmarks'), correspondence: read('before-study') },
+        after: { landmarks: read('after-landmarks'), correspondence: read('after-study') },
+        toolVersion: packageVersion()
+      }),
+      dryRun,
+      out,
+      force
+    };
+  }
+  if (command === 'annotate-page') {
+    const imagePath = required(values.image, 'image');
+    const imageBytes = readInput(imagePath, layerPngLimits.maxBytes, 'The image');
+    const landmarkBytes = readInput(required(values.landmarks, 'landmarks'), maxLandmarkBytes, 'The automatic landmark file');
+    const manualBytes = values.manual === undefined ? undefined : readInput(values.manual, maxLandmarkBytes, 'The manual landmark file');
+    const pageCode = readInput(join(dirname(fileURLToPath(import.meta.url)), 'annotator.js'), 1024 * 1024, 'The compiled page code');
+    return {
+      result: annotatePageCommand({ imageBytes, imageName: basename(imagePath), landmarkBytes, pageCode, toolVersion: packageVersion(), ...(manualBytes ? { manualBytes } : {}) }),
+      dryRun,
+      out,
+      force
+    };
   }
   if (command === 'split-layers' || command === 'align-study') {
     const metadataPath = required(values.metadata, 'metadata');

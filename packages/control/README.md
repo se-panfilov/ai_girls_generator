@@ -9,18 +9,20 @@ It does not run a model, does not contact a server, and does not detect keypoint
 
 Build first: `npm run build --workspace @aigg/control`. Then run `node packages/control/dist/src/cli.js <command>` from the root.
 
-| Command        | Input                                         | Output                                                                                                                                 |
-| -------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pose`         | `rig.contract.json`, optional `--size WxH`    | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                 |
-| `workflow`     | An OpenPose image, model file names, seeds    | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                         |
-| `overlay`      | `rig.contract.json`, a PNG, optional marks    | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`       |
-| `candidate`    | A base `rig.contract.json`, optional `--yaw`  | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
-| `calibrate`    | Two contracts, optional Spine `skeleton.json` | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
-| `depth`        | The C0.5 candidate `rig.contract.json`        | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
-| `bundle`       | The C0.5 candidate `rig.contract.json`        | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
-| `split-layers` | See-through layer PNGs and `<stem>.psd.json`  | L0-1b prototype: `parts/`, `residual/`, `analysis/`, `compose/`, `motion/`, `contact-sheet.png`, `l0-1b.json` (see below)              |
-| `align-study`  | C0.5 contract, See-through layers, the input  | L0-1c prototype: `landmarks.json`, `correspondence.json`, a manual landmark template, five diagnostic images (see below)               |
-| `template`     | The C0.5 candidate `rig.contract.json`        | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`   |
+| Command             | Input                                                                             | Output                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `pose`              | `rig.contract.json`, optional `--size WxH`                                        | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                 |
+| `workflow`          | An OpenPose image, model file names, seeds                                        | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                         |
+| `overlay`           | `rig.contract.json`, a PNG, optional marks                                        | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`       |
+| `candidate`         | A base `rig.contract.json`, optional `--yaw`                                      | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
+| `calibrate`         | Two contracts, optional Spine `skeleton.json`                                     | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
+| `depth`             | The C0.5 candidate `rig.contract.json`                                            | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
+| `bundle`            | The C0.5 candidate `rig.contract.json`                                            | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
+| `split-layers`      | See-through layer PNGs and `<stem>.psd.json`                                      | L0-1b prototype: `parts/`, `residual/`, `analysis/`, `compose/`, `motion/`, `contact-sheet.png`, `l0-1b.json` (see below)              |
+| `align-study`       | C0.5 contract, See-through layers, the input                                      | L0-1c prototype: `landmarks.json`, `correspondence.json`, a manual landmark template, five diagnostic images (see below)               |
+| `annotate-page`     | The input image, `align-study` `landmarks.json`                                   | L0-1d prototype: `annotate.html`, one self-contained page for manual landmark marks (see below)                                        |
+| `compare-landmarks` | The input image, two `align-study` runs (`landmarks.json`, `correspondence.json`) | L0-1d prototype: before and after images and `comparison.json` (see below)                                                             |
+| `template`          | The C0.5 candidate `rig.contract.json`                                            | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`   |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -138,6 +140,35 @@ node packages/control/dist/src/cli.js align-study --contract packages/control/te
 - Fits: uniform scale, similarity, and affine, with residuals in percent of the template body height, for two hypotheses (`near_is_image_left`, `near_is_image_right`) and two landmark sets (confidence medium or more, low or more). Also per segment length ratios and angle differences, triangle maps (anisotropy, reflection), near and far cues, and cut-line candidates.
 - Manual landmarks: `landmarks-manual.template.json` (format `aigg.l0-1c.landmarks/0.1`) lists all ids as unknown. A person adds `x` and `y` only for points that they can see or derive from visible geometry. A manual entry replaces the automatic entry with the same id.
 - Images: `a-anatomy-overlay.png`, `b-skeleton-comparison.png`, `c-alignment-diagnostics.png`, `d-segmentation-map.png`, `e-uncertainty-map.png`, and `contact-sheet.png`. They are derivatives of the input art. Do not commit them.
+
+## Manual landmark page (L0-1d)
+
+**Prototype.** `annotate-page` writes `annotate.html`: one HTML file with the image, the automatic L0-1c landmarks, and the page code. Open it from the disk in a browser. It needs no server, no network, and no account. See [the L0-1d report](../../docs/proposals/L0_1D_LANDMARK_CALIBRATION.md).
+
+```sh
+node packages/control/dist/src/cli.js annotate-page --image <run>/output/concept-mirrored/src_img.png \
+  --landmarks <align-study output>/landmarks.json --out ./l0-1d-page [--manual landmarks-manual.json]
+```
+
+- Select a landmark, click the image to put a point, drag to correct it, or draw a range and set it to unknown. Wheel zoom, drag pan, undo. Coordinates stay in the image frame at all zoom levels.
+- A new point starts as `inferred` with `low` confidence. The person must raise it on purpose.
+- "Export JSON" downloads `landmarks-manual.json` in the L0-1c manual format (`aigg.l0-1c.landmarks/0.1`). The page refuses export while an entry breaks a parser rule. Only reviewed landmarks are written; the others keep the automatic value. An unknown entry has no `x` and `y`.
+- The file also has `session`: active seconds (gaps between actions, each at most 60 s) and counters (placements, re-placements, moves, ranges, unknowns, undos). `parseManualLandmarks` ignores these fields.
+- Use the file with `align-study --landmarks`. `--manual` loads it into a new page to continue.
+- The browser keeps unsaved work in local storage for the same image. The page is a derivative of the input art. Do not commit it.
+
+### Before and after comparison
+
+**Prototype.** `compare-landmarks` compares two `align-study` runs, for example the automatic landmarks (before) and a run with `--landmarks landmarks-manual.json` (after). It does not run a new alignment. The similarity fit uses the pairs of each run with the `align-study` rule (medium or more, near = image-left).
+
+```sh
+node packages/control/dist/src/cli.js compare-landmarks --image <run>/output/concept-mirrored/src_img.png \
+  --before-landmarks <before>/landmarks.json --before-study <before>/correspondence.json \
+  --after-landmarks <after>/landmarks.json --after-study <after>/correspondence.json --out ./l0-1d-compare
+```
+
+- `comparison.json` (format `aigg.l0-1d.compare-landmarks/0.1`): the shift of each landmark, the fits before, after, and after on the landmark set of the first run, residuals per landmark, and counts.
+- Images: `before-after-landmarks.png`, `alignment-before-after.png`, `error-vectors.png` (vectors times 3), and `contact-sheet.png`. They are derivatives of the input art. Do not commit them.
 
 ## Measurement
 

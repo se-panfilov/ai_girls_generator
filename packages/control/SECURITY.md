@@ -54,6 +54,17 @@ It uses deterministic math only: no model, no random values, no subprocess, no n
 The command refuses a contract that is not the C0.5 candidate (`three_quarter_right`, `near_far`). It does not change the contract.
 The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
 
+## Manual landmark page (`annotate-page`)
+
+The command reads the image (layer PNG limits), the `landmarks.json` of `align-study` (256 KiB, format, ids, points and ranges inside the frame are checked), an optional manual file (reference parser), and the compiled page code from the package `dist/` (it must have no import and no closing script tag).
+The page is one file. Its Content Security Policy allows only inline code, inline styles, and `data:` or `blob:` images, with `connect-src 'none'`, so the page cannot send data. Embedded JSON escapes `<`, `>`, `&`, and line separators. The page shows untrusted text only through `textContent`.
+The page stores unsaved marks in the browser local storage of the file origin. The export is a download that the person starts. The image in the page is a derivative of the input art and the same storage rule as for `split-layers` applies.
+
+## Landmark comparison (`compare-landmarks`)
+
+The command reads the image (layer PNG limits, frame size of the runs) and four JSON files of two `align-study` runs (1 MiB each). It checks the format, the frame, the landmark ids, the points inside the frame, a positive body height, and the pairs at run time. It only reads them.
+It uses deterministic math only: no model, no subprocess, no network. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
 ## Experiment C runner (`runner.mjs` in the bundle)
 
 The `bundle` command writes a directory that the owner copies to the GPU host. The runner runs there. It is the only part of this package with network access and model downloads.
