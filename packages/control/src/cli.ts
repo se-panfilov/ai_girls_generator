@@ -10,6 +10,7 @@ import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
 import { compareLandmarksCommand } from '@control/landmarkcompare';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
+import { limbStudyCommand, maxStudyBytes } from '@control/limbstudy';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
@@ -75,6 +76,12 @@ Commands:
       Experiment L0-1d (prototype): compare two align-study runs (for example automatic and manual landmarks). Writes
       comparison.json, before-after-landmarks.png, alignment-before-after.png, error-vectors.png, and contact-sheet.png.
 
+  limb-study --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+             --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      Experiment L0-1e (prototype): cut the image-left (near) arm into upper arm, forearm, and hand at the manual joint
+      marks, measure the C0.5 joint overlap, and rotate the parts for diagnostics. Copies source pixels only; paints nothing.
+      Writes metrics.json, the parts, rotation results, gap and overlap maps, and review images.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -111,6 +118,7 @@ const options = {
   'before-study': { type: 'string' },
   'after-landmarks': { type: 'string' },
   'after-study': { type: 'string' },
+  study: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -128,7 +136,8 @@ const allowed: Record<string, readonly string[]> = {
   'split-layers': ['layers', 'metadata', 'out'],
   'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
   'annotate-page': ['image', 'landmarks', 'manual', 'out'],
-  'compare-landmarks': ['image', 'before-landmarks', 'before-study', 'after-landmarks', 'after-study', 'out']
+  'compare-landmarks': ['image', 'before-landmarks', 'before-study', 'after-landmarks', 'after-study', 'out'],
+  'limb-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -246,7 +255,7 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       force
     };
   }
-  if (command === 'split-layers' || command === 'align-study') {
+  if (command === 'split-layers' || command === 'align-study' || command === 'limb-study') {
     const metadataPath = required(values.metadata, 'metadata');
     const metadataBytes = readInput(metadataPath, maxMetadataBytes, 'The See-through metadata');
     const directory = required(values.layers, 'layers');
@@ -256,6 +265,24 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       const path = join(directory, name);
       if (!existsSync(path)) continue;
       layerFiles.set(layer.tag, { name, bytes: readInput(path, layerPngLimits.maxBytes, `The layer file ${name}`) });
+    }
+    if (command === 'limb-study') {
+      const imagePath = required(values.image, 'image');
+      return {
+        result: limbStudyCommand({
+          contractBytes: readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file'),
+          metadataBytes,
+          metadataName: basename(metadataPath),
+          layerFiles,
+          imageBytes: readInput(imagePath, layerPngLimits.maxBytes, 'The image'),
+          landmarkBytes: readInput(required(values.landmarks, 'landmarks'), maxLandmarkBytes, 'The manual landmark file'),
+          studyBytes: readInput(required(values.study, 'study'), maxStudyBytes, 'The study file'),
+          toolVersion: packageVersion()
+        }),
+        dryRun,
+        out,
+        force
+      };
     }
     if (command === 'split-layers') return { result: splitLayersCommand({ metadataBytes, metadataName: basename(metadataPath), layerFiles, toolVersion: packageVersion() }), dryRun, out, force };
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
