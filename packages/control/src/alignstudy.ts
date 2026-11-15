@@ -1191,7 +1191,7 @@ export function alignStudyCommand(options: AlignStudyOptions): CommandResult {
   files.push({ name: 'landmarks-manual.template.json', bytes: json(manualTemplate()) });
   const summary = {
     format: alignFormat,
-    status: 'PASS',
+    status: 'PASS' as const,
     landmarks: Object.fromEntries((['visible', 'occluded', 'inferred', 'unknown'] as const).map((v) => [v, landmarks.filter((item) => item.visibility === v).length])),
     fits: alignment.map((item) => ({
       hypothesis: item.hypothesis,

@@ -1,4 +1,4 @@
-import { type CommandResult, type FileRecord, json, record, sheetOf, toolName } from '@control/commands';
+import { type CommandResult, type CommandStatus, type FileRecord, json, record, sheetOf, toolName } from '@control/commands';
 import { drawText } from '@control/glyphs';
 import type { PlannedFile } from '@control/output';
 import { decodePng, encodePng, pixelHash, type PngLimits, sha256 } from '@control/png';
@@ -606,7 +606,7 @@ export function splitLayersCommand(options: SplitLayersOptions): CommandResult {
     { id: 'S2', name: 'reference pose from parts equals the reference pose from the source layers (pixel hash)', pass: recomposeEqual },
     { id: 'S3', name: 'each analyzed layer has a PNG file and a metadata entry', pass: true }
   ];
-  const status = checks.every((check) => check.pass) ? 'PASS' : 'FAIL';
+  const status: CommandStatus = checks.every((check) => check.pass) ? 'PASS' : 'FAIL';
   const report = {
     format: splitFormat,
     tool: { name: toolName, version: options.toolVersion, command: 'split-layers' },

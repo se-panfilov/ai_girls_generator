@@ -242,13 +242,13 @@ const unresolvedColor: Color = [230, 0, 0, 255];
 const outsideColor: Color = [160, 160, 160, 255];
 const gapColor: Color = [230, 0, 0, 255];
 
-function onColor(source: Raster, color: Color): Raster {
+export function onColor(source: Raster, color: Color): Raster {
   const out = new Raster(source.width, source.height, color);
   out.draw(source, 0, 0);
   return out;
 }
 
-function armOnly(placed: readonly Raster[], residual: Raster): Raster {
+export function armOnly(placed: readonly Raster[], residual: Raster): Raster {
   const out = new Raster(residual.width, residual.height);
   out.draw(residual, 0, 0);
   for (const part of placed) out.draw(part, 0, 0);
@@ -258,7 +258,7 @@ function armOnly(placed: readonly Raster[], residual: Raster): Raster {
 type Variant = { readonly id: 'baseline' | UnderlayMethod; readonly parts: readonly Raster[]; readonly evaluation: Evaluation; readonly newMasks: readonly Uint8Array[] };
 
 /** Pixels of the final frame that the new pixels change, and the changed pixels outside the moved new-pixel masks (must be 0). */
-function frameChange(baseline: Raster, frame: Raster, movedNew: Uint8Array): { changed: number; outside: number } {
+export function frameChange(baseline: Raster, frame: Raster, movedNew: Uint8Array): { changed: number; outside: number } {
   let changed = 0;
   let outside = 0;
   for (let p = 0; p < movedNew.length; p += 1) {
@@ -270,7 +270,7 @@ function frameChange(baseline: Raster, frame: Raster, movedNew: Uint8Array): { c
   return { changed, outside };
 }
 
-function maskRaster(mask: Uint8Array, width: number, height: number): Raster {
+export function maskRaster(mask: Uint8Array, width: number, height: number): Raster {
   const out = new Raster(width, height);
   for (let p = 0; p < mask.length; p += 1) if (mask[p] === 1) out.data.set(white, p * 4);
   return out;
