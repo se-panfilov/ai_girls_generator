@@ -9,21 +9,22 @@ It does not run a model, does not contact a server, and does not detect keypoint
 
 Build first: `npm run build --workspace @aigg/control`. Then run `node packages/control/dist/src/cli.js <command>` from the root.
 
-| Command             | Input                                                                                                                     | Output                                                                                                                                 |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `pose`              | `rig.contract.json`, optional `--size WxH`                                                                                | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                 |
-| `workflow`          | An OpenPose image, model file names, seeds                                                                                | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                         |
-| `overlay`           | `rig.contract.json`, a PNG, optional marks                                                                                | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`       |
-| `candidate`         | A base `rig.contract.json`, optional `--yaw`                                                                              | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                             |
-| `calibrate`         | Two contracts, optional Spine `skeleton.json`                                                                             | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json` |
-| `depth`             | The C0.5 candidate `rig.contract.json`                                                                                    | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)  |
-| `bundle`            | The C0.5 candidate `rig.contract.json`                                                                                    | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                     |
-| `split-layers`      | See-through layer PNGs and `<stem>.psd.json`                                                                              | L0-1b prototype: `parts/`, `residual/`, `analysis/`, `compose/`, `motion/`, `contact-sheet.png`, `l0-1b.json` (see below)              |
-| `align-study`       | C0.5 contract, See-through layers, the input                                                                              | L0-1c prototype: `landmarks.json`, `correspondence.json`, a manual landmark template, five diagnostic images (see below)               |
-| `annotate-page`     | The input image, `align-study` `landmarks.json`                                                                           | L0-1d prototype: `annotate.html`, one self-contained page for manual landmark marks (see below)                                        |
-| `compare-landmarks` | The input image, two `align-study` runs (`landmarks.json`, `correspondence.json`)                                         | L0-1d prototype: before and after images and `comparison.json` (see below)                                                             |
-| `limb-study`        | The C0.5 contract, the See-through layers, the input image, the manual landmarks, the `align-study` `correspondence.json` | L0-1e prototype: the near arm cut into three parts, overlap and rotation measurements, and review images (see below)                   |
-| `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`   |
+| Command             | Input                                                                                                                     | Output                                                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pose`              | `rig.contract.json`, optional `--size WxH`                                                                                | `openpose-<mapping>.png` and `.json`, `reference.png`, `reference.svg`, `control.json`                                                                    |
+| `workflow`          | An OpenPose image, model file names, seeds                                                                                | `c0-baseline-<seed>.api.json`, `c0-pose-<seed>.api.json` (ComfyUI API format), `run-plan.json`                                                            |
+| `overlay`           | `rig.contract.json`, a PNG, optional marks                                                                                | `overlay.png`, `side-by-side.png` (control, image, overlay, reference), `overlay.json`, with marks also `aligned-diagnostic.png`                          |
+| `candidate`         | A base `rig.contract.json`, optional `--yaw`                                                                              | `rig.contract.json`: the C0.5 candidate geometry (experimental, see below)                                                                                |
+| `calibrate`         | Two contracts, optional Spine `skeleton.json`                                                                             | Before and after mannequins, joint and slot overlays, OpenPose images, `comparison.png`, `animation-key-poses.png`, `calibration.json`                    |
+| `depth`             | The C0.5 candidate `rig.contract.json`                                                                                    | `depth-c05.png` (approximate depth), `depth-parts.png`, `depth-top-view.png`, `depth-preview.png`, `depth.json` (assumptions, checks)                     |
+| `bundle`            | The C0.5 candidate `rig.contract.json`                                                                                    | The experiment C execution bundle, `--experiment c1` (default) or `c2` (see below)                                                                        |
+| `split-layers`      | See-through layer PNGs and `<stem>.psd.json`                                                                              | L0-1b prototype: `parts/`, `residual/`, `analysis/`, `compose/`, `motion/`, `contact-sheet.png`, `l0-1b.json` (see below)                                 |
+| `align-study`       | C0.5 contract, See-through layers, the input                                                                              | L0-1c prototype: `landmarks.json`, `correspondence.json`, a manual landmark template, five diagnostic images (see below)                                  |
+| `annotate-page`     | The input image, `align-study` `landmarks.json`                                                                           | L0-1d prototype: `annotate.html`, one self-contained page for manual landmark marks (see below)                                                           |
+| `compare-landmarks` | The input image, two `align-study` runs (`landmarks.json`, `correspondence.json`)                                         | L0-1d prototype: before and after images and `comparison.json` (see below)                                                                                |
+| `limb-study`        | The C0.5 contract, the See-through layers, the input image, the manual landmarks, the `align-study` `correspondence.json` | L0-1e prototype: the near arm cut into three parts, overlap and rotation measurements, and review images (see below)                                      |
+| `underlay-study`    | The same inputs as `limb-study`                                                                                           | L0-1f prototype: deterministic joint underlay (nearest edge, directional) at the elbow and the wrist, compared with the `limb-study` baseline (see below) |
+| `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`                      |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -186,6 +187,23 @@ node packages/control/dist/src/cli.js limb-study --contract <C0.5 rig.contract.j
 - Tests: source pose, elbow ±15 and ±30, wrist ±15, and three combined turns. Positive is clockwise on the screen. The angles are not animation limits.
 - `metrics.json` (format `aigg.l0-1e.limb-study/0.1`): the pixel classes, conservation, overlap per joint, and per test the opened gap, protrusion, overlap, and seam counts.
 - Images: `1-joints-and-cut-lines.png`, `2-parts.png`, `3-rotation-contact-sheet.png`, `4-gap-overlap-heatmap.png`, `5-source-vs-recomposed.png`, `6-missing-geometry.png`, and `rotations/<test>/{result,holes,overlaps}.png`. They are derivatives of the input art. Do not commit them.
+
+## Joint underlay (L0-1f)
+
+**Prototype.** `underlay-study` uses the `limb-study` cut without change and adds parent pixels under the elbow and the wrist with two deterministic raster methods. Then it runs the same rotation tests and metrics for the baseline and both methods. See [the L0-1f report](../../docs/proposals/L0_1F_UNDERLAY_FEASIBILITY.md).
+
+```sh
+node packages/control/dist/src/cli.js underlay-study --contract <C0.5 rig.contract.json> --layers <run>/output/concept-mirrored \
+  --metadata <run>/output/concept-mirrored.psd.json --image <run>/output/concept-mirrored/src_img.png \
+  --landmarks landmarks-manual.json --study <align-study with these landmarks>/correspondence.json --out ./l0-1f
+```
+
+- Region of each joint: the child side of the cut line, inside the C0.5 overlap circle (24 template px divided by the similarity scale, not rounded), inside the source cross-section along the cut line, and only where the parent has no pixel.
+- Method A (`nearest_edge`): a copy of the nearest parent pixel within 3 px before the cut line.
+- Method B (`directional`): back along the limb axis to 1 px inside the parent. A gradient from two opaque samples 6 px apart when their RGB step is at most 64, limited to that step. Else a copy of the first sample. No sample gives an unresolved pixel (inside the child) or no pixel (outside the contour).
+- Every new pixel has the provenance `generated_by_deterministic_extension` with its source pixel and rule in `provenance.json`.
+- `metrics.json` (format `aigg.l0-1f.underlay-study/0.1`): the regions, the fill counts, the invariant checks, the neutral pose difference, and per test the L0-1e metrics of each variant. The exit status is 0 when the invariants hold. It does not measure art quality.
+- Images: `1-new-pixel-masks.png`, `2-comparison-on-body.png`, `3-comparison-on-magenta.png`, `4-problem-heatmaps.png`, `5-zoom-elbow.png`, `5-zoom-wrist.png`, `6-source-pose.png`, and `<method>/{parts,rotations}/...`. They are derivatives of the input art. Do not commit them.
 
 ## Measurement
 

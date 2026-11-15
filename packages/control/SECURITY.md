@@ -70,6 +70,11 @@ It uses deterministic math only: no model, no subprocess, no network. The output
 The command reads the contract (C0.5 candidate only), the See-through layers and metadata (layer PNG limits, frame size), the input image, the manual landmark file (reference parser, 256 KiB), and the `align-study` `correspondence.json` (4 MiB, run-time checks of the used fields). The study file must record the SHA-256 of the same manual file and image. The command only reads the inputs.
 It uses deterministic math only: no model, no random values, no subprocess, no network. It copies source pixels and does not make new pixels. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
 
+## Joint underlay study (`underlay-study`)
+
+The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It makes new pixels only inside the underlay region of each joint and only where the parent part has no pixel. The command counts changed source pixels, new pixels outside the regions, and frame changes outside the moved new pixels, and gives exit status 1 when one is not zero. Each new pixel has a provenance record. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
 ## Experiment C runner (`runner.mjs` in the bundle)
 
 The `bundle` command writes a directory that the owner copies to the GPU host. The runner runs there. It is the only part of this package with network access and model downloads.

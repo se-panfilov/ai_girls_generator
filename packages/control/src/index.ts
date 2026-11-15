@@ -45,4 +45,5 @@ export {
   type SplitResult
 } from '@control/split';
 export { templateCommand, type TemplateOptions } from '@control/template';
+export { directionalFill, nearestEdgeFill, provenanceTag, underlayFormat, underlayRegion, underlayStudyCommand, withUnderlay } from '@control/underlay';
 export { baselineWorkflow, c0Defaults, c0Prompt, type GenerationSettings, poseWorkflow } from '@control/workflow';
