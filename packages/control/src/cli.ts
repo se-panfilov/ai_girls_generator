@@ -1,15 +1,25 @@
 #!/usr/bin/env node
+import { existsSync, mkdirSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { alignStudyCommand, maxLandmarkBytes } from '@control/alignstudy';
+import { annotatePageCommand } from '@control/annotatepage';
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
+import { geometryStudyCommand } from '@control/jointgeometry';
+import { compareLandmarksCommand } from '@control/landmarkcompare';
+import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
+import { limbStudyCommand, maxStudyBytes } from '@control/limbstudy';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
 import { ControlError, fail, isRecord } from '@control/problems';
+import { spineArmCommand } from '@control/spinearm';
+import { spineValidateCommand } from '@control/spinecli';
 import { templateCommand } from '@control/template';
+import { underlayStudyCommand } from '@control/underlay';
 
 const help = `Usage: aigg-control <command> [options]
 
@@ -45,6 +55,60 @@ Commands:
       masks/<slot>.visible.png, overlay-sheet.png, review.md, and mock-package/ (flat parts and character.json).
       Prototype only: it does not show that the parts animate correctly. The default size is the contract generation resolution.
 
+  split-layers --layers <dir> --metadata <stem.psd.json> --out <dir>
+      Experiment L0-1b (prototype): analyze the See-through layers handwear, legwear, footwear, topwear and bottomwear,
+      and try to split arms, legs and feet into image-left and image-right parts without a cut line. Reads <dir>/<tag>.png
+      for each tag in the metadata. Writes the parts, the residual pixels, component maps, compositions, trial motion
+      diagnostics, contact-sheet.png, and l0-1b.json. The inputs are not changed. The output is not a Spine-ready package.
+
+  align-study --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png> --out <dir>
+              [--landmarks <manual landmarks.json>]
+      Experiment L0-1c (prototype): measure anatomical landmarks on the See-through layers, align them with the C0.5
+      template joints under both near/far hypotheses (uniform, similarity, affine, per bone, per triangle), and propose
+      cut lines without a cut. --image is the See-through input at the layer frame size. Manual landmarks replace the
+      automatic entries with the same id. Writes landmarks.json, correspondence.json, landmarks-manual.template.json,
+      a-anatomy-overlay.png, b-skeleton-comparison.png, c-alignment-diagnostics.png, d-segmentation-map.png,
+      e-uncertainty-map.png, and contact-sheet.png. The inputs are not changed. The art is not warped.
+
+  annotate-page --image <src.png> --landmarks <align-study landmarks.json> --out <dir> [--manual <manual landmarks.json>]
+      Experiment L0-1d (prototype): write annotate.html, one self-contained page for manual landmark marks. Open it in a
+      browser from the disk. It needs no server and no network. It shows the image, the automatic landmarks and their ranges,
+      and exports landmarks-manual.json in the format that align-study --landmarks reads. --manual loads earlier marks.
+
+  compare-landmarks --image <src.png> --before-landmarks <a/landmarks.json> --before-study <a/correspondence.json>
+                    --after-landmarks <b/landmarks.json> --after-study <b/correspondence.json> --out <dir>
+      Experiment L0-1d (prototype): compare two align-study runs (for example automatic and manual landmarks). Writes
+      comparison.json, before-after-landmarks.png, alignment-before-after.png, error-vectors.png, and contact-sheet.png.
+
+  limb-study --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+             --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      Experiment L0-1e (prototype): cut the image-left (near) arm into upper arm, forearm, and hand at the manual joint
+      marks, measure the C0.5 joint overlap, and rotate the parts for diagnostics. Copies source pixels only; paints nothing.
+      Writes metrics.json, the parts, rotation results, gap and overlap maps, and review images.
+
+  underlay-study --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+                 --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      Experiment L0-1f (prototype): make the missing parent underlay at the elbow and the wrist of the near arm with two
+      deterministic raster methods (nearest edge, directional), then repeat the limb-study rotation tests and metrics.
+      New pixels only inside the underlay regions, tagged generated_by_deterministic_extension. No model.
+
+  geometry-study --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+                 --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      Experiment L0-1g (prototype): compare three diagnostic underlay regions (C0.5 circle, wide circle, tube) with and
+      without the occlusion-safe rule, on the L0-1e angles, wider diagnostic angles, and shifted joint marks. No model.
+
+  spine-arm --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+            --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      Experiment M0-F0a (prototype): make a Spine 4.3 skeleton JSON and cropped region PNGs for the image-left (near) arm
+      (root > upper_arm_near > forearm_near > hand_near) in two variants (tube underlay, baseline), with test animations,
+      geometry.json, offline checks, previews, and hash manifests. Does not run Spine: the result is JSON_GENERATED only.
+
+  spine-validate --spine <absolute path of the Spine executable> --package <spine-arm output dir> --out <new dir>
+                 [--spine-version 4.3.26]
+      Experiment M0-F0a: run the licensed Spine CLI. Import each skeleton JSON into a new .spine project, export it to JSON
+      with a texture atlas, compare the export with the intended skeleton, and write cli-validation.json and all logs.
+      macOS: --spine /Applications/Spine.app/Contents/MacOS/Spine. --dry-run checks the package and prints the commands.
+
 Common options:
   --dry-run   Print the report and write nothing.
   --force     Replace files with the same names in an existing output directory.
@@ -73,6 +137,18 @@ const options = {
   skeleton: { type: 'string' },
   marks: { type: 'string' },
   experiment: { type: 'string' },
+  layers: { type: 'string' },
+  metadata: { type: 'string' },
+  landmarks: { type: 'string' },
+  manual: { type: 'string' },
+  'before-landmarks': { type: 'string' },
+  'before-study': { type: 'string' },
+  'after-landmarks': { type: 'string' },
+  'after-study': { type: 'string' },
+  study: { type: 'string' },
+  spine: { type: 'string' },
+  package: { type: 'string' },
+  'spine-version': { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -86,7 +162,16 @@ const allowed: Record<string, readonly string[]> = {
   calibrate: ['before', 'after', 'skeleton', 'size', 'out'],
   depth: ['contract', 'out', 'size'],
   bundle: ['contract', 'out', 'experiment'],
-  template: ['contract', 'out', 'size']
+  template: ['contract', 'out', 'size'],
+  'split-layers': ['layers', 'metadata', 'out'],
+  'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
+  'annotate-page': ['image', 'landmarks', 'manual', 'out'],
+  'compare-landmarks': ['image', 'before-landmarks', 'before-study', 'after-landmarks', 'after-study', 'out'],
+  'limb-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'underlay-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'geometry-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'spine-arm': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'spine-validate': ['spine', 'package', 'spine-version', 'out']
 };
 
 function required(value: string | undefined, name: string): string {
@@ -106,7 +191,13 @@ function mappingList(text: string | undefined, allowBoth: boolean): SideMapping[
   return [text as SideMapping];
 }
 
-function run(argv: readonly string[]): { result: CommandResult | null; dryRun: boolean; out: string | null; force: boolean } {
+function packageVersion(): string {
+  const packageJson: unknown = JSON.parse(readInput(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json'), 64 * 1024, 'The package metadata').toString('utf8'));
+  if (!isRecord(packageJson) || typeof packageJson.version !== 'string') fail('E_INPUT', 'The package metadata has no version.');
+  return packageJson.version;
+}
+
+function run(argv: readonly string[]): { result: CommandResult | null; dryRun: boolean; out: string | null; force: boolean; prepared?: boolean } {
   let parsed;
   try {
     parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true });
@@ -128,6 +219,21 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   const out = required(values.out, 'out');
   const dryRun = values['dry-run'] === true;
   const force = values.force === true;
+  if (command === 'spine-validate') {
+    // Spine writes into the output directory, so it must be new or empty before the run. No --force: an earlier result is never replaced.
+    if (force) fail('E_USAGE', 'spine-validate does not accept --force. Give a new output directory.');
+    const create = checkOutputDirectory(out, false);
+    if (!dryRun && create) mkdirSync(out);
+    const result = spineValidateCommand({
+      spine: required(values.spine, 'spine'),
+      packageDir: required(values.package, 'package'),
+      out,
+      dryRun,
+      toolVersion: packageVersion(),
+      ...(values['spine-version'] === undefined ? {} : { spineVersion: values['spine-version'] })
+    });
+    return { result, dryRun, out, force, prepared: true };
+  }
   if (command === 'pose') {
     const bytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     return { result: poseCommand(bytes, values.size, mappingList(values.mapping, true)), dryRun, out, force };
@@ -168,9 +274,86 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   }
   if (command === 'template') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
-    const packageJson: unknown = JSON.parse(readInput(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json'), 64 * 1024, 'The package metadata').toString('utf8'));
-    if (!isRecord(packageJson) || typeof packageJson.version !== 'string') fail('E_INPUT', 'The package metadata has no version.');
-    return { result: templateCommand({ contractBytes, toolVersion: packageJson.version, ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+    return { result: templateCommand({ contractBytes, toolVersion: packageVersion(), ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+  }
+  if (command === 'compare-landmarks') {
+    const read = (name: 'before-landmarks' | 'before-study' | 'after-landmarks' | 'after-study'): Buffer => readInput(required(values[name], name), 1024 * 1024, `The --${name} file`);
+    const imageBytes = readInput(required(values.image, 'image'), layerPngLimits.maxBytes, 'The image');
+    return {
+      result: compareLandmarksCommand({
+        imageBytes,
+        before: { landmarks: read('before-landmarks'), correspondence: read('before-study') },
+        after: { landmarks: read('after-landmarks'), correspondence: read('after-study') },
+        toolVersion: packageVersion()
+      }),
+      dryRun,
+      out,
+      force
+    };
+  }
+  if (command === 'annotate-page') {
+    const imagePath = required(values.image, 'image');
+    const imageBytes = readInput(imagePath, layerPngLimits.maxBytes, 'The image');
+    const landmarkBytes = readInput(required(values.landmarks, 'landmarks'), maxLandmarkBytes, 'The automatic landmark file');
+    const manualBytes = values.manual === undefined ? undefined : readInput(values.manual, maxLandmarkBytes, 'The manual landmark file');
+    const pageCode = readInput(join(dirname(fileURLToPath(import.meta.url)), 'annotator.js'), 1024 * 1024, 'The compiled page code');
+    return {
+      result: annotatePageCommand({ imageBytes, imageName: basename(imagePath), landmarkBytes, pageCode, toolVersion: packageVersion(), ...(manualBytes ? { manualBytes } : {}) }),
+      dryRun,
+      out,
+      force
+    };
+  }
+  if (command === 'split-layers' || command === 'align-study' || command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study' || command === 'spine-arm') {
+    const metadataPath = required(values.metadata, 'metadata');
+    const metadataBytes = readInput(metadataPath, maxMetadataBytes, 'The See-through metadata');
+    const directory = required(values.layers, 'layers');
+    const layerFiles = new Map<string, { name: string; bytes: Buffer }>();
+    for (const layer of parseSeeThroughMetadata(metadataBytes).layers) {
+      const name = `${layer.tag}.png`;
+      const path = join(directory, name);
+      if (!existsSync(path)) continue;
+      layerFiles.set(layer.tag, { name, bytes: readInput(path, layerPngLimits.maxBytes, `The layer file ${name}`) });
+    }
+    if (command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study' || command === 'spine-arm') {
+      const imagePath = required(values.image, 'image');
+      const study = command === 'limb-study' ? limbStudyCommand : command === 'underlay-study' ? underlayStudyCommand : command === 'geometry-study' ? geometryStudyCommand : spineArmCommand;
+      return {
+        result: study({
+          contractBytes: readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file'),
+          metadataBytes,
+          metadataName: basename(metadataPath),
+          layerFiles,
+          imageBytes: readInput(imagePath, layerPngLimits.maxBytes, 'The image'),
+          landmarkBytes: readInput(required(values.landmarks, 'landmarks'), maxLandmarkBytes, 'The manual landmark file'),
+          studyBytes: readInput(required(values.study, 'study'), maxStudyBytes, 'The study file'),
+          toolVersion: packageVersion()
+        }),
+        dryRun,
+        out,
+        force
+      };
+    }
+    if (command === 'split-layers') return { result: splitLayersCommand({ metadataBytes, metadataName: basename(metadataPath), layerFiles, toolVersion: packageVersion() }), dryRun, out, force };
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    const imagePath = required(values.image, 'image');
+    const imageBytes = readInput(imagePath, layerPngLimits.maxBytes, 'The image');
+    const manualBytes = values.landmarks === undefined ? undefined : readInput(values.landmarks, maxLandmarkBytes, 'The landmark file');
+    return {
+      result: alignStudyCommand({
+        contractBytes,
+        metadataBytes,
+        metadataName: basename(metadataPath),
+        imageBytes,
+        imageName: basename(imagePath),
+        layerFiles,
+        toolVersion: packageVersion(),
+        ...(manualBytes ? { manualBytes } : {})
+      }),
+      dryRun,
+      out,
+      force
+    };
   }
   if (command === 'depth') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
@@ -193,9 +376,9 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
 
 function main(): number {
   try {
-    const { result, dryRun, out, force } = run(process.argv.slice(2));
+    const { result, dryRun, out, force, prepared } = run(process.argv.slice(2));
     if (!result || out === null) return 0;
-    const create = checkOutputDirectory(out, force);
+    const create = prepared === true ? false : checkOutputDirectory(out, force);
     if (!dryRun) writeFiles(out, result.files, create);
     process.stdout.write(`${JSON.stringify({ ...result.report, dryRun, written: !dryRun }, null, 2)}\n`);
     const status = result.report.status;

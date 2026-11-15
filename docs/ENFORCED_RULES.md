@@ -47,7 +47,7 @@ The selectors check direct static code. They do not follow aliases, dynamic prop
 | Node.js version  | `.nvmrc` contains an exact version `X.Y.Z`. The root `engines.node` is `>=` the same version.                                                                                                                                                                                                                                                                         |
 
 The workflow check reads the line structure of the workflow files. It is not a complete YAML parser.
-Agent host settings and override instruction files are `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.cursor/`, `.vscode/tasks.json`, `.vscode/settings.json`, `.vscode/mcp.json`, `AGENTS.override.md`, `CLAUDE.local.md`, `GEMINI.local.md`, `.cursorrules`, `.windsurfrules`, and `.clinerules`.
+Agent host settings and override instruction files are `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.cursor/`, `.vscode/tasks.json`, `.vscode/settings.json`, `.vscode/mcp.json`, any file in an `.idea/` folder, `AGENTS.override.md`, `CLAUDE.local.md`, `GEMINI.local.md`, `.cursorrules`, `.windsurfrules`, and `.clinerules`.
 These files can run commands, grant tool permissions, start MCP servers, or replace the rules in AGENTS.md. A pull request can add them, and an agent can load them before a human reads them.
 The structure and language checks read the files that Git tracks. Stage new files before you run the check.
 

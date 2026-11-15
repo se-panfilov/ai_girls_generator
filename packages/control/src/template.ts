@@ -1,4 +1,4 @@
-import { contractReport, json, parseContractBytes, parseSize, record, sheetOf, toolName } from '@control/commands';
+import { type CommandResult, contractReport, json, parseContractBytes, parseSize, record, sheetOf, toolName } from '@control/commands';
 import type { ControlContract, Joint, Rect, Size } from '@control/contract';
 import { type Box, cameraBox, cameraOf, depthAssumptions, depthPrimitives, fromCamera, intersect, loftSection, type Primitive, toCamera, topView } from '@control/depth';
 import { drawText, textWidth } from '@control/glyphs';
@@ -531,7 +531,7 @@ function placeholderPart(slot: SlotInfo): Raster {
 export type TemplateOptions = { readonly contractBytes: Buffer; readonly size?: string; readonly toolVersion: string };
 
 /** `template`: the T1a static template of the C0.5 prototype geometry and a flat mock package. */
-export function templateCommand(options: TemplateOptions): { report: Record<string, unknown>; files: PlannedFile[] } {
+export function templateCommand(options: TemplateOptions): CommandResult {
   if (!/^\d+\.\d+\.\d+$/.test(options.toolVersion)) fail('E_USAGE', 'The tool version must be X.Y.Z.');
   const contract = parseContractBytes(options.contractBytes);
   if (contract.view !== 'three_quarter_right' || contract.sideNaming !== 'near_far') {

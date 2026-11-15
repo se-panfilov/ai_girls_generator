@@ -18,6 +18,8 @@ node packages/seethrough-bundle/dist/src/cli.js bundle --out <dir> [--dry-run] [
 The bundle has `run.sh`, `runner.mjs`, `guard.py`, `qualify.py`, `manifest.json`, `requirements.lock`, `README.md`, and `SHA256SUMS`. The build is deterministic.
 The owner copies the bundle to the GPU host and follows [the owner instructions](docs/OWNER_RUN.md).
 
+Output files may have one ASCII space between name characters, as in `back hair.png`. The runner still refuses unsafe paths, links, special files, other file types, and output above its limits.
+
 ## Runner commands on the GPU host
 
 The runner starts as root. It starts every third-party Python process as the unprivileged run user `aigg-l0`. See [SECURITY.md](SECURITY.md).

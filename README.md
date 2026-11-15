@@ -7,20 +7,21 @@ Each character is a package of PNG parts and a JSON sidecar. All characters fit 
 
 ## Documents
 
-| Document                                                     | Content                                                       |
-| ------------------------------------------------------------ | ------------------------------------------------------------- |
-| [Architecture](docs/ARCHITECTURE.md)                         | Goal, scope, pipeline stages, and candidate tools.            |
-| [Rig contract](docs/RIG_CONTRACT.md)                         | Bones, slots, coordinate spaces, names, overlaps, tolerances. |
-| [Character package](docs/CHARACTER_PACKAGE.md)               | Package layout, image rules, sidecar, and provenance.         |
-| [Decision log](docs/DECISIONS.md)                            | Owner requirements and open decisions.                        |
-| [Model license registry](docs/MODEL_LICENSES.md)             | Candidate models and tools with their licenses.               |
-| [Roadmap](docs/ROADMAP.md)                                   | Phases, gates, and experiments.                               |
-| [Workspaces](docs/WORKSPACES.md)                             | npm workspaces layout and planned packages.                   |
-| [Engineering requirements](docs/ENGINEERING_REQUIREMENTS.md) | Languages, runtime, portability, and security for tooling.    |
-| [Enforced rules](docs/ENFORCED_RULES.md)                     | ESLint rules, configuration check, Git hooks, and PR rules.   |
-| [Git hooks](docs/GIT_HOOKS.md)                               | Lefthook hooks and Gitleaks secret checks.                    |
-| [GitHub Actions](docs/GITHUB_ACTIONS.md)                     | CI workflows, inputs, Dependabot, and CodeQL.                 |
-| [Glossary](docs/GLOSSARY.md)                                 | Terms for code, data, and documentation.                      |
+| Document                                                     | Content                                                         |
+| ------------------------------------------------------------ | --------------------------------------------------------------- |
+| [Architecture](docs/ARCHITECTURE.md)                         | Goal, scope, pipeline stages, and candidate tools.              |
+| [Rig contract](docs/RIG_CONTRACT.md)                         | Bones, slots, coordinate spaces, names, overlaps, tolerances.   |
+| [Character package](docs/CHARACTER_PACKAGE.md)               | Package layout, image rules, sidecar, and provenance.           |
+| [Decision log](docs/DECISIONS.md)                            | Owner requirements and open decisions.                          |
+| [Model license registry](docs/MODEL_LICENSES.md)             | Candidate models and tools with their licenses.                 |
+| [Roadmap](docs/ROADMAP.md)                                   | Phases, gates, and experiments.                                 |
+| [Workspaces](docs/WORKSPACES.md)                             | npm workspaces layout and planned packages.                     |
+| [Engineering requirements](docs/ENGINEERING_REQUIREMENTS.md) | Languages, runtime, portability, and security for tooling.      |
+| [Enforced rules](docs/ENFORCED_RULES.md)                     | ESLint rules, configuration check, Git hooks, and PR rules.     |
+| [Git hooks](docs/GIT_HOOKS.md)                               | Lefthook hooks and Gitleaks secret checks.                      |
+| [WebStorm setup](docs/WEBSTORM.md)                           | IDE settings for Node.js, TypeScript, ESLint, Prettier, Vitest. |
+| [GitHub Actions](docs/GITHUB_ACTIONS.md)                     | CI workflows, inputs, Dependabot, and CodeQL.                   |
+| [Glossary](docs/GLOSSARY.md)                                 | Terms for code, data, and documentation.                        |
 
 ## AI agents
 
@@ -38,6 +39,8 @@ npm run check
 ```
 
 Install the optional Git hooks with `npm run hooks:install`. See [Git hooks](docs/GIT_HOOKS.md).
+
+The project IDE is JetBrains WebStorm. See [WebStorm setup](docs/WEBSTORM.md).
 
 ## License
 

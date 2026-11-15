@@ -31,7 +31,9 @@ export const toolName = '@aigg/control';
 export const maxContractBytes = 1024 * 1024;
 
 export type FileRecord = { readonly name: string; readonly sha256: string; readonly pixelSha256?: string };
-export type CommandResult = { readonly report: Record<string, unknown>; readonly files: readonly PlannedFile[] };
+/** The CLI exit status comes from `report.status`: 0 PASS, 1 FAIL, 3 INCOMPLETE. A research result that is not a technical failure is PASS. */
+export type CommandStatus = 'PASS' | 'FAIL' | 'INCOMPLETE';
+export type CommandResult = { readonly report: { readonly status: CommandStatus } & Record<string, unknown>; readonly files: readonly PlannedFile[] };
 
 export const json = (value: unknown): Buffer => Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
 

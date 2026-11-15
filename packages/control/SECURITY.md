@@ -4,13 +4,16 @@
 
 ## Inputs
 
-| Input                  | Trust     | Controls                                                                                                                                                                                                                              |
-| ---------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rig.contract.json`    | Untrusted | Size limit 1 MiB. Run-time checks of all used fields (ids, numbers, parents, rectangles, tolerances) with stable `E_CONTRACT_*` codes. The contract is not changed.                                                                   |
-| Images (PNG)           | Untrusted | Size limit 64 MiB on disk. Width, height and pixel count are checked from IHDR before the pixel data is inflated. Inflate output is limited to the exact size. CRC of each chunk is checked. Only 8-bit RGB and RGBA, not interlaced. |
-| Spine `skeleton.json`  | Untrusted | Size limit 16 MiB. Only rotate and translate bone timelines are read. Each key value must be a finite number. Other timelines are listed and ignored.                                                                                 |
-| Manual marks JSON      | Untrusted | Size limit 1 MiB. Format id, known keypoint names, finite numbers, image size, the optional image SHA-256, confidence values, text lengths, and extent order are checked.                                                             |
-| Command-line arguments | Operator  | `node:util` `parseArgs` in strict mode. Options that a command does not use are refused. Model and image names in workflows must be plain file names.                                                                                 |
+| Input                  | Trust     | Controls                                                                                                                                                                                                                                  |
+| ---------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rig.contract.json`    | Untrusted | Size limit 1 MiB. Run-time checks of all used fields (ids, numbers, parents, rectangles, tolerances) with stable `E_CONTRACT_*` codes. The contract is not changed.                                                                       |
+| Images (PNG)           | Untrusted | Size limit 64 MiB on disk. Width, height and pixel count are checked from IHDR before the pixel data is inflated. Inflate output is limited to the exact size. CRC of each chunk is checked. Only 8-bit RGB and RGBA, not interlaced.     |
+| Spine `skeleton.json`  | Untrusted | Size limit 16 MiB. Only rotate and translate bone timelines are read. Each key value must be a finite number. Other timelines are listed and ignored.                                                                                     |
+| Manual marks JSON      | Untrusted | Size limit 1 MiB. Format id, known keypoint names, finite numbers, image size, the optional image SHA-256, confidence values, text lengths, and extent order are checked.                                                                 |
+| See-through metadata   | Untrusted | `split-layers` and `align-study`. Size limit 256 KiB. Tags must match `^[a-z][a-z ]{0,31}$` before they become file names. `xyxy`, `part_id`, `depth_median`, and `frame_size` (at most 2048) are checked.                                |
+| See-through layer PNGs | Untrusted | `split-layers` and `align-study`. Size limit 32 MiB each, at most 2048 x 2048. RGBA only. Each layer must have the frame size. The input files are only read. Their hashes are in the report.                                             |
+| Manual landmarks JSON  | Untrusted | `align-study` only. Size limit 256 KiB. Format id, `markedBy`, known landmark ids, no duplicates, visibility and confidence values, points and ranges inside the frame, no point for an `unknown` landmark, and text lengths are checked. |
+| Command-line arguments | Operator  | `node:util` `parseArgs` in strict mode. Options that a command does not use are refused. Model and image names in workflows must be plain file names.                                                                                     |
 
 Color space: pixel values are used as stored and are assumed to be sRGB. ICC profile and gamma chunks are ignored and are listed in the report. PNG alpha is straight alpha.
 
@@ -23,7 +26,7 @@ A file name can have subdirectories (`template` writes `masks/` and `mock-packag
 
 ## External effects
 
-Except for the experiment C runner (below): no network access, no subprocess, no shell, and no environment variables. The `workflow` command writes ComfyUI API JSON files. It does not send them to a server and does not load or download a model.
+Except for the experiment C runner and `spine-validate` (below): no network access, no subprocess, no shell, and no environment variables. The `workflow` command writes ComfyUI API JSON files. It does not send them to a server and does not load or download a model.
 The prompts in the workflows ask for an explicitly adult character with a safe rating. The negative prompt excludes explicit content and minors.
 
 ## Depth image (`depth`)
@@ -37,6 +40,60 @@ The output image size is limited to 4096 x 4096. The render time grows with the 
 The `template` command reads only the contract. It accepts only the C0.5 candidate (`three_quarter_right`, `near_far`, rig id `*_c05_candidate`), and it stops when the contract joints or face points differ from the reference body by more than 1 px.
 It casts rays through the same fixed volumes as `depth` (deterministic math, no random values, no model, no subprocess, no network). Slot ids from the contract become file names only after the id pattern check.
 The output is a prototype. It is not evidence that the parts animate correctly. The mock package is flat test data, not character art.
+
+## Layer split (`split-layers`)
+
+The command reads one directory of layer PNG files and the metadata file. It reads only `<tag>.png` for the tags in the metadata, after the tag pattern check. A path with `/` or `..` cannot come from a tag.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It keeps all decoded layers in memory (4 bytes and 1 mask byte for each pixel and layer, about 0.2 GB for 18 layers at 1280 x 1280) and runs in about 16 s for that size. The size limits above bound the memory use.
+The outputs are derivatives of the input art. The paid L0 concept and its derivatives must not go into Git or a public place. The tool does not check this. The operator keeps the output directory outside the repository.
+
+## Alignment study (`align-study`)
+
+The command reads the same layer directory and metadata as `split-layers`, the contract, the input image (same PNG limits as a layer, and it must have the frame size), and an optional manual landmark file. It only reads them. Their hashes are in `correspondence.json`.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It runs in about 7 s for 18 layers at 1280 x 1280.
+The command refuses a contract that is not the C0.5 candidate (`three_quarter_right`, `near_far`). It does not change the contract.
+The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
+## Manual landmark page (`annotate-page`)
+
+The command reads the image (layer PNG limits), the `landmarks.json` of `align-study` (256 KiB, format, ids, points and ranges inside the frame are checked), an optional manual file (reference parser), and the compiled page code from the package `dist/` (it must have no import and no closing script tag).
+The page is one file. Its Content Security Policy allows only inline code, inline styles, and `data:` or `blob:` images, with `connect-src 'none'`, so the page cannot send data. Embedded JSON escapes `<`, `>`, `&`, and line separators. The page shows untrusted text only through `textContent`.
+The page stores unsaved marks in the browser local storage of the file origin. The export is a download that the person starts. The image in the page is a derivative of the input art and the same storage rule as for `split-layers` applies.
+
+## Landmark comparison (`compare-landmarks`)
+
+The command reads the image (layer PNG limits, frame size of the runs) and four JSON files of two `align-study` runs (1 MiB each). It checks the format, the frame, the landmark ids, the points inside the frame, a positive body height, and the pairs at run time. It only reads them.
+It uses deterministic math only: no model, no subprocess, no network. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
+## Near arm study (`limb-study`)
+
+The command reads the contract (C0.5 candidate only), the See-through layers and metadata (layer PNG limits, frame size), the input image, the manual landmark file (reference parser, 256 KiB), and the `align-study` `correspondence.json` (4 MiB, run-time checks of the used fields). The study file must record the SHA-256 of the same manual file and image. The command only reads the inputs.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It copies source pixels and does not make new pixels. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
+## Joint underlay study (`underlay-study`)
+
+The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It makes new pixels only inside the underlay region of each joint and only where the parent part has no pixel. The command counts changed source pixels, new pixels outside the regions, and frame changes outside the moved new pixels, and gives exit status 1 when one is not zero. Each new pixel has a provenance record. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
+## Joint geometry study (`geometry-study`)
+
+The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs.
+It uses deterministic math only: no model, no random values, no subprocess, no network. It makes new pixels only inside the diagnostic region of each variant and only where the parent part has no pixel. It counts changed source pixels, new pixels outside the region, and frame changes outside the moved new pixels for every variant and every mark shift, and gives exit status 1 when one is not zero. The outputs are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
+## Spine arm package (`spine-arm`)
+
+The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs. Deterministic math only: no model, no random values, no subprocess, no network, no Spine. The skeleton JSON is built from fixed names and numbers; no input text goes into it. The PNG files and previews are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
+## Spine CLI validation (`spine-validate`)
+
+| Item         | Control                                                                                                                                                                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Executable   | Only the path that the owner gives with `--spine`. It must be absolute and resolve to a regular executable file. The command records its real path, size, and SHA-256. It never searches for Spine and never installs, copies, or updates it.        |
+| Subprocess   | `spawnSync` with an argument array and no shell. The arguments are fixed flags, the version (only `4.3.26`-style numbers or `latest`, `lateststable`, `stable`), and paths made by the command. Ten minutes per step. Output limit 4 MiB per stream. |
+| Environment  | Spine gets the environment of the owner's shell, because the editor needs its own settings and activation on that computer. The command reads no license file, asks for no activation code, and writes no environment value to a report.             |
+| Package      | Refused before any run when a skeleton JSON differs from `SHA256SUMS` or a PNG differs from `PIXEL-SHA256SUMS`. Size limits on the JSON (4 MiB) and the PNG files.                                                                                   |
+| Spine output | Spine writes the projects and exports into the new output directory. The command reads at most 64 export entries, a JSON up to 4 MiB, and an atlas up to 1 MiB, and treats them as untrusted data.                                                   |
+| Output       | The output directory must be new or empty and not a link. `--force` is refused, so an earlier validation result is never replaced. The command writes the logs and `cli-validation.json` with the same temporary-name rule.                          |
 
 ## Experiment C runner (`runner.mjs` in the bundle)
 
@@ -55,6 +112,10 @@ The `bundle` command writes a directory that the owner copies to the GPU host. T
 | Log                  | `run.log` (JSON Lines): events, hashes, prompt ids, ComfyUI versions and GPU names. No environment values, no headers, and no query strings of redirected download URLs. Untrusted text is cut and limited to printable ASCII.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 ## Residual risks
+
+- `spine-validate` runs the owner's Spine with the owner's rights. The SHA-256 record shows which file ran; it does not prove that the file is the official Spine. The Spine launcher can download an editor update when `--spine-version` names a version that is not installed.
+- A step that reaches the time limit gets SIGTERM. Processes that the Spine launcher starts can stay alive; check the process list after a timeout.
+- The exported project files and atlas pages are derivatives of the input art. They stay in the owner's output directory.
 
 - A whole input file is read into memory (at most 64 MiB for an image).
 - An image at the pixel limit (4096 x 4096) needs about 64 MiB of RGBA memory, and the side-by-side sheet needs four times that.
