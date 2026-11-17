@@ -37,6 +37,27 @@ The page does not animate anything itself and does not use the MVP-A preview ima
 - Install scripts: none. Packages from `registry.npmjs.org` with `sha512` integrity.
 - The package type declarations do not pass `exactOptionalPropertyTypes`, so the page loads the runtime from a JavaScript module and uses small local types.
 
+### License review
+
+`@esotericsoftware/spine-webcomponents` 4.3.13 and `@esotericsoftware/spine-webgl` 4.3.13 declare `LicenseRef-LICENSE`: the Spine Runtimes License Agreement (Esoteric Software LLC). It permits integration of the runtimes when each user of the product has a Spine Editor license, and a redistribution must include the license and copyright notice.
+
+- The owner has a Spine Essential license. The viewer is a local validation harness for the owner and is not redistributed. The built page (`dist/`, not in Git) keeps the license notices.
+- The packages are root development dependencies, the same as `spine-core` 4.3.13 before this change. No package of the repository declares them as a runtime dependency, and `runtimeDependencyAllowlist` is not changed.
+- A product that ships the runtime to other users needs a new license review and an owner decision (D1).
+
+### Dependency audit
+
+The `pr-rules` job runs `npm audit --package-lock-only --audit-level=high` when the lockfile changes. This PR changes the lockfile, because it adds the two Spine packages.
+
+| Lockfile                 | Result                                                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Base (`master` 5b2cba0)  | 15 (9 moderate, 6 high). The same 15 packages.                                                                        |
+| PR #39                   | 15 (9 moderate, 6 high). The two Spine packages have no advisory.                                                     |
+| Base + minor tool update | 11 high, 0 moderate (simulation: `eslint` 10.15.0, `typescript-eslint` 8.73.0, `ajv` 8.20.0). The high findings stay. |
+
+All high findings come from one advisory: `picomatch` ReDoS GHSA-fc5q-39xc-vjpf (`<=4.0.7`). `picomatch` 4.0.7 is the latest release, so no patched version exists. `vite`, `vitest`, `tinyglobby`, `fdir`, and `typescript-eslint` are listed because they depend on it. npm offers only a major downgrade of `vite` and `vitest`.
+These are development tools. They read glob patterns from the repository configuration, not from character data. To accept the finding, to wait for a patch, or to change the audit rule is an owner decision. This PR does not change the audit rule.
+
 ### Temporary exception: no `@aigg/rig-runtime`
 
 The viewer loads the export directly through the official runtime. The MVP-B export is a normal editor export with the attachments in the skeleton JSON. The `rig-runtime` functions (shared rig templates, skin from `character.json`, atlas cache, part modules) are for the shared rig flow and add nothing to the playback of one export.
