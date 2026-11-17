@@ -1,0 +1,63 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: #7a8590;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 12px;
+  background: #1f2328;
+  color: #f0f3f6;
+  font-size: 14px;
+}
+
+.note {
+  opacity: 0.7;
+}
+
+.buttons {
+  display: flex;
+  gap: 6px;
+}
+
+button {
+  min-width: 72px;
+  padding: 4px 10px;
+  font: inherit;
+}
+
+button[aria-pressed='true'] {
+  font-weight: 700;
+  outline: 2px solid #f0b429;
+}
+
+.status[data-status='error'] {
+  color: #ff8182;
+  font-weight: 700;
+  white-space: pre-wrap;
+}
+
+.status[data-status='ready'] {
+  color: #7ee787;
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
