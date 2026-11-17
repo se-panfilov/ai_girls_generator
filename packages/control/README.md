@@ -26,7 +26,8 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `underlay-study`    | The same inputs as `limb-study`                                                                                           | L0-1f prototype: deterministic joint underlay (nearest edge, directional) at the elbow and the wrist, compared with the `limb-study` baseline (see below) |
 | `geometry-study`    | The same inputs as `limb-study`                                                                                           | L0-1g prototype: three diagnostic underlay regions with and without the occlusion-safe rule, wider diagnostic angles, and shifted joint marks (see below) |
 | `spine-arm`         | The same inputs as `limb-study`                                                                                           | M0-F0a prototype: an import-ready Spine 4.3 skeleton JSON and cropped region PNGs of the near arm (tube and baseline), checks, previews (see below)       |
-| `spine-validate`    | The licensed Spine executable, a `spine-arm` output directory                                                             | M0-F0a: Spine CLI import and export of both variants, comparison with the intended skeleton, `cli-validation.json`, and logs (see below)                  |
+| `assemble-body`     | The same inputs as `limb-study`                                                                                           | MVP-A prototype: the full-body test character on the C0.5 bones and slots, Spine 4.3 JSON, region PNGs, `idle` and `wave`, evidence, previews (see below) |
+| `spine-validate`    | The licensed Spine executable, a `spine-arm` or `assemble-body` output directory                                          | Spine CLI import and export of each skeleton, comparison with the intended skeleton, `cli-validation.json`, and logs (see below)                          |
 | `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`                      |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
@@ -253,6 +254,24 @@ node packages/control/dist/src/cli.js spine-validate --spine /Applications/Spine
 - Curves: `linear` and `stepped` are equal only on an interval with the same start and end value (as numbers, not modulo 360) in both files, because both then give the same rotation. Spine 4.3.26 writes such an interval as `stepped`. Each accepted case is in `normalizations`. All other curve changes, and a change on the last key, are differences.
 - `cli-validation.json` reports `CLI_VALIDATED: PASS` only when all steps exit with 0 and all checks pass. It keeps stdout, stderr, exit codes, and durations. `--dry-run` checks the package and prints the commands without running Spine.
 - The output directory must be new. `--force` is refused.
+
+## Full-body package (MVP-A)
+
+**Prototype.** `assemble-body` assembles one full-body test character from the existing L0 results on the bone and slot ids and the draw order of the C0.5 candidate contract. It uses the M0-F0a coordinate frame and only Spine Essential features. See [the MVP-A report](../../docs/proposals/MVP_A_FULL_BODY_ASSEMBLY.md).
+
+```sh
+node packages/control/dist/src/cli.js assemble-body --contract <C0.5 rig.contract.json> --layers <run>/output/concept-mirrored \
+  --metadata <run>/output/concept-mirrored.psd.json --image <run>/output/concept-mirrored/src_img.png \
+  --landmarks landmarks-manual.json --study <align-study with these landmarks>/correspondence.json --out ./mvp-a
+```
+
+- Joints: candidate geometry from the manual marks (L0-1d). The torso and head joints are on the mark lines at the shares of the C0.5 joints. The hidden far shoulder is an estimate. Bones without marks (hair tail, ears, tail, skirt, weapon grip, aim) get the contract joint through a similarity fit. `evidence/assembly.json` gives the source and the uncertainty of each joint.
+- Layers to slots: a fixed table (`layerRules`). Arms: the L0-1e cut (near arm with the L0-1g tube underlay), the same rule at the far marks. Legs and shoes: the L0-1b split, then the cut rule at hip, knee, and ankle. Sleeves: the nearest-segment rule. Skirt: above the hip line to `hips`, below it to `skirt_front`. The held object goes into `hand_far`, because the contract `weapon` slot is under the near hand. Residual and merged pixels go to the nearest segment (deterministic breadth-first fill). Hidden pixels move along `transferPairs` so that the contract draw order keeps the source look.
+- Each See-through pixel is in exactly one slot image (checked). Optional slots without pixels are `absent_by_design` in `character.json`.
+- Animations: `idle` (2 s) and `wave` (2.4 s, near arm). Linear rotate keys. Demonstration only.
+- Offline checks (`evidence/validation.json`): Essential subset, hierarchy, joints, slots and draw order, regions, animations, image files, required parts, pixel conservation, setup pose render, and the share of pixels that differ from the source composite. The result is `JSON_GENERATED` only; the overall status is `WAITING_FOR_SPINE_CLI_VALIDATION`.
+- Files: `spine/skeleton.json`, `spine/images/<slot>.png`, `character.json`, `evidence/assembly.json`, `evidence/validation.json`, `evidence/provenance.json`, `previews/*.png`, `README.md`, `SHA256SUMS`, `PIXEL-SHA256SUMS`. The PNG files are derivatives of the input art. Do not commit them.
+- `spine-validate` finds this layout by `spine/skeleton.json` and runs one import and one export (`<out>/body/`). The atlas must have a region for each attachment of the skeleton.
 
 ## Exit status
 

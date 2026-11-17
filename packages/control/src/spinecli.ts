@@ -1,21 +1,23 @@
 import { spawnSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 
+import { skeletonPath as bodySkeletonPath } from '@control/bodyassembly';
 import type { CommandResult } from '@control/commands';
 import { json } from '@control/commands';
 import { readInput } from '@control/output';
 import { decodePng, pixelHash, sha256 } from '@control/png';
-import { fail, isRecord, show } from '@control/problems';
+import { ControlError, fail, isRecord, show } from '@control/problems';
 import { skeletonFile, variants } from '@control/spinearm';
 import { partSlots, referenceSlot } from '@control/spineskeleton';
 
 // `spine-validate` (experiment M0-F0a): runs the owner's licensed Spine executable through its command-line interface. For each variant it
 // imports the package skeleton JSON into a new .spine project, exports the project to JSON with a texture atlas, and compares the export
 // with the intended skeleton. The command never reads license files, never passes credentials, and runs Spine only with argument arrays.
-// CLI_VALIDATED is reported only when a real run of the given executable imported and exported both variants and all checks passed.
+// CLI_VALIDATED is reported only when a real run of the given executable imported and exported every skeleton and all checks passed.
+// Two package layouts: the M0-F0a arm package (spine-arm, two variants) and the MVP-A full-body package (assemble-body, one skeleton).
 
-export const cliFormat = 'aigg.m0-f0a.spine-cli-validation/0.2';
+export const cliFormat = 'aigg.m0-f0a.spine-cli-validation/0.3';
 export const maxSkeletonBytes = 4 * 1024 * 1024;
 export const maxLogBytes = 4 * 1024 * 1024;
 export const maxExportEntries = 64;
@@ -257,8 +259,42 @@ export function atlasRegions(text: string): string[] {
     .filter((line) => line !== '' && !line.includes(':') && !/\.(png|jpg|jpeg|webp)$/i.test(line));
 }
 
-/** Reads `SHA256SUMS` and `PIXEL-SHA256SUMS` and checks the skeleton JSON bytes and the PNG pixels of each variant. */
-export function verifyPackage(packageDir: string): { problems: string[]; files: number } {
+/** One skeleton JSON of a package to import and export, with the image names that the atlas must contain. */
+export type ValidationTarget = { readonly id: string; readonly skeleton: string; readonly importName: string; readonly images: readonly string[] };
+export type PackageLayout = { readonly layout: 'm0-f0a-arm' | 'mvp-a-body'; readonly targets: readonly ValidationTarget[] };
+
+const attachmentName = /^[a-z][a-z0-9_]{0,63}$/;
+export const maxBodyImages = 64;
+
+/**
+ * Finds the package layout. A package with `spine/skeleton.json` is an MVP-A full-body package: its image names come from the region
+ * attachments of the skeleton (untrusted: each name must be snake_case, at most 64 names). Otherwise it is an M0-F0a arm package.
+ */
+export function packageLayout(packageDir: string): PackageLayout {
+  if (existsSync(join(packageDir, bodySkeletonPath))) {
+    let value: unknown;
+    try {
+      value = JSON.parse(readInput(join(packageDir, bodySkeletonPath), maxSkeletonBytes, 'The skeleton').toString('utf8')) as unknown;
+    } catch (error) {
+      if (error instanceof ControlError) throw error;
+      fail('E_PACKAGE', 'The skeleton is not valid JSON.');
+    }
+    const names = new Set<string>();
+    for (const skin of list(object(value).skins).map(object))
+      for (const [slot, entries] of Object.entries(object(skin.attachments))) for (const name of Object.keys(object(entries))) names.add(slot === name ? name : `${slot}/${name}`);
+    const images = [...names].sort();
+    if (images.length === 0 || images.length > maxBodyImages || !images.every((name) => attachmentName.test(name)))
+      fail('E_PACKAGE', `The skeleton must have 1 to ${maxBodyImages} region attachments with snake_case names equal to their slot names.`);
+    return { layout: 'mvp-a-body', targets: [{ id: 'body', skeleton: bodySkeletonPath, importName: 'mvp_a_body', images }] };
+  }
+  return {
+    layout: 'm0-f0a-arm',
+    targets: variants.map((variant) => ({ id: variant, skeleton: `spine/${variant}/${skeletonFile}`, importName: `arm_near_${variant}`, images: [referenceSlot, ...partSlots] }))
+  };
+}
+
+/** Reads `SHA256SUMS` and `PIXEL-SHA256SUMS` and checks the skeleton JSON bytes and the PNG pixels of each target. */
+export function verifyPackage(packageDir: string, layout: PackageLayout = packageLayout(packageDir)): { problems: string[]; files: number } {
   const problems: string[] = [];
   const parse = (name: string): Map<string, string> => {
     const map = new Map<string, string>();
@@ -274,13 +310,13 @@ export function verifyPackage(packageDir: string): { problems: string[]; files: 
   const pixels = parse('PIXEL-SHA256SUMS');
   if (bytes.size === 0 || bytes.size > 256) problems.push('SHA256SUMS has no valid lines or too many lines.');
   let files = 0;
-  for (const variant of variants) {
-    const jsonName = `spine/${variant}/${skeletonFile}`;
-    const data = readInput(join(packageDir, jsonName), maxSkeletonBytes, `The skeleton ${jsonName}`);
+  for (const target of layout.targets) {
+    const data = readInput(join(packageDir, target.skeleton), maxSkeletonBytes, `The skeleton ${target.skeleton}`);
     files += 1;
-    if (bytes.get(jsonName) !== sha256(data)) problems.push(`${jsonName}: SHA-256 does not match SHA256SUMS.`);
-    for (const slot of [referenceSlot, ...partSlots]) {
-      const name = `spine/${variant}/images/${slot}.png`;
+    if (bytes.get(target.skeleton) !== sha256(data)) problems.push(`${target.skeleton}: SHA-256 does not match SHA256SUMS.`);
+    const directory = target.skeleton.slice(0, target.skeleton.lastIndexOf('/'));
+    for (const image of target.images) {
+      const name = `${directory}/images/${image}.png`;
       const raster = decodePng(readInput(join(packageDir, name), 16 * 1024 * 1024, `The image ${name}`)).raster;
       files += 1;
       if (pixels.get(name) !== pixelHash(raster)) problems.push(`${name}: pixel SHA-256 does not match PIXEL-SHA256SUMS.`);
@@ -314,19 +350,21 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
   const executable = checkExecutable(options.spine);
   const packageDir = resolve(options.packageDir);
   const out = resolve(options.out);
-  const integrity = verifyPackage(packageDir);
+  const layout = packageLayout(packageDir);
+  const integrity = verifyPackage(packageDir, layout);
   if (integrity.problems.length > 0) fail('E_PACKAGE', `The package does not match its manifests: ${integrity.problems.slice(0, 4).join(' ')}`);
   const versionArgs = options.spineVersion === undefined ? [] : ['--update', options.spineVersion];
-  const plans = variants.map((variant) => {
-    const input = join(packageDir, 'spine', variant, skeletonFile);
-    const project = join(out, variant, `arm-near-${variant}.spine`);
-    const exportDir = join(out, variant, 'export');
+  const plans = layout.targets.map((target) => {
+    const input = join(packageDir, target.skeleton);
+    const project = join(out, target.id, `${target.importName.replaceAll('_', '-')}.spine`);
+    const exportDir = join(out, target.id, 'export');
     return {
-      variant,
+      variant: target.id,
+      target,
       project,
       exportDir,
       steps: [
-        { id: 'import', args: [...versionArgs, '--input', input, '--output', project, '--import', `arm_near_${variant}`] },
+        { id: 'import', args: [...versionArgs, '--input', input, '--output', project, '--import', target.importName] },
         { id: 'export', args: [...versionArgs, '--input', project, '--output', exportDir, '--export', 'json+pack'] }
       ]
     };
@@ -335,7 +373,7 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
     format: cliFormat,
     tool: { name: '@aigg/control', version: options.toolVersion, command: 'spine-validate' },
     spine: { executable: executable.path, realPath: executable.realPath, sha256: executable.sha256, bytes: executable.bytes, requestedVersion: options.spineVersion ?? null },
-    package: { directory: packageDir, checkedFiles: integrity.files, manifests: 'PASS' }
+    package: { directory: packageDir, layout: layout.layout, checkedFiles: integrity.files, manifests: 'PASS' }
   };
   if (options.dryRun) {
     return {
@@ -351,7 +389,7 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
   const runner = options.runner ?? spawnRunner;
   const timeout = options.timeoutMs ?? defaultTimeoutMs;
   const files: { name: string; bytes: Buffer }[] = [];
-  const intendedOf = (variant: string): unknown => JSON.parse(readInput(join(packageDir, 'spine', variant, skeletonFile), maxSkeletonBytes, 'The skeleton').toString('utf8')) as unknown;
+  const intendedOf = (target: ValidationTarget): unknown => JSON.parse(readInput(join(packageDir, target.skeleton), maxSkeletonBytes, 'The skeleton').toString('utf8')) as unknown;
   const results = plans.map((plan) => {
     // A new directory per variant for the project; Spine makes the export directory.
     mkdirSync(join(out, plan.variant));
@@ -413,12 +451,12 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
           problems.push(`The exported JSON cannot be read: ${error instanceof Error ? error.message.slice(0, 200) : 'unknown error'}.`);
         }
         editorVersion = isRecord(exportedJson) && isRecord(exportedJson.skeleton) ? (exportedJson.skeleton.spine ?? null) : null;
-        if (exportedJson !== null) ({ differences, normalizations } = compareExport(intendedOf(plan.variant), exportedJson));
+        if (exportedJson !== null) ({ differences, normalizations } = compareExport(intendedOf(plan.target), exportedJson));
         if (differences.length > 0) problems.push(`The exported skeleton differs from the intended skeleton in ${differences.length} values.`);
       }
       if (atlases.length === 1 && atlases[0]) {
         regions = atlasRegions(readInput(join(plan.exportDir, atlases[0]), 1024 * 1024, 'The exported atlas').toString('utf8'));
-        const missing = [referenceSlot, ...partSlots].filter((name) => !regions.includes(name));
+        const missing = plan.target.images.filter((name) => !regions.includes(name));
         if (missing.length > 0) problems.push(`The atlas has no region for ${missing.join(', ')}: Spine did not find these images.`);
       }
     }
@@ -444,7 +482,7 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
     levels: { CLI_VALIDATED: status, VISUALLY_VALIDATED: 'NOT_RUN' },
     note:
       status === 'PASS'
-        ? 'The given Spine executable imported both skeletons into .spine projects and exported them; the exports match the intended skeletons and the atlas has all images. Not a visual check.'
+        ? 'The given Spine executable imported each skeleton into a .spine project and exported it; the exports match the intended skeletons and the atlas has all images. Not a visual check.'
         : 'Not CLI_VALIDATED. Send cli-validation.json and the logs.',
     tolerance,
     curveRule:

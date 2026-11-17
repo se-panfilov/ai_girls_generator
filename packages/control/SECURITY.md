@@ -84,16 +84,20 @@ It uses deterministic math only: no model, no random values, no subprocess, no n
 
 The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs. Deterministic math only: no model, no random values, no subprocess, no network, no Spine. The skeleton JSON is built from fixed names and numbers; no input text goes into it. The PNG files and previews are derivatives of the input art and the same storage rule as for `split-layers` applies.
 
+## Full-body package (`assemble-body`)
+
+The command reads the same inputs with the same limits and checks as `limb-study`. It only reads the inputs. Deterministic math only: no model, no random values, no subprocess, no network, no Spine. The skeleton JSON uses only contract ids (checked as snake_case) and numbers; no free input text goes into it. A missing body mark stops the command (`E_LANDMARK`). The PNG files and previews are derivatives of the input art and the same storage rule as for `split-layers` applies.
+
 ## Spine CLI validation (`spine-validate`)
 
-| Item         | Control                                                                                                                                                                                                                                              |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Executable   | Only the path that the owner gives with `--spine`. It must be absolute and resolve to a regular executable file. The command records its real path, size, and SHA-256. It never searches for Spine and never installs, copies, or updates it.        |
-| Subprocess   | `spawnSync` with an argument array and no shell. The arguments are fixed flags, the version (only `4.3.26`-style numbers or `latest`, `lateststable`, `stable`), and paths made by the command. Ten minutes per step. Output limit 4 MiB per stream. |
-| Environment  | Spine gets the environment of the owner's shell, because the editor needs its own settings and activation on that computer. The command reads no license file, asks for no activation code, and writes no environment value to a report.             |
-| Package      | Refused before any run when a skeleton JSON differs from `SHA256SUMS` or a PNG differs from `PIXEL-SHA256SUMS`. Size limits on the JSON (4 MiB) and the PNG files.                                                                                   |
-| Spine output | Spine writes the projects and exports into the new output directory. The command reads at most 64 export entries, a JSON up to 4 MiB, and an atlas up to 1 MiB, and treats them as untrusted data.                                                   |
-| Output       | The output directory must be new or empty and not a link. `--force` is refused, so an earlier validation result is never replaced. The command writes the logs and `cli-validation.json` with the same temporary-name rule.                          |
+| Item         | Control                                                                                                                                                                                                                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Executable   | Only the path that the owner gives with `--spine`. It must be absolute and resolve to a regular executable file. The command records its real path, size, and SHA-256. It never searches for Spine and never installs, copies, or updates it.                                                        |
+| Subprocess   | `spawnSync` with an argument array and no shell. The arguments are fixed flags, the version (only `4.3.26`-style numbers or `latest`, `lateststable`, `stable`), and paths made by the command. Ten minutes per step. Output limit 4 MiB per stream.                                                 |
+| Environment  | Spine gets the environment of the owner's shell, because the editor needs its own settings and activation on that computer. The command reads no license file, asks for no activation code, and writes no environment value to a report.                                                             |
+| Package      | Refused before any run when a skeleton JSON differs from `SHA256SUMS` or a PNG differs from `PIXEL-SHA256SUMS`. Size limits on the JSON (4 MiB) and the PNG files. In the full-body layout the image names come from the skeleton: 1 to 64 snake_case names equal to their slot names, else refused. |
+| Spine output | Spine writes the projects and exports into the new output directory. The command reads at most 64 export entries, a JSON up to 4 MiB, and an atlas up to 1 MiB, and treats them as untrusted data.                                                                                                   |
+| Output       | The output directory must be new or empty and not a link. `--force` is refused, so an earlier validation result is never replaced. The command writes the logs and `cli-validation.json` with the same temporary-name rule.                                                                          |
 
 ## Experiment C runner (`runner.mjs` in the bundle)
 
