@@ -23,6 +23,7 @@ These items come from the owner. They are not open.
 | The purchase of Spine Essential is approved in principle. The owner buys it. Spine Professional is not part of this approval.                                                                                                         |
 | Full GPU and performance tests wait until realistic game assets and mass-render scenarios exist. They are not a gate for D22 or for the design of D23. The performance question of D24 stays open.                                    |
 | Future intent for version 2 or later: an Equipment System that is independent of the character appearance. See [Future Equipment System](ROADMAP.md#future-equipment-system-v2) and D25. The implementation details are not approved. |
+| Development priority: MVP-first. The near-term priority is one end-to-end MVP vertical slice. See D33 and [MVP-first development](../AGENTS.md#mvp-first-development).                                                                |
 
 ## Open decisions
 
@@ -75,6 +76,23 @@ Evidence: [L1 v5 evidence](L1_V5_EVIDENCE.md) (L1-02, L1-03, the blank-dropping 
 
 Changed documents: [the rig contract](RIG_CONTRACT.md) (absent parts rules, attachment rectangles, validator), [the package format](CHARACTER_PACKAGE.md) (`parts`), [the v5 contract patch](proposals/RIG_CONTRACT_V5_PATCH.md) (section 1 is accepted).
 No contract field and no bone, slot or attachment name changes. The contract is not frozen.
+
+### D33: MVP-first development
+
+Accepted owner requirement. The primary development priority is a working end-to-end asset-generation pipeline, not perfection of individual stages. The near-term work builds one MVP vertical slice: the smallest complete path from character input to an animated, exportable character package. The rules are in [MVP-first development](../AGENTS.md#mvp-first-development). The sequence (MVP-A to MVP-F) and the acceptance levels are in [the roadmap](ROADMAP.md#near-term-priority-mvp-vertical-slice).
+
+Also accepted: a limited exception to the three-run automation rule. Provisional MVP orchestration may connect and run previously demonstrated steps before three manual repetitions, if the flow is observable, reversible or safely restartable, and its limitations are documented. The three-run rule stays a production-readiness criterion.
+
+Reason: the stage experiments (C, L0-1, M0-F0a) improved single stages, but no complete path from input to an animated package exists yet. A complete path with known defects shows the real blockers earlier than more work on isolated stages.
+
+Not changed by D33:
+
+- Security, licensing, provenance, data integrity, owner approvals, expenditure limits, and repository governance.
+- The open decisions in this log. D33 closes no other entry. It does not decide D1 (runtime), D2 (Spine edition), D5 (animation list), D17 (view), D32 (master rig version), or any rig contract version.
+- No approval of a new rig contract, a new runtime technology, a Spine Professional purchase, paid models or APIs, or GPU expenditure.
+- The phase gates and acceptance requirements in the roadmap. MVP vertical-slice acceptance is separate from production pipeline acceptance and from the final version 1 contract freeze.
+
+Changed documents: [AGENTS.md](../AGENTS.md) (MVP-first development, project status), [the roadmap](ROADMAP.md) (near-term priority, acceptance levels, automation exception), [the glossary](GLOSSARY.md) (MVP vertical slice).
 
 ## Open decision notes
 

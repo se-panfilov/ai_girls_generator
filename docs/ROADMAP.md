@@ -1,8 +1,47 @@
 # Roadmap and experiments
 
-**Draft.** Each phase starts only after the previous gate passes, except phases marked as parallel. The durations are estimates, not commitments.
+**Draft.** The durations are estimates, not commitments.
+
+## Near-term priority: MVP vertical slice
+
+**Owner-accepted prioritization (D33).** The near-term priority is one end-to-end MVP vertical slice: the smallest complete path from character input to an animated, exportable character package. The rules are in [MVP-first development](../AGENTS.md#mvp-first-development).
+This is a prioritization change. It does not remove the version 1 requirements, the phase gates below, or the long-term goal of one shared rig and one shared animation set.
+
+### Sequence
+
+| Step  | Content                                                                                                                          | Result                                                                                                  |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| MVP-A | Assemble one complete test character from the existing W, L, and M artifacts (L0-1, M0-F0a, T1a, C0.5) with pragmatic fallbacks. | A full-body package on a candidate rig. Manual steps and defects are listed.                            |
+| MVP-B | Validate its Spine CLI import and export.                                                                                        | A `spine-validate` report from a real Spine run.                                                        |
+| MVP-C | Verify animation playback in a minimal runtime test harness.                                                                     | Playback evidence of the demonstration animations.                                                      |
+| MVP-D | Connect the existing steps through a resumable, observable Node.js orchestration flow.                                           | One command flow with logs, restart points, and explicit human steps.                                   |
+| MVP-E | Test the same process on another character.                                                                                      | The second character goes through the same flow without changes to shared files, or the gaps are known. |
+| MVP-F | Improve automation, artistic quality, generality, and production readiness.                                                      | Follow-up work, ordered by the recorded defects.                                                        |
+
+The step names are labels for planning. Only the owner approves the start of a step that needs a decision from [the decision log](DECISIONS.md) or spends money.
+
+### Limits of the vertical slice
+
+- **Runtime harness.** The runtime viewer is only a validation harness. It is not a new game engine and does not change the scope of version 1. It uses the existing runtime libraries (`@aigg/rig-runtime`, spine-core). It does not close D1.
+- **Animations.** Minimal demonstration animations may be used. They do not replace the full required animation set (`idle`, `run`, `jump`, `shoot_stand`, `shoot_crouch`, `hit`, both facings) and do not change D5.
+- **Rig.** The slice may use a candidate rig and the prototype C0.5 geometry. This is not a rig contract version, not a master rig migration (D32), and not a view decision (D17).
+- **Test assets.** The L0 test concept is a licensed test asset. It stays local and outside Git. It is not a product character, and its age is not confirmed. Product characters stay explicitly adult.
+- **Spending and models.** The slice adds no permission to buy Spine Professional, call paid models or APIs, rent a GPU, or add a model. Each of these needs a separate owner decision.
+- **Phase 2 automation.** The slice may use manual Spine work and the existing `spine-validate` command. It does not make Phase 2 automation a requirement for the Phase 1 exit (see [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md)).
+
+### Acceptance levels
+
+| Level                           | Meaning                                                                                                                                     | Evidence                                                                                                                                                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MVP vertical-slice acceptance   | One test character goes from input to an animated, exportable package. Known noncritical defects and manual steps are permitted and listed. | Proposed, the owner agrees the exact criteria at the start of MVP-A: a real Spine CLI import and export without differences, playback of the demonstration animations in the harness without critical defects, the list of manual steps and defects. |
+| Production pipeline acceptance  | The pipeline makes approved packages for new characters reliably.                                                                           | The phase 7 gate: three characters pass, the time of each step is measured. Each automated step meets the three-run rule below. The required animation set plays in both facings.                                                                    |
+| Final version 1 contract freeze | Contract 1.0 and the shared rig are frozen.                                                                                                 | The phase 8 gate: a new character needs no contract change, the equipment extensibility check (D25), the animated parts spike (D23, D26).                                                                                                            |
+
+The MVP vertical-slice acceptance does not pass a phase gate and does not approve a character package.
 
 ## Phases
+
+The phases are the plan for production pipeline acceptance and the version 1 freeze. Each phase gate must pass before its acceptance level, except phases marked as parallel. The MVP vertical slice can use partial results of several phases before their gates pass. It does not skip or remove a gate.
 
 | Phase | Content                                                                                                 | Gate                                                                                                                            |
 | ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -16,7 +55,16 @@
 | 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.                                                          |
 | 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). The animated parts spike passes (D23, D26). |
 
-Automate a step only after it was done the same way by hand at least three times.
+Automate a step only after it was done the same way by hand at least three times. This rule is a production-readiness criterion.
+
+**Owner-approved exception for provisional MVP orchestration (D33).** MVP-D may connect and run steps that were demonstrated at least once before they were done three times by hand. Conditions:
+
+- The flow is observable: each step writes a log and a machine-readable report.
+- The flow is reversible or safely restartable: it does not overwrite an approved package or an earlier result, and a failed step can run again from a known state.
+- The limitations, the manual steps, and the steps that were not repeated three times are documented.
+- Human review steps stay manual (see [Pipeline rules](../AGENTS.md#pipeline-rules)).
+
+The provisional orchestration is not production automation. Before production pipeline acceptance, each automated step meets the three-run rule.
 
 Owner decision: full GPU and performance tests wait until realistic game assets and mass-render scenarios exist. They are not a gate for decision D22 or for the design of D23. The performance question of D24 stays open.
 
