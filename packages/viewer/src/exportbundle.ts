@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { closeSync, constants, fstatSync, lstatSync, openSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Reads and checks a Spine export folder (skeleton JSON, text atlas, PNG pages) before the viewer serves it.
@@ -117,29 +117,38 @@ export function attachmentImages(skeleton: Record<string, unknown>): string[] {
   return [...names].sort();
 }
 
-function readRegularFile(folder: string, name: string, maxBytes: number): ExportFile {
-  if (!fileNamePattern.test(name)) fail('E_FILE_NAME', `The file name ${JSON.stringify(safeText(name))} is not supported. Use plain names (letters, digits, ".", "_", "-").`);
-  const path = join(folder, name);
-  let stat;
+/**
+ * Reads one regular file without following a symbolic link. The file is opened first (O_NOFOLLOW, O_NONBLOCK so that a FIFO
+ * does not block), and all checks use the open descriptor. So no other file can take its place between the check and the read.
+ * It returns a problem code, or the bytes.
+ */
+export function readFileNoFollow(path: string, maxBytes: number): Buffer | 'missing' | 'link' | 'type' | 'size' | 'changed' {
+  let descriptor: number;
   try {
-    stat = lstatSync(path);
-  } catch {
-    return fail('E_FILE_MISSING', `The file ${name} is missing in the export folder.`);
+    descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === 'ELOOP' || code === 'EMLINK' ? 'link' : code === 'ENOENT' || code === 'ENOTDIR' ? 'missing' : 'type';
   }
-  if (stat.isSymbolicLink()) fail('E_FILE_LINK', `${name} is a symbolic link. Use the files that Spine exported.`);
-  if (!stat.isFile()) fail('E_FILE_TYPE', `${name} is not a regular file.`);
-  if (stat.size > maxBytes) fail('E_FILE_SIZE', `${name} has ${stat.size} bytes. The limit is ${maxBytes}.`);
-  // O_NOFOLLOW: a link that replaces the file after the check is not followed. The open file must be the checked file.
-  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  let data: Buffer;
   try {
-    const opened = fstatSync(descriptor);
-    if (!opened.isFile() || opened.ino !== stat.ino || opened.dev !== stat.dev || opened.size !== stat.size) fail('E_FILE_CHANGED', `${name} changed while it was read.`);
-    data = readFileSync(descriptor);
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile()) return 'type';
+    if (stat.size > maxBytes) return 'size';
+    const data = readFileSync(descriptor);
+    return data.length === stat.size ? data : 'changed';
   } finally {
     closeSync(descriptor);
   }
-  if (data.length !== stat.size) fail('E_FILE_CHANGED', `${name} changed while it was read.`);
+}
+
+function readRegularFile(folder: string, name: string, maxBytes: number): ExportFile {
+  if (!fileNamePattern.test(name)) fail('E_FILE_NAME', `The file name ${JSON.stringify(safeText(name))} is not supported. Use plain names (letters, digits, ".", "_", "-").`);
+  const data = readFileNoFollow(join(folder, name), maxBytes);
+  if (data === 'missing') return fail('E_FILE_MISSING', `The file ${name} is missing in the export folder.`);
+  if (data === 'link') return fail('E_FILE_LINK', `${name} is a symbolic link. Use the files that Spine exported.`);
+  if (data === 'type') return fail('E_FILE_TYPE', `${name} is not a regular file.`);
+  if (data === 'size') return fail('E_FILE_SIZE', `${name} has more than ${maxBytes} bytes.`);
+  if (data === 'changed') return fail('E_FILE_CHANGED', `${name} changed while it was read.`);
   return { name, bytes: data.length, sha256: sha256(data), data };
 }
 
@@ -161,8 +170,12 @@ export function readExport(folderInput: string, options: ExportOptions = {}): Ex
   } catch {
     return fail('E_FOLDER_MISSING', `The export folder ${JSON.stringify(safeText(folderInput))} does not exist.`);
   }
-  if (!lstatSync(folder).isDirectory()) fail('E_FOLDER_MISSING', `${JSON.stringify(safeText(folderInput))} is not a folder.`);
-  const entries = readdirSync(folder);
+  let entries: string[];
+  try {
+    entries = readdirSync(folder);
+  } catch {
+    return fail('E_FOLDER_MISSING', `${JSON.stringify(safeText(folderInput))} is not a folder.`);
+  }
   if (entries.length > limits.folderEntries) fail('E_FOLDER_SIZE', `The export folder has ${entries.length} entries. The limit is ${limits.folderEntries}.`);
 
   const skeletonName = pickOne(entries, ['.json'], options.skeleton, 'skeleton');

@@ -4,11 +4,11 @@
 
 ## Inputs and trust
 
-| Input                           | Trust                                                            | Controls                                                                                                                                            |
-| ------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Export folder path (argument)   | The local user.                                                  | Resolved with `realpath`. Only the folder entries are listed; no recursion.                                                                         |
-| Skeleton JSON, atlas, PNG pages | Spine output on the owner's computer. Treated as untrusted data. | Plain file names only (no folder parts, no leading dot). No symbolic links. Size limits before reading. PNG size from the header, without decoding. |
-| HTTP requests                   | Any local process or web page in the user's browser.             | See [Server](#server).                                                                                                                              |
+| Input                           | Trust                                                            | Controls                                                                                                                                                                                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Export folder path (argument)   | The local user.                                                  | Resolved with `realpath`. Only the folder entries are listed; no recursion.                                                                                                                                                                                                                           |
+| Skeleton JSON, atlas, PNG pages | Spine output on the owner's computer. Treated as untrusted data. | Plain file names only (no folder parts, no leading dot). Each file is opened first with `O_NOFOLLOW` and `O_NONBLOCK`; all checks (regular file, size limit) use the open descriptor, so no link or other file can take its place between check and read. PNG size from the header, without decoding. |
+| HTTP requests                   | Any local process or web page in the user's browser.             | See [Server](#server).                                                                                                                                                                                                                                                                                |
 
 ## Server
 

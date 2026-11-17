@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { attachmentImages, exportReport, parseAtlas, pngSize, readExport, ViewerError } from '@viewer/exportbundle';
+import { attachmentImages, exportReport, parseAtlas, pngSize, readExport, readFileNoFollow, ViewerError } from '@viewer/exportbundle';
 import { describe, expect, it } from 'vitest';
 
 import { png, syntheticAtlas, syntheticExport, syntheticSkeleton } from './helpers';
@@ -121,5 +121,18 @@ describe('atlas, PNG, and attachment helpers', () => {
         skins: [{ name: 'default', attachments: { a: { one: {}, two: { path: 'p2' }, box: { type: 'boundingbox' }, mesh: { type: 'mesh', name: 'm' } } } }]
       })
     ).toEqual(['m', 'one', 'p2']);
+  });
+});
+
+describe('file reads without links', () => {
+  it('reports links, folders, and size limits from the open file', () => {
+    const folder = syntheticExport();
+    symlinkSync(join(folder, 'parts.png'), join(folder, 'link.png'));
+    expect(readFileNoFollow(join(folder, 'link.png'), 1024 * 1024)).toBe('link');
+    expect(readFileNoFollow(join(folder, 'missing.png'), 1024)).toBe('missing');
+    expect(readFileNoFollow(folder, 1024)).toBe('type');
+    expect(readFileNoFollow(join(folder, 'parts.png'), 10)).toBe('size');
+    expect(Buffer.isBuffer(readFileNoFollow(join(folder, 'parts.png'), 1024 * 1024))).toBe(true);
+    expect(codeOf(() => readExport(join(folder, 'parts.png')))).toBe('E_FOLDER_MISSING');
   });
 });

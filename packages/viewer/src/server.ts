@@ -1,8 +1,8 @@
-import { lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { extname, join } from 'node:path';
 
-import { type ExportBundle, fileNamePattern, requiredAnimations, ViewerError } from '@viewer/exportbundle';
+import { type ExportBundle, fileNamePattern, readFileNoFollow, requiredAnimations, ViewerError } from '@viewer/exportbundle';
 
 // The local HTTP server of the viewer. It listens on 127.0.0.1 only and answers GET and HEAD for a fixed table of paths.
 // The table is made at start from the built page and the checked export. A request path is a key in the table, never a file path,
@@ -87,10 +87,10 @@ export function pageRoutes(pageFolder: string): Map<string, Route> {
         visit(path, `${prefix}${entry.name}/`);
         continue;
       }
-      if (!entry.isFile() || lstatSync(path).isSymbolicLink()) throw new ViewerError('E_PAGE_BUILD', `The built page has an entry that is not a regular file: ${entry.name}.`);
       const type = types[extname(entry.name).toLowerCase()];
       if (type === undefined) continue;
-      const body = readFileSync(path);
+      const body = readFileNoFollow(path, maxPageBytes);
+      if (!Buffer.isBuffer(body)) throw new ViewerError('E_PAGE_BUILD', `The built page has an entry that is not a regular file: ${entry.name}.`);
       total += body.length;
       if (routes.size >= maxPageFiles || total > maxPageBytes) throw new ViewerError('E_PAGE_BUILD', 'The built page is larger than expected.');
       routes.set(`${prefix}${entry.name}`, { body, type });
