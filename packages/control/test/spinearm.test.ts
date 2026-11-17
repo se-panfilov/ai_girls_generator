@@ -13,7 +13,7 @@ import { type ArmRigInput, buildArmSkeleton, checkArmSkeleton, regionCorners, sk
 import * as spine from '@esotericsoftware/spine-core';
 import { describe, expect, it } from 'vitest';
 
-import { syntheticArm } from './helpers';
+import { fakeSpine, syntheticArm } from './helpers';
 
 // M0-F0a tests: Spine skeleton JSON, package assembly, and the Spine CLI validation with a fake Spine program.
 // Synthetic shapes and the synthetic arm only. No character image, no real Spine executable.
@@ -227,44 +227,6 @@ describe('spine-arm command (synthetic arm)', () => {
   });
 });
 
-// A fake Spine program for the CLI validation tests. It imitates the import (-r) and the export (-e json+pack) with files only.
-// FAKE_SPINE_MODE: ok, fail-import, rotate (the export changes a rotation), drop-image (one image is not packed), step-constant (the
-// export writes stepped on each interval with equal start and end values, as Spine 4.3.26 did), step-changing (stepped on a changing interval).
-const fakeSpine = `#!/usr/bin/env node
-const fs = require('node:fs');
-const path = require('node:path');
-const args = process.argv.slice(2);
-const get = (name) => args[args.indexOf(name) + 1];
-const mode = process.env.FAKE_SPINE_MODE || 'ok';
-if (args.includes('--import')) {
-  if (mode === 'fail-import') { process.stderr.write('ERROR: Unable to import skeleton.'); process.exit(1); }
-  fs.writeFileSync(get('--output'), JSON.stringify({ source: path.resolve(get('--input')), name: get('--import') }));
-  process.stdout.write('Import complete.');
-  process.exit(0);
-}
-if (args.includes('--export')) {
-  const project = JSON.parse(fs.readFileSync(get('--input'), 'utf8'));
-  const skeleton = JSON.parse(fs.readFileSync(project.source, 'utf8'));
-  skeleton.skeleton.spine = '4.3.26';
-  delete skeleton.skeleton.images;
-  for (const bone of skeleton.bones) if (bone.y === 0) delete bone.y;
-  for (const animation of Object.values(skeleton.animations)) for (const timeline of Object.values(animation.bones)) {
-    timeline.rotate.forEach((key, i) => { const next = timeline.rotate[i + 1]; if (next && ((mode === 'step-constant' && next.value === key.value) || (mode === 'step-changing' && next.value !== key.value && i === 1))) key.curve = 'stepped'; });
-    for (const key of timeline.rotate) { if (key.time === 0) delete key.time; if (key.value === 0) delete key.value; }
-  }
-  if (mode === 'rotate') skeleton.bones[2].rotation += 1;
-  const out = get('--output');
-  fs.mkdirSync(out, { recursive: true });
-  fs.writeFileSync(path.join(out, project.name + '.json'), JSON.stringify(skeleton));
-  let names = fs.readdirSync(path.join(path.dirname(project.source), 'images')).map((n) => n.replace(/\\.png$/, '')).sort();
-  if (mode === 'drop-image') names = names.filter((n) => n !== 'hand_near');
-  fs.writeFileSync(path.join(out, project.name + '.atlas'), project.name + '.png\\nsize:256,256\\nfilter:Linear,Linear\\n' + names.map((n) => n + '\\nbounds:0,0,8,8').join('\\n') + '\\n');
-  fs.writeFileSync(path.join(out, project.name + '.png'), '');
-  process.exit(0);
-}
-process.exit(2);
-`;
-
 describe('spine-validate command (fake Spine program)', () => {
   const { contractBytes, metadataBytes, layerFiles, imageBytes, landmarkBytes, study } = syntheticArm;
   const generated = spineArmCommand({ contractBytes, metadataBytes, metadataName: 'synthetic.psd.json', layerFiles, imageBytes, landmarkBytes, studyBytes: study(landmarkBytes), toolVersion: '0' });
@@ -329,7 +291,7 @@ describe('spine-validate command (fake Spine program)', () => {
       format: string;
       variants: { normalizations: { path: string; exported: string }[]; differences: unknown[] }[];
     };
-    expect(report.format).toBe('aigg.m0-f0a.spine-cli-validation/0.2');
+    expect(report.format).toBe('aigg.m0-f0a.spine-cli-validation/0.3');
     expect(report.variants[0]?.differences).toEqual([]);
     expect(report.variants[0]?.normalizations.map((item) => item.path)).toContain('animations.combined_test.bones.hand_near.rotate[2].curve');
     const changing = validate('step-changing');

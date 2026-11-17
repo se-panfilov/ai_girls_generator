@@ -248,7 +248,8 @@ export const skeletonBytes = (skeleton: SpineSkeleton): Buffer => Buffer.from(`$
 
 export type Check = { readonly id: string; readonly status: 'PASS' | 'FAIL'; readonly detail: string };
 
-const allowed = {
+/** The JSON keys of the Spine Essential subset that the prototypes write and accept. */
+export const allowed = {
   top: ['skeleton', 'bones', 'slots', 'skins', 'animations'],
   skeleton: ['hash', 'spine', 'x', 'y', 'width', 'height', 'fps', 'images', 'audio'],
   bone: ['name', 'parent', 'length', 'rotation', 'x', 'y', 'color'],
@@ -260,8 +261,61 @@ const allowed = {
   key: ['time', 'value']
 } as const;
 
-const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
-const extraKeys = (value: unknown, keys: readonly string[]): string[] => (isObject(value) ? Object.keys(value).filter((key) => !keys.includes(key)) : ['<not an object>']);
+export const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+export const extraKeys = (value: unknown, keys: readonly string[]): string[] => (isObject(value) ? Object.keys(value).filter((key) => !keys.includes(key)) : ['<not an object>']);
+
+/** The region attachments of all skins: slot, attachment name, and the untrusted value. */
+export function regionEntries(value: Record<string, unknown>): { slot: string; name: string; region: unknown }[] {
+  const regions: { slot: string; name: string; region: unknown }[] = [];
+  for (const skin of Array.isArray(value.skins) ? value.skins : []) {
+    const attachments = isObject(skin) && isObject(skin.attachments) ? skin.attachments : {};
+    for (const [slot, entries] of Object.entries(attachments)) {
+      for (const [name, region] of Object.entries(isObject(entries) ? entries : {})) regions.push({ slot, name, region });
+    }
+  }
+  return regions;
+}
+
+/**
+ * The Spine Essential subset check: every key must be a known key of the subset (bones, slots, region attachments, draw order, rotate
+ * timelines). A mesh, a constraint, a deform timeline, a clipping attachment, or physics data gives a problem. The value is untrusted.
+ */
+export function essentialSubsetProblems(value: Record<string, unknown>): string[] {
+  const subset: string[] = [];
+  const note = (where: string, keys: string[]): void => {
+    if (keys.length > 0) subset.push(`${where}: ${keys.join(', ')}`);
+  };
+  note('top', extraKeys(value, allowed.top));
+  note('skeleton', extraKeys(value.skeleton, allowed.skeleton));
+  const list = (item: unknown): unknown[] => (Array.isArray(item) ? item : []);
+  list(value.bones).forEach((bone, index) => {
+    note(`bones[${index}]`, extraKeys(bone, allowed.bone));
+  });
+  list(value.slots).forEach((slot, index) => {
+    note(`slots[${index}]`, extraKeys(slot, allowed.slot));
+  });
+  list(value.skins).forEach((skin, index) => {
+    note(`skins[${index}]`, extraKeys(skin, allowed.skin));
+  });
+  const animations = isObject(value.animations) ? value.animations : {};
+  for (const [name, animation] of Object.entries(animations)) {
+    note(`animations.${name}`, extraKeys(animation, allowed.animation));
+    const timelines = isObject(animation) && isObject(animation.bones) ? animation.bones : {};
+    for (const [bone, timeline] of Object.entries(timelines)) {
+      note(`animations.${name}.bones.${bone}`, extraKeys(timeline, allowed.timeline));
+      const keys = isObject(timeline) && Array.isArray(timeline.rotate) ? timeline.rotate : [];
+      keys.forEach((key, index) => {
+        note(`animations.${name}.bones.${bone}.rotate[${index}]`, extraKeys(key, allowed.key));
+      });
+    }
+  }
+  for (const { slot, name, region } of regionEntries(value)) {
+    note(`skins.${slot}.${name}`, extraKeys(region, allowed.region));
+    if (isObject(region) && region.type !== undefined && region.type !== 'region') subset.push(`skins.${slot}.${name}: type ${JSON.stringify(region.type)}`);
+  }
+  if (value.bones === undefined || value.slots === undefined || value.skins === undefined) subset.push('bones, slots, or skins is missing');
+  return subset;
+}
 
 /**
  * Structural checks of a skeleton JSON value against the intended rig input. Unknown fields fail the Essential subset check, so a mesh,
@@ -277,48 +331,11 @@ export function checkArmSkeleton(value: unknown, input: ArmRigInput): Check[] {
     return checks;
   }
   // 1. Essential subset: only the known fields.
-  const subset: string[] = [];
-  const note = (where: string, keys: string[]): void => {
-    if (keys.length > 0) subset.push(`${where}: ${keys.join(', ')}`);
-  };
-  note('top', extraKeys(value, allowed.top));
-  note('skeleton', extraKeys(value.skeleton, allowed.skeleton));
+  const subset = essentialSubsetProblems(value);
   const bones = Array.isArray(value.bones) ? value.bones : [];
   const slots = Array.isArray(value.slots) ? value.slots : [];
-  const skins = Array.isArray(value.skins) ? value.skins : [];
-  bones.forEach((bone, index) => {
-    note(`bones[${index}]`, extraKeys(bone, allowed.bone));
-  });
-  slots.forEach((slot, index) => {
-    note(`slots[${index}]`, extraKeys(slot, allowed.slot));
-  });
-  skins.forEach((skin, index) => {
-    note(`skins[${index}]`, extraKeys(skin, allowed.skin));
-  });
   const animations = isObject(value.animations) ? value.animations : {};
-  for (const [name, animation] of Object.entries(animations)) {
-    note(`animations.${name}`, extraKeys(animation, allowed.animation));
-    const timelines = isObject(animation) && isObject(animation.bones) ? animation.bones : {};
-    for (const [bone, timeline] of Object.entries(timelines)) {
-      note(`animations.${name}.bones.${bone}`, extraKeys(timeline, allowed.timeline));
-      const keys = isObject(timeline) && Array.isArray(timeline.rotate) ? timeline.rotate : [];
-      keys.forEach((key, index) => {
-        note(`animations.${name}.bones.${bone}.rotate[${index}]`, extraKeys(key, allowed.key));
-      });
-    }
-  }
-  const regions: { slot: string; name: string; region: unknown }[] = [];
-  for (const skin of skins) {
-    const attachments = isObject(skin) && isObject(skin.attachments) ? skin.attachments : {};
-    for (const [slot, entries] of Object.entries(attachments)) {
-      for (const [name, region] of Object.entries(isObject(entries) ? entries : {})) {
-        regions.push({ slot, name, region });
-        note(`skins.${slot}.${name}`, extraKeys(region, allowed.region));
-        if (isObject(region) && region.type !== undefined && region.type !== 'region') subset.push(`skins.${slot}.${name}: type ${JSON.stringify(region.type)}`);
-      }
-    }
-  }
-  if (value.bones === undefined || value.slots === undefined || value.skins === undefined) subset.push('bones, slots, or skins is missing');
+  const regions = regionEntries(value);
   add('essential_subset', subset, 'Only bones, slots, region attachments, draw order, and rotate timelines. No mesh, constraint, clipping, deform, or physics data.');
 
   // 2. Bone hierarchy: unique names, parents before children, no cycle, the expected chain.

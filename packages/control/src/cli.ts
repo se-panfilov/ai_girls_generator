@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util';
 
 import { alignStudyCommand, maxLandmarkBytes } from '@control/alignstudy';
 import { annotatePageCommand } from '@control/annotatepage';
+import { assembleBodyCommand } from '@control/bodyassembly';
 import { bundleCommand } from '@control/bundle';
 import { calibrateCommand, candidateCommand, type CommandResult, depthCommand, maxContractBytes, overlayCommand, poseCommand, workflowCommand } from '@control/commands';
 import { geometryStudyCommand } from '@control/jointgeometry';
@@ -103,7 +104,13 @@ Commands:
       (root > upper_arm_near > forearm_near > hand_near) in two variants (tube underlay, baseline), with test animations,
       geometry.json, offline checks, previews, and hash manifests. Does not run Spine: the result is JSON_GENERATED only.
 
-  spine-validate --spine <absolute path of the Spine executable> --package <spine-arm output dir> --out <new dir>
+  assemble-body --contract <C0.5 candidate rig.contract.json> --layers <dir> --metadata <stem.psd.json> --image <src.png>
+                --landmarks <landmarks-manual.json> --study <align-study correspondence.json> --out <dir>
+      MVP-A (prototype): assemble the full-body test character from the See-through layers on the C0.5 candidate bones and slots.
+      Writes a Spine 4.3 skeleton JSON (spine/skeleton.json), region PNGs, character.json, the demonstration animations idle and
+      wave, evidence (assembly, validation, provenance), previews, and hash manifests. Does not run Spine: JSON_GENERATED only.
+
+  spine-validate --spine <absolute path of the Spine executable> --package <spine-arm or assemble-body output dir> --out <new dir>
                  [--spine-version 4.3.26]
       Experiment M0-F0a: run the licensed Spine CLI. Import each skeleton JSON into a new .spine project, export it to JSON
       with a texture atlas, compare the export with the intended skeleton, and write cli-validation.json and all logs.
@@ -171,6 +178,7 @@ const allowed: Record<string, readonly string[]> = {
   'underlay-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
   'geometry-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
   'spine-arm': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
+  'assemble-body': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'study', 'out'],
   'spine-validate': ['spine', 'package', 'spine-version', 'out']
 };
 
@@ -304,7 +312,15 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       force
     };
   }
-  if (command === 'split-layers' || command === 'align-study' || command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study' || command === 'spine-arm') {
+  if (
+    command === 'split-layers' ||
+    command === 'align-study' ||
+    command === 'limb-study' ||
+    command === 'underlay-study' ||
+    command === 'geometry-study' ||
+    command === 'spine-arm' ||
+    command === 'assemble-body'
+  ) {
     const metadataPath = required(values.metadata, 'metadata');
     const metadataBytes = readInput(metadataPath, maxMetadataBytes, 'The See-through metadata');
     const directory = required(values.layers, 'layers');
@@ -315,9 +331,16 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
       if (!existsSync(path)) continue;
       layerFiles.set(layer.tag, { name, bytes: readInput(path, layerPngLimits.maxBytes, `The layer file ${name}`) });
     }
-    if (command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study' || command === 'spine-arm') {
+    if (command === 'limb-study' || command === 'underlay-study' || command === 'geometry-study' || command === 'spine-arm' || command === 'assemble-body') {
       const imagePath = required(values.image, 'image');
-      const study = command === 'limb-study' ? limbStudyCommand : command === 'underlay-study' ? underlayStudyCommand : command === 'geometry-study' ? geometryStudyCommand : spineArmCommand;
+      const studies = {
+        'limb-study': limbStudyCommand,
+        'underlay-study': underlayStudyCommand,
+        'geometry-study': geometryStudyCommand,
+        'spine-arm': spineArmCommand,
+        'assemble-body': assembleBodyCommand
+      };
+      const study = studies[command];
       return {
         result: study({
           contractBytes: readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file'),
