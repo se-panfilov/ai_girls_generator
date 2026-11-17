@@ -1,0 +1,25 @@
+{
+  "name": "@aigg/viewer",
+  "version": "0.1.0",
+  "description": "Play a Spine export of a character in the official Spine web runtime on a local page (MVP-C validation harness)",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=26.12.1"
+  },
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
+  "bin": {
+    "aigg-viewer": "dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "vite build && vite build --config vite.page.config.mjs",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "npm run build && vitest run",
+    "lint": "eslint . --max-warnings=0",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check .",
+    "start": "npm run build && node dist/src/cli.js"
+  }
+}

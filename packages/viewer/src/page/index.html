@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AIGG viewer</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <strong class="title">AIGG viewer</strong>
+      <span class="note">Validation harness (MVP-C). Spine web runtime 4.3.</span>
+      <div class="buttons">
+        <button id="idle" type="button" disabled>Idle</button>
+        <button id="wave" type="button" disabled>Wave</button>
+        <button id="pause" type="button" disabled>Pause</button>
+        <button id="restart" type="button" disabled>Restart</button>
+      </div>
+      <span class="state">Animation: <span id="animation">none</span></span>
+      <output id="status" class="status" data-status="loading" role="status">Loading…</output>
+    </header>
+    <main id="stage" class="stage"></main>
+    <script type="module" src="./runtime.js"></script>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
