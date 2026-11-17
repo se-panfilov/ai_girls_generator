@@ -15,7 +15,7 @@ import { partSlots, referenceSlot } from '@control/spineskeleton';
 // with the intended skeleton. The command never reads license files, never passes credentials, and runs Spine only with argument arrays.
 // CLI_VALIDATED is reported only when a real run of the given executable imported and exported both variants and all checks passed.
 
-export const cliFormat = 'aigg.m0-f0a.spine-cli-validation/0.1';
+export const cliFormat = 'aigg.m0-f0a.spine-cli-validation/0.2';
 export const maxSkeletonBytes = 4 * 1024 * 1024;
 export const maxLogBytes = 4 * 1024 * 1024;
 export const maxExportEntries = 64;
@@ -66,12 +66,73 @@ const lower = (value: unknown, fallback: string): string => (typeof value === 's
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const object = (value: unknown): Record<string, unknown> => (isRecord(value) ? value : {});
 
+/** A curve change that the comparison accepts, because it does not change the motion. */
+export type Normalization = {
+  readonly path: string;
+  readonly intended: string;
+  readonly exported: string;
+  readonly from: { readonly time: number; readonly value: number };
+  readonly to: { readonly time: number; readonly value: number };
+  readonly reason: 'constant_interval';
+};
+
+/** Interpolation of a key: `linear` (also when omitted), `stepped`, or a Bezier curve as its JSON text. */
+export function curveKind(curve: unknown): string {
+  if (curve === undefined || curve === 'linear') return 'linear';
+  if (curve === 'stepped') return 'stepped';
+  return `bezier:${JSON.stringify(curve)}`;
+}
+
+/**
+ * Compares the curves of two rotate timelines with the same key count. In Spine the curve of key k sets the interpolation from key k to
+ * key k + 1. A linear and a stepped interval give the same rotation at all times when the start value and the end value of the interval are
+ * equal (within `tolerance.degrees`) in both timelines, so this one change is accepted and recorded. The values are compared as numbers,
+ * not modulo 360: Spine interpolates 10 to 370 through a full turn. The last key starts no interval, so a curve change there is a
+ * difference. All other curve changes are differences.
+ */
+export function compareCurves(path: string, keys: readonly Record<string, unknown>[], otherKeys: readonly Record<string, unknown>[]): { differences: Difference[]; normalizations: Normalization[] } {
+  const differences: Difference[] = [];
+  const normalizations: Normalization[] = [];
+  const value = (key: Record<string, unknown> | undefined): number => num(key?.value, 0);
+  const time = (key: Record<string, unknown> | undefined): number => num(key?.time, 0);
+  keys.forEach((key, index) => {
+    const a = curveKind(key.curve);
+    const b = curveKind(otherKeys[index]?.curve);
+    if (a === b) return;
+    const next = keys[index + 1];
+    const otherNext = otherKeys[index + 1];
+    const steps = new Set([a, b]);
+    const constant =
+      next !== undefined && otherNext !== undefined && Math.abs(value(next) - value(key)) <= tolerance.degrees && Math.abs(value(otherNext) - value(otherKeys[index])) <= tolerance.degrees;
+    if (constant && steps.has('linear') && steps.has('stepped')) {
+      normalizations.push({
+        path: `${path}[${index}].curve`,
+        intended: a,
+        exported: b,
+        from: { time: time(key), value: value(key) },
+        to: { time: time(next), value: value(next) },
+        reason: 'constant_interval'
+      });
+      return;
+    }
+    differences.push({ path: `${path}[${index}].curve`, intended: a, exported: b });
+  });
+  return { differences, normalizations };
+}
+
 /**
  * Compares an exported skeleton JSON with the intended one. Missing fields take the Spine defaults (0, scale 1, color ffffffff, time 0,
- * linear curve), because the Spine export omits default values. Rotation is compared modulo 360 degrees.
+ * linear curve), because the Spine export omits default values. Rotation is compared modulo 360 degrees. Rotate key values are compared
+ * as numbers. Curves are compared by `compareCurves`.
  */
 export function compareSkeletons(intended: unknown, exported: unknown): Difference[] {
+  return compareExport(intended, exported).differences;
+}
+
+/** `compareSkeletons` with the accepted curve normalizations. */
+export function compareExport(intended: unknown, exported: unknown): { differences: Difference[]; normalizations: Normalization[] } {
   const out: Difference[] = [];
+  const normalizations: Normalization[] = [];
   const differ = (path: string, a: unknown, b: unknown): void => {
     if (out.length < 200) out.push({ path, intended: a, exported: b });
   };
@@ -179,11 +240,13 @@ export function compareSkeletons(intended: unknown, exported: unknown): Differen
         const path = `animations.${name}.bones.${bone}.rotate[${index}]`;
         near(`${path}.time`, key.time, otherKey.time, 0, tolerance.time);
         near(`${path}.value`, key.value, otherKey.value, 0, tolerance.degrees);
-        if (otherKey.curve !== undefined && otherKey.curve !== key.curve) differ(`${path}.curve`, key.curve ?? 'linear', otherKey.curve);
       });
+      const curves = compareCurves(`animations.${name}.bones.${bone}.rotate`, keys, otherKeys);
+      for (const item of curves.differences) differ(item.path, item.intended, item.exported);
+      normalizations.push(...curves.normalizations.slice(0, Math.max(0, 200 - normalizations.length)));
     }
   }
-  return out;
+  return { differences: out, normalizations };
 }
 
 /** Region names of a Spine 4 text atlas: lines with no colon that are not page image names. */
@@ -321,6 +384,7 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
     let projectBytes = 0;
     let exported: { json: string | null; atlas: string | null; entries: string[] } = { json: null, atlas: null, entries: [] };
     let differences: Difference[] = [];
+    let normalizations: Normalization[] = [];
     let regions: string[] = [];
     let editorVersion: unknown = null;
     if (ok) {
@@ -349,7 +413,7 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
           problems.push(`The exported JSON cannot be read: ${error instanceof Error ? error.message.slice(0, 200) : 'unknown error'}.`);
         }
         editorVersion = isRecord(exportedJson) && isRecord(exportedJson.skeleton) ? (exportedJson.skeleton.spine ?? null) : null;
-        if (exportedJson !== null) differences = compareSkeletons(intendedOf(plan.variant), exportedJson);
+        if (exportedJson !== null) ({ differences, normalizations } = compareExport(intendedOf(plan.variant), exportedJson));
         if (differences.length > 0) problems.push(`The exported skeleton differs from the intended skeleton in ${differences.length} values.`);
       }
       if (atlases.length === 1 && atlases[0]) {
@@ -369,6 +433,7 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
       atlasRegions: regions,
       steps,
       differences,
+      normalizations,
       problems
     };
   });
@@ -382,6 +447,8 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
         ? 'The given Spine executable imported both skeletons into .spine projects and exported them; the exports match the intended skeletons and the atlas has all images. Not a visual check.'
         : 'Not CLI_VALIDATED. Send cli-validation.json and the logs.',
     tolerance,
+    curveRule:
+      'A linear and a stepped curve are equal only on an interval with the same start and end value (as numbers, not modulo 360) in both files. Each accepted case is in normalizations. Other curve changes and a curve change on the last key are differences.',
     variants: results
   };
   files.push({ name: 'cli-validation.json', bytes: json(report) });
@@ -390,7 +457,13 @@ export function spineValidateCommand(options: SpineValidateOptions): CommandResu
       format: cliFormat,
       status,
       levels: report.levels,
-      variants: results.map((result) => ({ variant: result.variant, status: result.status, problems: result.problems, exportedEditorVersion: result.exportedEditorVersion }))
+      variants: results.map((result) => ({
+        variant: result.variant,
+        status: result.status,
+        problems: result.problems,
+        exportedEditorVersion: result.exportedEditorVersion,
+        acceptedCurveNormalizations: result.normalizations.length
+      }))
     },
     files
   };

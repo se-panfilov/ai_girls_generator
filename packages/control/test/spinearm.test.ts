@@ -8,7 +8,7 @@ import { decodePng, sha256 } from '@control/png';
 import { ControlError } from '@control/problems';
 import { Raster } from '@control/raster';
 import { alphaBounds, cropBox, keyPoses, paddedUnion, spineArmCommand, uncrop } from '@control/spinearm';
-import { atlasRegions, compareSkeletons, spineValidateCommand } from '@control/spinecli';
+import { atlasRegions, compareCurves, compareExport, compareSkeletons, spineValidateCommand, tolerance } from '@control/spinecli';
 import { type ArmRigInput, buildArmSkeleton, checkArmSkeleton, regionCorners, skeletonBytes, spineDegrees, toImage, toSpine, worldBones } from '@control/spineskeleton';
 import * as spine from '@esotericsoftware/spine-core';
 import { describe, expect, it } from 'vitest';
@@ -228,7 +228,8 @@ describe('spine-arm command (synthetic arm)', () => {
 });
 
 // A fake Spine program for the CLI validation tests. It imitates the import (-r) and the export (-e json+pack) with files only.
-// FAKE_SPINE_MODE: ok, fail-import, rotate (the export changes a rotation), drop-image (one image is not packed).
+// FAKE_SPINE_MODE: ok, fail-import, rotate (the export changes a rotation), drop-image (one image is not packed), step-constant (the
+// export writes stepped on each interval with equal start and end values, as Spine 4.3.26 did), step-changing (stepped on a changing interval).
 const fakeSpine = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
@@ -247,7 +248,10 @@ if (args.includes('--export')) {
   skeleton.skeleton.spine = '4.3.26';
   delete skeleton.skeleton.images;
   for (const bone of skeleton.bones) if (bone.y === 0) delete bone.y;
-  for (const animation of Object.values(skeleton.animations)) for (const timeline of Object.values(animation.bones)) for (const key of timeline.rotate) { if (key.time === 0) delete key.time; if (key.value === 0) delete key.value; }
+  for (const animation of Object.values(skeleton.animations)) for (const timeline of Object.values(animation.bones)) {
+    timeline.rotate.forEach((key, i) => { const next = timeline.rotate[i + 1]; if (next && ((mode === 'step-constant' && next.value === key.value) || (mode === 'step-changing' && next.value !== key.value && i === 1))) key.curve = 'stepped'; });
+    for (const key of timeline.rotate) { if (key.time === 0) delete key.time; if (key.value === 0) delete key.value; }
+  }
   if (mode === 'rotate') skeleton.bones[2].rotation += 1;
   const out = get('--output');
   fs.mkdirSync(out, { recursive: true });
@@ -318,6 +322,21 @@ describe('spine-validate command (fake Spine program)', () => {
     expect(JSON.stringify(dropped.report)).toContain('no region for hand_near');
   });
 
+  it('accepts stepped on constant intervals and records it, but fails stepped on a changing interval', () => {
+    const constant = validate('step-constant');
+    expect(constant.report.status).toBe('PASS');
+    const report = JSON.parse(constant.files.find((item) => item.name === 'cli-validation.json')?.bytes.toString('utf8') ?? '{}') as {
+      format: string;
+      variants: { normalizations: { path: string; exported: string }[]; differences: unknown[] }[];
+    };
+    expect(report.format).toBe('aigg.m0-f0a.spine-cli-validation/0.2');
+    expect(report.variants[0]?.differences).toEqual([]);
+    expect(report.variants[0]?.normalizations.map((item) => item.path)).toContain('animations.combined_test.bones.hand_near.rotate[2].curve');
+    const changing = validate('step-changing');
+    expect(changing.report.status).toBe('FAIL');
+    expect(JSON.stringify(changing.files.find((item) => item.name === 'cli-validation.json')?.bytes.toString('utf8'))).toContain('rotate[1].curve');
+  });
+
   it('dry run: checks the package, runs nothing; refuses a relative path, a bad version, and a changed package', () => {
     const before = runs;
     const dry = spineValidateCommand({ spine: spinePath, packageDir, out: join(root, 'dry'), dryRun: true, toolVersion: '0' });
@@ -348,6 +367,131 @@ describe('export comparison', () => {
     expect(compareSkeletons(skeleton, exported)).toEqual([]);
     if (exported.bones[3]) exported.bones[3].rotation = (exported.bones[3].rotation ?? 0) + 0.5;
     expect(compareSkeletons(skeleton, exported).map((item) => item.path)).toEqual(['bones.hand_near.rotation']);
+  });
+
+  type Timelines = { animations: Record<string, { bones: Record<string, { rotate: { time?: number; value?: number; curve?: unknown }[] }> }> };
+  const copy = (): Timelines => JSON.parse(JSON.stringify(skeleton)) as Timelines;
+  const keysOf = (data: Timelines, animation: string, bone: string): { time?: number; value?: number; curve?: unknown }[] => data.animations[animation]?.bones[bone]?.rotate ?? [];
+
+  it('the intended combined_test hand key 2 starts a constant interval (10 to 10 degrees)', () => {
+    const keys = keysOf(copy(), 'combined_test', 'hand_near');
+    expect(keys.map((key) => [key.time ?? 0, key.value ?? 0])).toEqual([
+      [0, 0],
+      [0.5, -10],
+      [1, 10],
+      [1.5, 10],
+      [2, 0]
+    ]);
+  });
+
+  it('accepts linear and stepped as equal on a constant interval and records the case', () => {
+    const exported = copy();
+    const key = keysOf(exported, 'combined_test', 'hand_near')[2];
+    if (key) key.curve = 'stepped';
+    const result = compareExport(skeleton, exported);
+    expect(result.differences).toEqual([]);
+    expect(result.normalizations).toEqual([
+      {
+        path: 'animations.combined_test.bones.hand_near.rotate[2].curve',
+        intended: 'linear',
+        exported: 'stepped',
+        from: { time: 1, value: 10 },
+        to: { time: 1.5, value: 10 },
+        reason: 'constant_interval'
+      }
+    ]);
+    // The other direction (intended stepped, exported linear or omitted) is equal too.
+    const intended = copy();
+    const intendedKey = keysOf(intended, 'combined_test', 'hand_near')[2];
+    if (intendedKey) intendedKey.curve = 'stepped';
+    expect(compareExport(intended, copy()).differences).toEqual([]);
+    expect(compareExport(intended, copy()).normalizations).toHaveLength(1);
+  });
+
+  it('fails a curve change on an interval where the angle changes', () => {
+    for (const [animation, bone, index] of [
+      ['combined_test', 'hand_near', 1],
+      ['combined_test', 'forearm_near', 2],
+      ['elbow_test', 'forearm_near', 0],
+      ['wrist_test', 'hand_near', 3]
+    ] as const) {
+      const exported = copy();
+      const key = keysOf(exported, animation, bone)[index];
+      if (key) key.curve = 'stepped';
+      expect(compareSkeletons(skeleton, exported)).toEqual([{ path: `animations.${animation}.bones.${bone}.rotate[${index}].curve`, intended: 'linear', exported: 'stepped' }]);
+    }
+    // Intended stepped, exported omitted (linear) on a changing interval: a difference too.
+    const intended = copy();
+    const key = keysOf(intended, 'combined_test', 'hand_near')[1];
+    if (key) key.curve = 'stepped';
+    expect(compareSkeletons(intended, copy()).map((item) => item.path)).toEqual(['animations.combined_test.bones.hand_near.rotate[1].curve']);
+  });
+
+  it('fails a curve change on the last key and a Bezier curve on a constant interval', () => {
+    const last = copy();
+    const keys = keysOf(last, 'combined_test', 'hand_near');
+    const lastKey = keys[keys.length - 1];
+    if (lastKey) lastKey.curve = 'stepped';
+    expect(compareSkeletons(skeleton, last).map((item) => item.path)).toEqual(['animations.combined_test.bones.hand_near.rotate[4].curve']);
+    const bezier = copy();
+    const key = keysOf(bezier, 'combined_test', 'hand_near')[2];
+    if (key) key.curve = [1.17, 10, 1.33, 10];
+    expect(compareSkeletons(skeleton, bezier).map((item) => item.path)).toEqual(['animations.combined_test.bones.hand_near.rotate[2].curve']);
+  });
+
+  it('compares interval values as numbers: a full turn (10 to 370) is not constant', () => {
+    const intended = [
+      { time: 0, value: 10 },
+      { time: 1, value: 370 },
+      { time: 2, value: 370 }
+    ];
+    const exported = [
+      { time: 0, value: 10, curve: 'stepped' },
+      { time: 1, value: 370 },
+      { time: 2, value: 370 }
+    ];
+    expect(compareCurves('t', intended, exported).differences).toEqual([{ path: 't[0].curve', intended: 'linear', exported: 'stepped' }]);
+    // 370 to 370 is constant; -350 to 10 is a full turn too.
+    expect(
+      compareCurves('t', intended, [
+        { time: 0, value: 10 },
+        { time: 1, value: 370, curve: 'stepped' },
+        { time: 2, value: 370 }
+      ]).normalizations
+    ).toHaveLength(1);
+    expect(
+      compareCurves(
+        't',
+        [
+          { time: 0, value: -350 },
+          { time: 1, value: 10 }
+        ],
+        [
+          { time: 0, value: -350, curve: 'stepped' },
+          { time: 1, value: 10 }
+        ]
+      ).differences
+    ).toHaveLength(1);
+    // The exported values also must be constant: a changed end value is a difference of the curve and of the value.
+    expect(
+      compareCurves(
+        't',
+        [
+          { time: 0, value: 10 },
+          { time: 1, value: 10 }
+        ],
+        [
+          { time: 0, value: 10, curve: 'stepped' },
+          { time: 1, value: 11 }
+        ]
+      ).differences
+    ).toHaveLength(1);
+  });
+
+  it('accepts small value noise within the degree tolerance on a constant interval', () => {
+    const result = compareCurves('t', [{ value: 10 }, { value: 10 }], [{ value: 10, curve: 'stepped' }, { value: 10 + tolerance.degrees / 2 }]);
+    expect(result.differences).toEqual([]);
+    expect(compareCurves('t', [{ value: 10 }, { value: 10 }], [{ value: 10, curve: 'stepped' }, { value: 10 + tolerance.degrees * 2 }]).differences).toHaveLength(1);
   });
 
   it('reads region names from a Spine 4 atlas', () => {

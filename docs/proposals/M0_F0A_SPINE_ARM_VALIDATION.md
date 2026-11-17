@@ -1,6 +1,6 @@
 # M0-F0a: first near arm package for real Spine
 
-**Draft. Research step.** Status: **WAITING_FOR_SPINE_VALIDATION**. Levels: `JSON_GENERATED` **PASS**, `CLI_VALIDATED` **NOT RUN**, `VISUALLY_VALIDATED` **NOT RUN**. Spine import: `SPINE_IMPORT_UNVERIFIED`.
+**Draft. Research step.** Status: **WAITING_FOR_SPINE_VALIDATION** (second owner run). Levels: `JSON_GENERATED` **PASS**, `CLI_VALIDATED` **FAIL** in the first owner run (one curve difference, see section 7.1; a run with the corrected comparison is not done yet), `VISUALLY_VALIDATED` **NOT RUN**.
 This report does not approve a joint, a pivot, a region, a part, an animation, or a package. It does not change the C0.5 candidate contract, the rig runtime, the master rig, or the source art. The test angles are diagnostic values, not animation limits.
 
 ## tl;dr
@@ -111,18 +111,29 @@ Previews (`evidence/preview-neutral.png`, `preview-tube.png`, `preview-baseline.
 1. Checks the package against `SHA256SUMS` (JSON bytes) and `PIXEL-SHA256SUMS` (PNG pixels; the project storage can re-encode PNG files).
 2. Per variant: `Spine --input spine/<v>/arm-spine.json --output <out>/<v>/arm-near-<v>.spine --import arm_near_<v>`.
 3. Per variant: `Spine --input <project> --output <out>/<v>/export --export json+pack`.
-4. Compares the export with the intended JSON (bones, parents, x, y, rotation modulo 360, length, slots, draw order, colors, region attachments, rotate keys; tolerance 0.01 px or degree, 0.001 s) and checks that the atlas has a region for each image.
-5. Writes `cli-validation.json` with the executable path and SHA-256, every argument list, exit code, duration, stdout and stderr logs, the exported editor version, and all differences.
+4. Compares the export with the intended JSON (bones, parents, x, y, rotation modulo 360, length, slots, draw order, colors, region attachments, rotate key times, values, and curves; tolerance 0.01 px or degree, 0.001 s) and checks that the atlas has a region for each image.
+5. Writes `cli-validation.json` (format `aigg.m0-f0a.spine-cli-validation/0.2`) with the executable path and SHA-256, every argument list, exit code, duration, stdout and stderr logs, the exported editor version, all differences, and the accepted curve normalizations.
+
+Curve rule (since `@aigg/control` 0.13.1). In Spine the curve of key k sets the interpolation from key k to key k + 1. The comparison accepts `linear` (or an omitted curve) against `stepped` only when the start and end values of that interval are equal within 0.01 degree in the intended file and in the export. Then both curves give the same rotation at all times. The values are compared as numbers, not modulo 360, because Spine interpolates 10 to 370 degrees through a full turn. The last key starts no interval, so a curve change on it is a difference. A curve change on an interval where the angle changes, and any Bezier curve change, is a difference. Each accepted case is in `normalizations` with the times and values of the interval. The 0.1 comparison also let an intended `stepped` key pass against an omitted (linear) export curve; the new rule closes this gap.
 
 `CLI_VALIDATED: PASS` needs exit code 0 for all four Spine runs, zero differences, and all images in both atlases. Tests run the command against a fake Spine program (success, failed import, changed rotation, missing image). They test the command logic, not Spine.
 
 The design stays batch-ready: one non-interactive command per package, argument arrays, JSON report, logs per step.
 
+### 7.1 First owner run (Spine Essential 4.3.26)
+
+- The owner ran `spine-validate` with the package `689dbc74…`. All four Spine runs (import and export of `baseline` and `tube`) exited with 0. Both atlases have all four images.
+- Result: **FAIL** in both variants with one difference: `animations.combined_test.bones.hand_near.rotate[2].curve`, intended `linear`, exported `stepped`.
+- Analysis: the intended `hand_near` keys of `combined_test` are (0 s, 0), (0.5 s, −10), (1 s, 10), (1.5 s, 10), (2 s, 0) in Spine degrees. Key 2 starts the only interval of the animation with equal start and end values (10 to 10 from 1 s to 1.5 s). On this interval linear and stepped give the same rotation, so the export changed the text of the curve but not the motion. No other key changed, also not the keys of `forearm_near` at 1 s (value 10 to −10). This agrees with the hypothesis that Spine writes a constant interval as `stepped`. The agent did not see the exported JSON; the times and values of the exported keys 2 and 3 are in the owner's export folder.
+- Fix: the curve rule above. The rig, the images, the C0.5 contract, and the animation angles did not change. The package `689dbc74…` stays valid.
+- Evidence: the owner keeps the first report (`cli-validation.json` of the first `--out` folder) unchanged. The second run uses a new `--out` folder, so nothing overwrites it.
+- `CLI_VALIDATED` stays not passed until the owner runs `spine-validate` again with the corrected command.
+
 ## 8. Owner steps
 
 1. Download `research/m0-f0a/m0-f0a-package.tar.gz` from the project files and unpack it, for example to `~/aigg/m0-f0a`.
 2. In the repository, on the PR branch: `npm ci --ignore-scripts` and `npm run build --workspace @aigg/control`.
-3. Run `node packages/control/dist/src/cli.js spine-validate --spine /Applications/Spine.app/Contents/MacOS/Spine --package ~/aigg/m0-f0a --out ~/aigg/m0-f0a-cli`. Add `--spine-version 4.3.26` to pin the editor version. Exit 0 = `CLI_VALIDATED`, exit 1 = a check failed, exit 2 = an input error.
+3. Run `node packages/control/dist/src/cli.js spine-validate --spine /Applications/Spine.app/Contents/MacOS/Spine --package ~/aigg/m0-f0a --out ~/aigg/m0-f0a-cli-2` (a new folder for each run; the second run must not use the folder of the first run). Add `--spine-version 4.3.26` to pin the editor version. Exit 0 = `CLI_VALIDATED`, exit 1 = a check failed, exit 2 = an input error.
 4. Send `~/aigg/m0-f0a-cli/cli-validation.json` and the `*/logs/` folder.
 5. Optional visual check: open `~/aigg/m0-f0a-cli/tube/arm-near-tube.spine` in the Spine editor (or Import Data with `spine/tube/arm-spine.json`, New project). Check the setup pose, play each animation, save, close, and open the project again. Make screenshots or a short video of the setup pose and of `elbow_test` at +30 and `wrist_test` at ±15 for both variants, and of the Images node path.
 
@@ -146,7 +157,7 @@ Manual acceptance questions: all images found; segments aligned; elbow and wrist
 ## 11. Verification
 
 - `npm run check` passes (format, lint, configuration, workflows, type check, build, tests).
-- 18 new tests in `packages/control/test/spinearm.test.ts`: coordinate round trip, sign of the angles, structural checks and their failures, regions on image boxes, a spine-core 4.3.13 read with an animated wrist pivot, crops with soft edges, the full `spine-arm` command on the synthetic arm (checks, file references, byte-equal reruns, manifests), and `spine-validate` with a fake Spine program and through the CLI.
+- 25 new tests in `packages/control/test/spinearm.test.ts`: coordinate round trip, sign of the angles, structural checks and their failures, regions on image boxes, a spine-core 4.3.13 read with an animated wrist pivot, crops with soft edges, the full `spine-arm` command on the synthetic arm (checks, file references, byte-equal reruns, manifests), and `spine-validate` with a fake Spine program and through the CLI. The curve tests cover stepped on a constant interval (accepted and recorded, both directions), stepped on changing intervals (fail), a change on the last key (fail), a Bezier curve (fail), full-turn values 10 to 370 and −350 to 10 (fail), an exported end value that changed (fail), and value noise below and above the tolerance.
 - Command:
 
 ```sh

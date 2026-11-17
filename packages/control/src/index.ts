@@ -32,7 +32,7 @@ export { ControlError, type Problem } from '@control/problems';
 export { ellipsePolygon, Raster } from '@control/raster';
 export { referenceSvg, renderReference } from '@control/reference';
 export { alphaBounds, assembleArmPackage, packageFormat, spineArmCommand } from '@control/spinearm';
-export { atlasRegions, cliFormat, compareSkeletons, spineValidateCommand } from '@control/spinecli';
+export { atlasRegions, cliFormat, compareCurves, compareExport, compareSkeletons, curveKind, spineValidateCommand } from '@control/spinecli';
 export { buildArmSkeleton, checkArmSkeleton, diagnosticAnimations, spineDegrees, type SpineSkeleton, toImage, toSpine } from '@control/spineskeleton';
 export {
   alphaMask,

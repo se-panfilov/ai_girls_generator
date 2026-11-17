@@ -250,6 +250,7 @@ node packages/control/dist/src/cli.js spine-validate --spine /Applications/Spine
 
 - It checks the package against `SHA256SUMS` (JSON bytes) and `PIXEL-SHA256SUMS` (PNG pixels), then per variant runs `Spine --input <json> --output <dir>/<variant>/arm-near-<variant>.spine --import arm_near_<variant>` and `Spine --input <project> --output <dir>/<variant>/export --export json+pack`.
 - It compares the exported JSON with the intended skeleton (bones, parents, positions, rotations, lengths, slots, draw order, region attachments, rotate keys) and checks that the atlas has a region for every image.
+- Curves: `linear` and `stepped` are equal only on an interval with the same start and end value (as numbers, not modulo 360) in both files, because both then give the same rotation. Spine 4.3.26 writes such an interval as `stepped`. Each accepted case is in `normalizations`. All other curve changes, and a change on the last key, are differences.
 - `cli-validation.json` reports `CLI_VALIDATED: PASS` only when all steps exit with 0 and all checks pass. It keeps stdout, stderr, exit codes, and durations. `--dry-run` checks the package and prints the commands without running Spine.
 - The output directory must be new. `--force` is refused.
 
