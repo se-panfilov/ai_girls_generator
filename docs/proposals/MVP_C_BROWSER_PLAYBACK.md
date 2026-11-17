@@ -56,7 +56,7 @@ The `pr-rules` job runs `npm audit --package-lock-only --audit-level=high` when 
 | Base + minor tool update | 11 high, 0 moderate (simulation: `eslint` 10.15.0, `typescript-eslint` 8.73.0, `ajv` 8.20.0). The high findings stay. |
 
 All high findings come from one advisory: `picomatch` ReDoS GHSA-fc5q-39xc-vjpf (`<=4.0.7`). `picomatch` 4.0.7 is the latest release, so no patched version exists. `vite`, `vitest`, `tinyglobby`, `fdir`, and `typescript-eslint` are listed because they depend on it. npm offers only a major downgrade of `vite` and `vitest`.
-These are development tools. They read glob patterns from the repository configuration, not from character data. To accept the finding, to wait for a patch, or to change the audit rule is an owner decision. This PR does not change the audit rule.
+These are development tools. They read glob patterns from the repository configuration, not from character data. To accept the finding, to wait for a patch, or to change the audit rule is an owner decision. This PR does not change the audit rule. **Owner decision:** the owner accepted this existing `picomatch` finding for PR #39. The `pr-rules` audit step stays red for this PR. Follow-up: update when a patched `picomatch` release exists.
 
 ### Temporary exception: no `@aigg/rig-runtime`
 
