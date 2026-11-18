@@ -1,0 +1,448 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aigg.invalid/schemas/factory-job-0.1.json",
+  "title": "AIGG factory job manifest (job.json)",
+  "description": "Draft. The state of one factory job. The factory writes it atomically and validates it at each read (parseManifest). Paths are absolute paths on the computer that runs the job.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "jobId", "createdAt", "createdBy", "testAsset", "inputs", "tools", "stages", "approvals", "inputHistory"],
+  "properties": {
+    "format": {
+      "const": "aigg.factory.job/0.1"
+    },
+    "jobId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "createdBy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "version"],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 64
+        }
+      }
+    },
+    "testAsset": {
+      "type": "boolean",
+      "description": "True for a licensed test character. It is never a product character."
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "concept", "layers", "landmarks", "correspondence"],
+      "properties": {
+        "contract": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "sha256": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "concept": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "sha256": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "layers": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "sha256": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "landmarks": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "sha256": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "correspondence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "sha256": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spine", "controlCli", "viewerCli"],
+      "properties": {
+        "spine": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "version"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "version": {
+                  "type": "string",
+                  "pattern": "^(\\d{1,2}\\.\\d{1,2}\\.\\d{1,3}|latest|lateststable|stable)$"
+                }
+              }
+            }
+          ]
+        },
+        "controlCli": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        },
+        "viewerCli": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        }
+      }
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["INPUT", "W_APPROVAL", "L", "L_REVIEW", "LANDMARKS", "M", "SPINE", "PREVIEW", "FINAL_APPROVAL"],
+      "properties": {
+        "INPUT": {
+          "$ref": "#/$defs/stage"
+        },
+        "W_APPROVAL": {
+          "$ref": "#/$defs/stage"
+        },
+        "L": {
+          "$ref": "#/$defs/stage"
+        },
+        "L_REVIEW": {
+          "$ref": "#/$defs/stage"
+        },
+        "LANDMARKS": {
+          "$ref": "#/$defs/stage"
+        },
+        "M": {
+          "$ref": "#/$defs/stage"
+        },
+        "SPINE": {
+          "$ref": "#/$defs/stage"
+        },
+        "PREVIEW": {
+          "$ref": "#/$defs/stage"
+        },
+        "FINAL_APPROVAL": {
+          "$ref": "#/$defs/stage"
+        }
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["checkpoint", "decision", "digest", "artifactVersion", "by", "note", "at", "tool"],
+        "properties": {
+          "checkpoint": {
+            "enum": ["W_APPROVAL", "L_REVIEW", "FINAL_APPROVAL"]
+          },
+          "decision": {
+            "enum": ["approved", "rejected"]
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "artifactVersion": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "by": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "at": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "tool": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      }
+    },
+    "inputHistory": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "path", "replacedAt"],
+        "properties": {
+          "name": {
+            "enum": ["contract", "concept", "layers", "landmarks", "correspondence", "spine"]
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "replacedAt": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "runId", "attempts", "startedAt", "endedAt", "fingerprint", "inputs", "params", "tool", "output", "report", "exitCode", "code", "message"],
+      "properties": {
+        "status": {
+          "enum": ["NOT_STARTED", "RUNNING", "PASS", "FAIL", "ERROR", "INTERRUPTED"]
+        },
+        "runId": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startedAt": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        },
+        "endedAt": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        },
+        "fingerprint": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        },
+        "tool": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "version", "path", "digest"],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": ["string", "null"],
+                  "maxLength": 4096
+                },
+                "path": {
+                  "type": "string"
+                },
+                "digest": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          ]
+        },
+        "output": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["dir", "digest", "files"],
+              "properties": {
+                "dir": {
+                  "type": "string",
+                  "pattern": "^stages/[A-Z_]+/runs/[a-z0-9-]+/out$"
+                },
+                "digest": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "files": {
+                  "type": "integer"
+                }
+              }
+            }
+          ]
+        },
+        "report": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        },
+        "exitCode": {
+          "type": ["integer", "null"]
+        },
+        "code": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        },
+        "message": {
+          "type": ["string", "null"],
+          "maxLength": 4096
+        }
+      }
+    }
+  }
+}
