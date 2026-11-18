@@ -1,0 +1,283 @@
+{
+  "format": "aigg.factory.job/0.1",
+  "jobId": "example-character",
+  "createdAt": "2026-11-18T03:13:39.662Z",
+  "createdBy": {
+    "tool": "@aigg/factory",
+    "version": "0.1.0"
+  },
+  "testAsset": true,
+  "inputs": {
+    "contract": {
+      "path": "/work/character-inputs/rig.contract.json",
+      "sha256": "d07e02c1c9bbfab6c31fbfe7602be9aa96189081e3a92bc36635f1e26cba1843"
+    },
+    "concept": {
+      "path": "/work/character-inputs/concept.png",
+      "sha256": "aeab5dd6943b298b36bfa5cf8140bd31690acf095167bba77c1ca78d266d23cf"
+    },
+    "layers": {
+      "path": "/work/character-inputs/concept test.psd.json",
+      "sha256": "c85a8499551182e72567f3e6796b3ede3a89192412fc647411ac94738e698ac7"
+    },
+    "landmarks": {
+      "path": "/work/character-inputs/landmarks-manual.json",
+      "sha256": "36a94b5c45d7d884c2b73cd6fd07feda487aea272cfb73562afb88bc93a65d08"
+    },
+    "correspondence": {
+      "path": "/work/character-inputs/correspondence.json",
+      "sha256": "8625c08fbf5736a84ea9b65af3a24a3dc8d458c87280342aa99083c99b2f1be9"
+    }
+  },
+  "tools": {
+    "spine": {
+      "path": "/Applications/Spine.app/Contents/MacOS/Spine",
+      "version": "4.3.26"
+    },
+    "controlCli": null,
+    "viewerCli": null
+  },
+  "stages": {
+    "INPUT": {
+      "status": "PASS",
+      "runId": "1-b94310bb",
+      "attempts": 1,
+      "startedAt": "2026-11-18T03:13:39.672Z",
+      "endedAt": "2026-11-18T03:13:39.675Z",
+      "fingerprint": "25bba57b1ad507ebd195b9e2cb0cd3d0b466605ee1a6bb6733cd1f77becad2ee",
+      "inputs": {
+        "contract": "d07e02c1c9bbfab6c31fbfe7602be9aa96189081e3a92bc36635f1e26cba1843"
+      },
+      "params": {},
+      "tool": {
+        "name": "@aigg/factory",
+        "version": "0.1.0",
+        "path": "internal",
+        "digest": "2eba4db5c70471fecf33a37b9b9f03213e5a3e804eaee059703a2d7d1ec7b233"
+      },
+      "output": {
+        "dir": "stages/INPUT/runs/1-b94310bb/out",
+        "digest": "1275984b62c4848b7a79435c97ae18e58b702c1829823fb2abdab3451ca114c9",
+        "files": 1
+      },
+      "report": "stages/INPUT/runs/1-b94310bb/report.json",
+      "exitCode": null,
+      "code": null,
+      "message": "The contract is a JSON object. Its digest is recorded."
+    },
+    "W_APPROVAL": {
+      "status": "NOT_STARTED",
+      "runId": null,
+      "attempts": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "fingerprint": null,
+      "inputs": {},
+      "params": {},
+      "tool": null,
+      "output": null,
+      "report": null,
+      "exitCode": null,
+      "code": null,
+      "message": null
+    },
+    "L": {
+      "status": "PASS",
+      "runId": "1-a919e639",
+      "attempts": 1,
+      "startedAt": "2026-11-18T03:13:39.684Z",
+      "endedAt": "2026-11-18T03:13:39.686Z",
+      "fingerprint": "54374129bde529facba8a0d157733fb836ab0f4931f399c951c7ccc7c9e43b58",
+      "inputs": {
+        "concept": "aeab5dd6943b298b36bfa5cf8140bd31690acf095167bba77c1ca78d266d23cf",
+        "layerSet": "c85a8499551182e72567f3e6796b3ede3a89192412fc647411ac94738e698ac7"
+      },
+      "params": {},
+      "tool": {
+        "name": "@aigg/factory",
+        "version": "0.1.0",
+        "path": "internal",
+        "digest": "2eba4db5c70471fecf33a37b9b9f03213e5a3e804eaee059703a2d7d1ec7b233"
+      },
+      "output": {
+        "dir": "stages/L/runs/1-a919e639/out",
+        "digest": "4dbd3e589bd74f6083d4c57b20b98612113036d22308f147a3aa038891d5ba56",
+        "files": 1
+      },
+      "report": "stages/L/runs/1-a919e639/report.json",
+      "exitCode": null,
+      "code": null,
+      "message": "Imported 2 layer files."
+    },
+    "L_REVIEW": {
+      "status": "NOT_STARTED",
+      "runId": null,
+      "attempts": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "fingerprint": null,
+      "inputs": {},
+      "params": {},
+      "tool": null,
+      "output": null,
+      "report": null,
+      "exitCode": null,
+      "code": null,
+      "message": null
+    },
+    "LANDMARKS": {
+      "status": "PASS",
+      "runId": "1-e19d3b46",
+      "attempts": 1,
+      "startedAt": "2026-11-18T03:13:39.696Z",
+      "endedAt": "2026-11-18T03:13:39.698Z",
+      "fingerprint": "a94de5851e6c7da803cbf7640dea99191736fd66ec3e66cb2f6ada364f58e9a3",
+      "inputs": {
+        "layers": "4dbd3e589bd74f6083d4c57b20b98612113036d22308f147a3aa038891d5ba56",
+        "landmarks": "36a94b5c45d7d884c2b73cd6fd07feda487aea272cfb73562afb88bc93a65d08",
+        "correspondence": "8625c08fbf5736a84ea9b65af3a24a3dc8d458c87280342aa99083c99b2f1be9"
+      },
+      "params": {},
+      "tool": {
+        "name": "@aigg/factory",
+        "version": "0.1.0",
+        "path": "internal",
+        "digest": "2eba4db5c70471fecf33a37b9b9f03213e5a3e804eaee059703a2d7d1ec7b233"
+      },
+      "output": {
+        "dir": "stages/LANDMARKS/runs/1-e19d3b46/out",
+        "digest": "ba085d6d2e4388c5da9b23967a99b5346b62117abf006789da768638b43e11c3",
+        "files": 1
+      },
+      "report": "stages/LANDMARKS/runs/1-e19d3b46/report.json",
+      "exitCode": null,
+      "code": null,
+      "message": "1 manual landmarks; the correspondence matches the marks and the image."
+    },
+    "M": {
+      "status": "PASS",
+      "runId": "1-9049213b",
+      "attempts": 1,
+      "startedAt": "2026-11-18T03:13:39.700Z",
+      "endedAt": "2026-11-18T03:13:39.736Z",
+      "fingerprint": "6f65646dca2e970ca07d9a6112c4783d8c68cf251e7eaa3561b1fb02372a11f7",
+      "inputs": {
+        "contract": "1275984b62c4848b7a79435c97ae18e58b702c1829823fb2abdab3451ca114c9",
+        "layers": "4dbd3e589bd74f6083d4c57b20b98612113036d22308f147a3aa038891d5ba56",
+        "landmarks": "ba085d6d2e4388c5da9b23967a99b5346b62117abf006789da768638b43e11c3"
+      },
+      "params": {},
+      "tool": {
+        "name": "@aigg/control",
+        "version": "0.14.0",
+        "path": "/work/ai_girls_generator/packages/control/dist/src/cli.js",
+        "digest": "541c42f59026395acbfe20cfbf72ae052fd3521d8da60e69d32bd0a241381b5a"
+      },
+      "output": {
+        "dir": "stages/M/runs/1-9049213b/out",
+        "digest": "525ae4afa7aedffa36b52d6ac001d4886053eb829e1cb4fc5494be8258ad7ff5",
+        "files": 2
+      },
+      "report": "stages/M/runs/1-9049213b/report.json",
+      "exitCode": 0,
+      "code": null,
+      "message": "assemble-body: PASS."
+    },
+    "SPINE": {
+      "status": "PASS",
+      "runId": "1-8c0d46b4",
+      "attempts": 1,
+      "startedAt": "2026-11-18T03:13:39.738Z",
+      "endedAt": "2026-11-18T03:13:39.767Z",
+      "fingerprint": "b67f0a97c685c41a667627ecc4b421afc1a44ccbaaec48a89a15c6ffb51a3662",
+      "inputs": {
+        "package": "525ae4afa7aedffa36b52d6ac001d4886053eb829e1cb4fc5494be8258ad7ff5"
+      },
+      "params": {
+        "spineVersion": "4.3.26",
+        "spine": "eb97ec3a0b8e3766ca508ea46554749d44a7cda2f664ddf2a47d99dc665fe9a5"
+      },
+      "tool": {
+        "name": "@aigg/control",
+        "version": "0.14.0",
+        "path": "/work/ai_girls_generator/packages/control/dist/src/cli.js",
+        "digest": "541c42f59026395acbfe20cfbf72ae052fd3521d8da60e69d32bd0a241381b5a"
+      },
+      "output": {
+        "dir": "stages/SPINE/runs/1-8c0d46b4/out",
+        "digest": "97e51810c21243268a724c90a23213e37329bf0f0f3a1d93a9cc1a914c61242c",
+        "files": 2
+      },
+      "report": "stages/SPINE/runs/1-8c0d46b4/report.json",
+      "exitCode": 0,
+      "code": null,
+      "message": "spine-validate: PASS."
+    },
+    "PREVIEW": {
+      "status": "PASS",
+      "runId": "1-ca3b23dc",
+      "attempts": 1,
+      "startedAt": "2026-11-18T03:13:39.770Z",
+      "endedAt": "2026-11-18T03:13:39.796Z",
+      "fingerprint": "5adeb10297acfb2a8074be79e14a5ac1fcd1fd604866c3d4577e629867cf1cad",
+      "inputs": {
+        "spine": "97e51810c21243268a724c90a23213e37329bf0f0f3a1d93a9cc1a914c61242c"
+      },
+      "params": {},
+      "tool": {
+        "name": "@aigg/viewer",
+        "version": "0.1.0",
+        "path": "/work/ai_girls_generator/packages/viewer/dist/src/cli.js",
+        "digest": "541c42f59026395acbfe20cfbf72ae052fd3521d8da60e69d32bd0a241381b5a"
+      },
+      "output": {
+        "dir": "stages/PREVIEW/runs/1-ca3b23dc/out",
+        "digest": "5416b4a2e6a6375a8ca53c71293f032676f642cacbc6e763de4ea55b8618d6b2",
+        "files": 2
+      },
+      "report": "stages/PREVIEW/runs/1-ca3b23dc/report.json",
+      "exitCode": 0,
+      "code": null,
+      "message": "The export passes the viewer checks. Play it with: npm start --workspace @aigg/viewer -- /work/jobs/example-character/stages/SPINE/runs/1-8c0d46b4/out/body/export"
+    },
+    "FINAL_APPROVAL": {
+      "status": "NOT_STARTED",
+      "runId": null,
+      "attempts": 0,
+      "startedAt": null,
+      "endedAt": null,
+      "fingerprint": null,
+      "inputs": {},
+      "params": {},
+      "tool": null,
+      "output": null,
+      "report": null,
+      "exitCode": null,
+      "code": null,
+      "message": null
+    }
+  },
+  "approvals": [
+    {
+      "checkpoint": "W_APPROVAL",
+      "decision": "approved",
+      "digest": "aeab5dd6943b298b36bfa5cf8140bd31690acf095167bba77c1ca78d266d23cf",
+      "artifactVersion": "concept sha256 aeab5dd6943b298b36bfa5cf8140bd31690acf095167bba77c1ca78d266d23cf",
+      "by": "Example Owner",
+      "note": "",
+      "at": "2026-11-18T03:13:39.679Z",
+      "tool": "@aigg/factory 0.1.0"
+    },
+    {
+      "checkpoint": "L_REVIEW",
+      "decision": "approved",
+      "digest": "4dbd3e589bd74f6083d4c57b20b98612113036d22308f147a3aa038891d5ba56",
+      "artifactVersion": "L run 1-a919e639",
+      "by": "Example Owner",
+      "note": "",
+      "at": "2026-11-18T03:13:39.691Z",
+      "tool": "@aigg/factory 0.1.0"
+    }
+  ],
+  "inputHistory": []
+}
