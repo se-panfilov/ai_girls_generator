@@ -149,7 +149,7 @@ Manual acceptance questions: all images found; segments aligned; elbow and wrist
 
 ## 10. Limits
 
-- One concept, one arm, two joints, test use only. The concept is not approved as a product character and its age is not confirmed; the explicitly-adult rule for product characters stays.
+- One concept, one arm, two joints, test use only. The concept is not approved as a product character and its age is not confirmed. (Superseded by D34: the content rules no longer require an adult character.)
 - No real Spine run by the agent. The essential-edition compatibility is UNVERIFIED.
 - The hand bone direction comes from the hand part centroid, not from a mark.
 - Images and packages are derivatives of the licensed test concept. They are only in the project files (`research/m0-f0a/`), not in Git.

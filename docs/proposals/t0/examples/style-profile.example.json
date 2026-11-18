@@ -14,7 +14,7 @@
     "do": ["Flat transparent background", "Readable silhouette at 300 px character height"],
     "dont": ["Background objects", "Text or logos", "Motion blur", "Glow that goes outside the silhouette"]
   },
-  "contentRules": { "adultCharactersOnly": true, "explicitContent": false, "bakedBackground": false, "bakedCastShadow": false },
+  "contentRules": { "sexualizedMinors": false, "bakedBackground": false, "bakedCastShadow": false },
   "references": [
     {
       "assetId": "ref_a",

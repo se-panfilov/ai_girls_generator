@@ -42,10 +42,9 @@
       "description": "Fixed project rules. A profile cannot weaken them.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["adultCharactersOnly", "explicitContent", "bakedBackground", "bakedCastShadow"],
+      "required": ["sexualizedMinors", "bakedBackground", "bakedCastShadow"],
       "properties": {
-        "adultCharactersOnly": { "const": true },
-        "explicitContent": { "const": false },
+        "sexualizedMinors": { "const": false },
         "bakedBackground": { "const": false },
         "bakedCastShadow": { "const": false }
       }
