@@ -53,7 +53,7 @@ Check the applicable boundaries:
 | Models        | Is each model file in the license registry with an approved status and a recorded SHA-256 value?      |
 | Network       | Is the destination authorized? Does the call cost money? What happens after a partial success?        |
 | Provenance    | Can another person repeat the run from the recorded parameters and hashes?                             |
-| Content       | Do the prompts and checks keep characters explicitly adult and inside the content rules?              |
+| Content       | Do the prompts and checks keep the content rules (no sexualized content of minors or childlike looks)? |
 | Recovery      | Can failure leave a partial package? Can the user restore the previous state?                         |
 
 For inapplicable boundaries, record why they do not apply instead of adding unnecessary mechanisms.

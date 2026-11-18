@@ -458,7 +458,11 @@ export function decisionFor(job: JobManifest, id: CheckpointId, digest: string):
 }
 
 const checkpointHelp: Record<CheckpointId, { what: string; check: string }> = {
-  W_APPROVAL: { what: 'concept approval', check: 'Look at the concept image. Approve it only if it is the selected concept of an explicitly adult character and follows the content rules.' },
+  W_APPROVAL: {
+    what: 'concept approval',
+    check:
+      'Look at the concept image. Approve it only if it is the selected concept and follows the content rules in AGENTS.md (no sexualized content of a minor or of a character that looks like a child).'
+  },
   L_REVIEW: { what: 'layer review', check: 'Look at the layer PNG files and src_img.png (and the layer report of the L stage). Approve them only if the layers are clean enough for the assembly.' },
   FINAL_APPROVAL: {
     what: 'final approval',

@@ -54,7 +54,7 @@ The owner approved a three-phase product roadmap. It supersedes the sequencing o
 
 | Phase | Name                 | Goal                                                                                                                                                                                 |
 | ----- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1     | Art Generation MVP   | Consistent, editable, layered, modular 2D anime-style adult female characters from a text prompt, an image reference, or both. Output is good enough for manual Spine authoring.     |
+| 1     | Art Generation MVP   | Consistent, editable, layered, modular 2D anime-style female characters from a text prompt, an image reference, or both. Output is good enough for manual Spine authoring.           |
 | 2     | Spine Automation     | Automatic conversion of Phase 1 assets into characters on one approved shared skeleton with shared animations, skins and module composition, preview and validation in both facings. |
 | 3     | Production Readiness | Reliability, automated QA, performance and atlas optimization, batch orchestration where justified, storage, lifecycle, cost, reproducibility, maintenance.                          |
 
@@ -178,7 +178,7 @@ The template (TemplateProfile) is derived from the rig contract and, for product
 ### 5.2 Shape envelope and body archetypes
 
 One skeleton fixes joint positions and segment lengths. Characters can differ in face, hair, clothing silhouette inside the attachment rectangles, palette, accessories, and within the contract tolerances (segment length 0.95–1.05 in the proposed contract). This is a **limited** diversity.
-Characters with clearly different proportions (much taller, child-like proportions are forbidden anyway, very heavy or very slim builds) need body archetypes: either template variants inside the tolerances, or separate rig versions. Both are owner decisions (D7, D32). This ADR does not promise unlimited body diversity on one skeleton.
+Characters with clearly different proportions (much taller or much shorter, child-like proportions, very heavy or very slim builds) need body archetypes: either template variants inside the tolerances, or separate rig versions. Both are owner decisions (D7, D32). This ADR does not promise unlimited body diversity on one skeleton.
 
 ### 5.3 Rig feasibility dependency
 
@@ -286,7 +286,7 @@ The schemas and the general resolver are not required before the first working t
 - A revision is immutable after any job used it. A change makes a new revision.
 - A reference is `{ id, revision, digest }`. The digest is the SHA-256 of the canonical JSON: keys sorted at every level, no whitespace, UTF-8.
 - Every input image has a `rights` block. A missing or doubtful entry blocks its use.
-- Content rules are constants (`adult: true`, `explicitContent: false`).
+- The prohibition of sexualized content of minors is a constant (`sexualizedMinors: false`). The age of a character is data (`adult`), not a constant (D34).
 
 ### 9.2 Records
 

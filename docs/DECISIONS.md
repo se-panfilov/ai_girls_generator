@@ -48,7 +48,7 @@ These items come from the owner. They are not open.
 | D17 | View                                          | Three-quarter facing right / profile / front                                                                                               | Three-quarter facing right                                                                                                                                                                                             | Open         |
 | D18 | On-screen character height                    | Value in pixels and target screens                                                                                                         | Not evaluated yet. It sets the source resolution.                                                                                                                                                                      | Open         |
 | D19 | GPU                                           | Own GPU with 16 GB or more / rented cloud GPU                                                                                              | Not evaluated yet                                                                                                                                                                                                      | Open         |
-| D20 | Content rules                                 | Age, explicitness, store disclosure rules                                                                                                  | Human approval                                                                                                                                                                                                         | Open         |
+| D20 | Store disclosure rules                        | Disclosure text and age ratings for each store. Age and sexualization: closed by D34                                                       | Human approval                                                                                                                                                                                                         | Open         |
 | D21 | Package names in the monorepo                 | `@aigg/<dir>` scope and `aigg-<dir>` commands / other                                                                                      | `@aigg/<dir>`, private packages                                                                                                                                                                                        | Open         |
 | D22 | Absent part representation                    | `absent_by_design` in `character.json`, no region / transparent placeholder image                                                          | Status in `character.json`, no region. See the v5 contract patch.                                                                                                                                                      | **Accepted** |
 | D23 | Appearance module boundaries and migration    | Coarse appearance modules (proposed 9 groups) / current 7-group runtime table / whole characters only                                      | Owner-approved principles. Proposed 9 groups and migration in the D23/D26 proposal. Open until the migration design and a minimal validation are reviewed.                                                             | Open         |
@@ -93,6 +93,23 @@ Not changed by D33:
 - The phase gates and acceptance requirements in the roadmap. MVP vertical-slice acceptance is separate from production pipeline acceptance and from the final version 1 contract freeze.
 
 Changed documents: [AGENTS.md](../AGENTS.md) (MVP-first development, project status), [the roadmap](ROADMAP.md) (near-term priority, acceptance levels, automation exception), [the glossary](GLOSSARY.md) (MVP vertical slice).
+
+### D34: character age and sexualization
+
+Accepted owner requirement. It closes the age and sexualization part of D20. The store disclosure part of D20 stays open.
+
+- A character can have any age, also a minor age. The rule "all characters are explicitly adult" is removed.
+- Sexualized content of a minor character, or of a character that looks like a child, is prohibited. An unstated age counts as a minor age for this rule.
+- Sexualized content is: nudity, sexual acts, sexual innuendo, erotic or suggestive poses or expressions, framing or detail that focus on the breasts, the buttocks, or the crotch, and fetish framing. Suggestive content is in this list, not only explicit content.
+- Ordinary clothing and poses are not sexualized content, for example a school uniform with a short skirt, sports clothes, swimwear in a non-sexual context, and normal action poses. They do not stop the pipeline.
+- For adult characters that do not look like children, the project adds no content limit. The law and the model license terms still apply.
+
+Reason: the factory is a general tool for different games, also games with teenage characters, and the end user is responsible for the use of the output. A tool without an age rule and without a sexualization rule could make sexualized images of minors, so that prohibition stays. The definition names sexual focus, not clothing length, so that ordinary clothing does not block the pipeline.
+
+Not changed by D34: the human approval of each concept and each final package, the model license registry, and the store disclosure rules (D20).
+The recorded prompts of experiment C (`@aigg/control`) ask for an adult character. They are the parameters of past runs, so they stay unchanged. They are not a requirement for new characters.
+
+Changed documents: [AGENTS.md](../AGENTS.md) (content rules), [the asset-factory skill](../.agents/skills/asset-factory/SKILL.md) (content check), [the roadmap](ROADMAP.md) (test assets), the T0 proposal and its schemas (`adult` is data, `sexualizedMinors: false` is a constant), the See-through bundle manifest, the M0-F0a report, and the `W_APPROVAL` check text of `@aigg/factory`.
 
 ## Open decision notes
 

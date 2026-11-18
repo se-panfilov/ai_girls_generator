@@ -1,6 +1,6 @@
 {
   "name": "@aigg/factory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Run the existing pipeline stages of one test character as one resumable local job with human checkpoints (MVP-D orchestrator)",
   "private": true,
   "type": "module",

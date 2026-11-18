@@ -64,7 +64,7 @@ The bundle writes `requirements.lock` with exactly one hash per package, so pip 
 ## Input
 
 `concept-mirrored.png`, SHA-256 `175b3292437165380dd6cfb07c2b46b05a7dee11f90cd24307ba05326e8eae8b`, from the project file `l0-input-v1.tar.gz`. It is a mirrored copy of a paid asset. It is not in Git.
-Akane is a technical benchmark of the decomposition only. The source does not confirm the age of the character. The explicitly adult rule stays for the characters of this project.
+Akane is a technical benchmark of the decomposition only. The source does not confirm the age of the character. [The content rules](../../../AGENTS.md#content-rules) apply.
 
 ## Installation qualification
 
