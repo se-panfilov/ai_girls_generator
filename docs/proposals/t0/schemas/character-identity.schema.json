@@ -11,7 +11,10 @@
     "characterId": { "$ref": "common.schema.json#/$defs/id" },
     "revision": { "$ref": "common.schema.json#/$defs/revision" },
     "status": { "$ref": "common.schema.json#/$defs/lifecycle" },
-    "adult": { "const": true },
+    "adult": {
+      "description": "true only when the character is stated as an adult and does not look like a child. false for a minor or an unstated age. See the content rules in AGENTS.md (D34).",
+      "type": "boolean"
+    },
     "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
     "traits": {
       "description": "Distinctive traits. locked: a variant must keep the trait. Not locked: a variant can change it.",

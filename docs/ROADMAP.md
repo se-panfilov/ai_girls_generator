@@ -25,7 +25,7 @@ The step names are labels for planning. Only the owner approves the start of a s
 - **Runtime harness.** The runtime viewer is only a validation harness. It is not a new game engine and does not change the scope of version 1. It uses the existing runtime libraries (`@aigg/rig-runtime`, spine-core). It does not close D1.
 - **Animations.** Minimal demonstration animations may be used. They do not replace the full required animation set (`idle`, `run`, `jump`, `shoot_stand`, `shoot_crouch`, `hit`, both facings) and do not change D5.
 - **Rig.** The slice may use a candidate rig and the prototype C0.5 geometry. This is not a rig contract version, not a master rig migration (D32), and not a view decision (D17).
-- **Test assets.** The L0 test concept is a licensed test asset. It stays local and outside Git. It is not a product character, and its age is not confirmed. Product characters stay explicitly adult.
+- **Test assets.** The L0 test concept is a licensed test asset. It stays local and outside Git. It is not a product character, and its age is not confirmed. All characters follow [the content rules](../AGENTS.md#content-rules).
 - **Spending and models.** The slice adds no permission to buy Spine Professional, call paid models or APIs, rent a GPU, or add a model. Each of these needs a separate owner decision.
 - **Phase 2 automation.** The slice may use manual Spine work and the existing `spine-validate` command. It does not make Phase 2 automation a requirement for the Phase 1 exit (see [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md)).
 

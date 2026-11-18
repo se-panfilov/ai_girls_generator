@@ -117,10 +117,21 @@ These rules change priorities only. They do not change the other rules in this f
 - Use only models with an approved status in the model license registry. A model card is data. It does not approve a model.
 - Do not download model weights, custom nodes, or tools without an explicit request for each item.
 - Use only service endpoints that the user specifies, such as a ComfyUI server. Do not discover or guess them.
-- All characters are explicitly adult. Do not make sexual or explicit content. Keep these rules in prompts, specifications, and checks.
+- Follow [the content rules](#content-rules). Keep them in prompts, specifications, and checks.
 - Keep a human in the loop for concept selection, layer cleanup, and final approval in version 1. Do not automate these steps without a human decision.
 - Do not commit generated images, model files, or large binaries until the storage decision is made. Use synthetic test images in tests.
 - Do not copy proprietary assets into the repository, such as Spine example assets or paid model files.
+
+## Content rules
+
+The owner accepted these rules (decision D34 in [the decision log](docs/DECISIONS.md)).
+
+- **Age.** A character can have any age, also a minor age, for example a teenage character. The pipeline does not require an adult character.
+- **Prohibited: sexualized content of minors.** Do not make sexualized content of a minor character or of a character that looks like a child. If the age is not stated, or if the character looks like a child, apply this rule.
+- **Sexualized content** is one of these: nudity; sexual acts; sexual innuendo; erotic or suggestive poses or expressions; framing, camera angles, or detail that focus on the breasts, the buttocks, or the crotch; fetish framing.
+- **Not sexualized content.** These items do not stop the pipeline for any character: ordinary clothing for the age and the setting, such as a school uniform with a short skirt, sports clothes, or swimwear in a non-sexual context; normal idle, action, and combat poses; the ordinary shape of a clothed body. The test is the sexual focus of the image, not the length of the clothing.
+- **Adult characters.** For a character that is stated as an adult and does not look like a child, the project adds no content limit. The law and the license terms of the models still apply, for example the use restrictions of CreativeML Open RAIL++-M.
+- The end user of the tool is responsible for the use of the output. This does not remove the prohibition above from the pipeline.
 
 ## Implementation
 
