@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -356,7 +356,7 @@ describe('job folder', () => {
   it('keeps earlier input paths in the history', () => {
     const { job, inputs } = setup();
     provideInput(job, 'concept', inputs.concept);
-    expect(readJob(job).inputHistory).toEqual([expect.objectContaining({ name: 'concept', path: inputs.concept })]);
+    expect(readJob(job).inputHistory).toEqual([expect.objectContaining({ name: 'concept', path: realpathSync(inputs.concept) })]);
     expect(() => provideInput(job, 'concept', join(inputs.layersDir, 'missing.png'))).toThrow(/does not exist/);
     expect(() => provideInput(job, 'layers', inputs.concept)).toThrow(/psd\.json/);
     expect(() => provideInput(job, 'spine', 'relative/Spine')).toThrow(/absolute/);
