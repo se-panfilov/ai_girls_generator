@@ -133,6 +133,10 @@ node packages/factory/dist/src/cli.js run ~/aigg/mvp-d/job
 
 Then follow `Next:` after each stop: `approve … W_APPROVAL`, `run`, `approve … L_REVIEW`, `run` (M, SPINE, PREVIEW), play the export with the command in `launch.json`, then `approve … FINAL_APPROVAL` (or `reject`) and `run`. A final `run` must report `COMPLETE` and `endToEnd: PASS`, and one more `run` must skip all stages. The Russian step list is in the project files (`research/mvp-d/OWNER_STEPS_RU.md`).
 
+## Dependency audit
+
+This change adds only the two workspace link entries of `@aigg/factory` to the lockfile. Because the lockfile changes, the `pr-rules` job runs `npm audit`. The result is the same as on `master`: 15 findings (9 moderate, 6 high). All high findings come from `picomatch` GHSA-fc5q-39xc-vjpf, which has no patched release. **Owner decision:** the owner accepted this existing finding for this PR. The `pr-rules` audit step stays red. The audit rule is not changed.
+
 ## Known limitations
 
 - See-through and the manual marks are manual steps outside the factory. The factory imports and checks their files.
