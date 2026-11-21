@@ -1,4 +1,5 @@
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { chmodSync, existsSync, lchownSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -37,7 +38,7 @@ import {
 } from '@seethrough-bundle/runner';
 import { describe, expect, it } from 'vitest';
 
-import { loopbackOnly, quietLog, readyWork, sha256, syntheticImage, syntheticManifest, temporaryDirectory, testHost, testInput, writeBundle, writeQualified } from './helpers';
+import { loopbackOnly, quietLog, readyWork, sha256, syntheticImage, syntheticManifest, temporaryDirectory, testHost, testInput, writeBundle, writeQualified, writeSource } from './helpers';
 
 const host: Host = testHost();
 /** nvidia-smi gives an RTX A5000 and no compute process. unshare gives a namespace with only loopback. */
@@ -417,12 +418,15 @@ describe('downloads', () => {
 });
 
 describe('prepare', () => {
-  it('gets only pinned URLs and starts processes only with argument arrays and a minimal environment', async () => {
+  it.each([0o022, 0o077])('prepares a readable, sealed environment under umask %i', async (umask) => {
     const root = temporaryDirectory('prepare');
     const synthetic = syntheticManifest();
     const bundle = writeBundle(join(root, 'bundle'), synthetic);
-    mkdirSync(join(root, 'work'), { mode: 0o700 });
+    chmodSync(root, 0o755);
+    mkdirSync(join(root, 'work'), { mode: 0o755 });
     const lay = checkWork(join(root, 'work'));
+    const inputPath = join(root, testInput.name);
+    writeFileSync(inputPath, syntheticImage);
     const urls: string[] = [];
     const fetcher: FetchFunction = (url) => {
       urls.push(url);
@@ -440,10 +444,8 @@ describe('prepare', () => {
       if (command === 'git' && args.includes('checkout')) {
         mkdirSync(join(lay.seeThrough, '.git'), { recursive: true });
         writeFileSync(join(lay.seeThrough, '.git', 'HEAD'), `${bundle.manifest.seeThrough.commit}\n`);
-        mkdirSync(join(lay.seeThrough, 'common', 'utils'), { recursive: true });
-        mkdirSync(join(lay.seeThrough, 'inference', 'scripts'), { recursive: true });
-        writeFileSync(join(lay.seeThrough, 'inference', 'scripts', 'inference_psd.py'), 'print("synthetic")\n');
-        writeFileSync(join(lay.seeThrough, 'common', 'utils', 'helper.py'), 'VALUE = 1\n');
+        writeSource(lay);
+        writeFileSync(join(lay.seeThrough, 'local-only.txt'), 'synthetic private file', { mode: 0o600 });
       }
       if (args.includes('install')) {
         const site = join(lay.venv, 'lib', 'python3.12', 'site-packages');
@@ -455,6 +457,7 @@ describe('prepare', () => {
       } else if (args.includes('venv')) {
         mkdirSync(join(lay.venv, 'bin'), { recursive: true });
         writeFileSync(join(lay.venv, 'pyvenv.cfg'), 'include-system-site-packages = false\nversion = 3.12.3\n');
+        symlinkSync('/usr/bin/python3', lay.python);
       }
       return Promise.resolve({ code: 0, signal: null, timedOut: false });
     };
@@ -463,7 +466,22 @@ describe('prepare', () => {
     writeFileSync(join(pythonDir, 'python3.12'), '');
     const env = { PATH: pythonDir, HF_TOKEN: 'secret-token', AWS_SECRET_ACCESS_KEY: 'secret' };
     const chowns: { path: string; uid: number }[] = [];
-    const summary = await prepare(bundle, lay, quietLog, { fetcher, spawner, env, host: testHost(chowns) });
+    const linuxRoot = process.platform === 'linux' && process.getuid?.() === 0 && existsSync('/usr/bin/python3');
+    const fixtureHost = testHost(chowns);
+    const prepareHost: Host = {
+      ...fixtureHost,
+      chown: (path, uid, gid) => {
+        fixtureHost.chown(path, uid, gid);
+        if (linuxRoot) lchownSync(path, uid, gid);
+      }
+    };
+    const previousUmask = process.umask(umask);
+    let summary: Awaited<ReturnType<typeof prepare>>;
+    try {
+      summary = await prepare(bundle, lay, quietLog, { fetcher, spawner, env, host: prepareHost });
+    } finally {
+      process.umask(previousUmask);
+    }
     expect(summary.identity).toEqual({ runUser: 'aigg-l0', uid: 1500 });
     // git runs as root (no third-party Python). The venv and pip run as the run user. Then root takes the venv back.
     expect(calls.filter((call) => call.command === 'git').every((call) => call.uid === undefined)).toBe(true);
@@ -481,8 +499,57 @@ describe('prepare', () => {
     const fetch = calls.find((call) => call.args.includes('fetch'));
     expect(fetch?.args).toEqual(expect.arrayContaining(['protocol.allow=never', 'https://github.com/shitagaki-lab/see-through.git', bundle.manifest.seeThrough.commit]));
     expect(readFileSync(join(lay.hfCache, 'models--layerdifforg--seethroughv0.0.2_layerdiff3d', 'refs', 'main'), 'utf8')).toBe(bundle.manifest.models.repositories[0]?.revision);
-    const report = await preflight(bundle, lay, null, quietLog, {}, host);
-    expect(report.checks.filter((check) => check.status !== 'PASS').map((check) => check.id)).toEqual(['input']);
+    // A Linux root test exercises the synthetic aigg-l0 UID without starting any GPU or third-party code.
+    const probePython = (): SpawnSyncReturns<string> =>
+      spawnSync(
+        lay.python,
+        [
+          '-I',
+          '-B',
+          '-c',
+          [
+            'import os, sys',
+            'assert os.getuid() == 1500',
+            'with open("common/utils/helper.py") as source: assert source.read() == "VALUE = 1\\n"',
+            'assert not any(os.access(path, os.W_OK) for path in (sys.executable, os.path.dirname(sys.executable), "common/utils/helper.py"))'
+          ].join('\n')
+        ],
+        { cwd: lay.seeThrough, env: { PATH: '/usr/bin:/bin' }, uid: 1500, gid: 1500, timeout: 10_000, encoding: 'utf8' }
+      );
+    if (linuxRoot) {
+      const result = probePython();
+      expect(result.status, `${result.error?.message ?? ''}\n${result.stderr}`).toBe(0);
+    }
+    const mode = (path: string): number => lstatSync(path).mode & 0o777;
+    for (const path of [lay.seeThrough, join(lay.seeThrough, 'common', 'utils'), join(lay.venv, 'bin'), join(lay.venv, 'lib', 'python3.12', 'site-packages'), lay.wheelhouse, lay.hfCache]) {
+      expect(mode(path), path).toBe(0o755);
+    }
+    const sourceTool = join(lay.seeThrough, 'common', 'utils', 'tool.sh');
+    expect(mode(sourceTool)).toBe(0o755);
+    expect(mode(join(lay.seeThrough, 'local-only.txt'))).toBe(0o600);
+    expect(mode(join(lay.seeThrough, 'common', 'utils', 'helper.py'))).toBe(0o644);
+    expect(mode(join(lay.venv, 'pyvenv.cfg'))).toBe(0o644);
+    expect(lstatSync(lay.python).isSymbolicLink()).toBe(true);
+    for (const [name, bytes] of synthetic.wheelBytes) {
+      const path = join(lay.wheelhouse, name);
+      expect(mode(path)).toBe(0o644);
+      expect(sha256(readFileSync(path))).toBe(sha256(bytes));
+    }
+    for (const file of bundle.manifest.models.files) {
+      const path = modelPath(lay, file);
+      expect(mode(path)).toBe(0o644);
+      expect(sha256(readFileSync(path))).toBe(sha256(synthetic.modelBytes.get(`${file.repo}/${file.path}`) ?? Buffer.alloc(0)));
+    }
+    expect((await preflight(bundle, lay, inputPath, quietLog, {}, prepareHost)).status).toBe('READY');
+    chmodSync(lay.seeThrough, 0o700);
+    chmodSync(join(lay.venv, 'bin'), 0o700);
+    chmodSync(sourceTool, 0o600);
+    if (linuxRoot) expect(probePython().error?.code).toBe('EACCES');
+    expect((await preflight(bundle, lay, inputPath, quietLog, {}, prepareHost)).checks.find((check) => check.id === 'permissions')?.status).toBe('FAIL');
+    await prepare(bundle, lay, quietLog, { fetcher: noFetch, spawner: noSpawn, env, host: prepareHost });
+    expect(mode(sourceTool)).toBe(0o755);
+    expect(mode(join(lay.seeThrough, 'local-only.txt'))).toBe(0o600);
+    expect((await preflight(bundle, lay, inputPath, quietLog, {}, prepareHost)).status).toBe('READY');
   });
 
   it('is BLOCKED without Python 3.12 and starts nothing', async () => {

@@ -43,6 +43,7 @@ import {
   renameSync,
   rmSync,
   statfsSync,
+  type Stats,
   writeFileSync,
   writeSync
 } from 'node:fs';
@@ -676,11 +677,32 @@ export function checkBundlePermissions(root: string, host: Host): void {
   }
 }
 
+function preparedMode(info: Stats): number {
+  return info.isDirectory() || (info.mode & 0o111) !== 0 ? 0o755 : 0o644;
+}
+
+type PreparedAccess = { action: 'check' | 'set'; mode?: (path: string, info: Stats) => number | undefined };
+
+function sourceModes(lay: Layout, manifest: Manifest): NonNullable<PreparedAccess['mode']> {
+  const modes = new Map([[lay.seeThrough, 0o755]]);
+  for (const file of manifest.seeThrough.files) {
+    const path = inside(lay.seeThrough, file.path);
+    modes.set(path, file.mode === '100755' ? 0o755 : 0o644);
+    for (let parent = dirname(path); !modes.has(parent); parent = dirname(parent)) modes.set(parent, 0o755);
+  }
+  return (path) => modes.get(path);
+}
+
+function downloadMode(path: string, info: Stats): number | undefined {
+  if (info.isFile() && path.endsWith('.part')) return undefined;
+  return info.isDirectory() ? 0o755 : 0o644;
+}
+
 /**
- * A tree that the run user may read but not change: every entry belongs to the runner user (or root) and is not writable by group or
- * others. Links are allowed only where allowLinks is true (the venv has links to the system Python); their targets are not followed.
+ * Every entry belongs to the runner user (or root) and is not writable by group or others. Links are allowed only in the venv;
+ * their targets are not followed. The optional access policy checks or sets the modes the run user needs.
  */
-export function checkSealedTree(root: string, host: Host, label: string, allowLinks = false): number {
+export function checkSealedTree(root: string, host: Host, label: string, allowLinks = false, access?: PreparedAccess): number {
   let count = 0;
   const visit = (path: string): void => {
     const info = lstatSync(path);
@@ -691,20 +713,31 @@ export function checkSealedTree(root: string, host: Host, label: string, allowLi
       return;
     }
     if (othersCanWrite(info.mode)) fail('E_PERMISSIONS', `${label}: ${show(path)} is writable by group or others.`, `Remove ${label} and run prepare again.`);
+    if (!info.isDirectory() && !info.isFile()) fail('E_PERMISSIONS', `${label}: ${show(path)} is a special file.`);
+    if (access !== undefined) {
+      const mode = access.mode === undefined ? preparedMode(info) : access.mode(path, info);
+      if (mode !== undefined && access.action === 'set' && (info.mode & 0o7777) !== mode) {
+        if (info.isFile() && info.nlink !== 1) fail('E_PERMISSIONS', `${label}: ${show(path)} is a hard link.`);
+        chmodNoFollow(path, mode);
+      }
+      const required = (mode ?? 0) & 0o007;
+      if (access.action === 'check' && (info.mode & required) !== required)
+        fail('E_PERMISSIONS', `${label}: ${show(path)} is inaccessible to the run user.`, 'Run prepare to set the required permissions.');
+    }
     if (info.isDirectory()) for (const name of readdirSync(path)) visit(join(path, name));
-    else if (!info.isFile()) fail('E_PERMISSIONS', `${label}: ${show(path)} is a special file.`);
   };
   visit(root);
   return count;
 }
 
 /** Gives a tree to the runner user and removes write rights for group and others. Links are changed, never followed. */
-export function sealTree(root: string, host: Host): void {
+export function sealTree(root: string, host: Host, readable = false): void {
   const visit = (path: string): void => {
-    host.chown(path, host.uid, host.gid);
     const info = lstatSync(path);
+    if (readable && !info.isDirectory() && !info.isSymbolicLink() && (!info.isFile() || info.nlink !== 1)) fail('E_PERMISSIONS', `venv: ${show(path)} is a hard link or a special file.`);
+    host.chown(path, host.uid, host.gid);
     if (info.isSymbolicLink()) return;
-    chmodNoFollow(path, info.mode & 0o0755);
+    chmodNoFollow(path, readable ? preparedMode(info) : info.mode & 0o0755);
     if (info.isDirectory()) for (const name of readdirSync(path)) visit(join(path, name));
   };
   visit(root);
@@ -954,15 +987,15 @@ export async function preflight(bundle: LoadedBundle, lay: Layout, inputPath: st
   await run('permissions', () => {
     checkBundlePermissions(bundle.root, host);
     checkTrustedPath(lay.work, host, 'the work directory');
+    if (kind(lay.seeThrough) !== 'missing') checkSealedTree(lay.seeThrough, host, 'see-through', false, { action: 'check', mode: sourceModes(lay, manifest) });
     for (const [path, label] of [
-      [lay.seeThrough, 'see-through'],
       [lay.wheelhouse, 'wheelhouse'],
-      [lay.hfHome, 'hf'],
-      [lay.inputDirectory, 'input'],
-      [lay.control, 'control']
+      [lay.hfHome, 'hf']
     ] as const)
-      if (kind(path) !== 'missing') checkSealedTree(path, host, label);
-    if (kind(lay.venv) !== 'missing') checkSealedTree(lay.venv, host, 'venv', true);
+      if (kind(path) !== 'missing') checkSealedTree(path, host, label, false, { action: 'check', mode: downloadMode });
+    if (kind(lay.inputDirectory) !== 'missing') checkSealedTree(lay.inputDirectory, host, 'input');
+    if (kind(lay.control) !== 'missing') checkSealedTree(lay.control, host, 'control');
+    if (kind(lay.venv) !== 'missing') checkSealedTree(lay.venv, host, 'venv', true, { action: 'check' });
     return null;
   });
   await run('python', () => (kind(lay.venv) === 'missing' && findPython(env.PATH) === null ? 'python3.12 is not in PATH. prepare needs it to make the venv.' : null));
@@ -1251,7 +1284,13 @@ export const spawnProcess: Spawner = async (command, args, options) => {
   const ended = await new Promise<ProcessResult>((resolvePromise, reject) => {
     const fd = openSync(options.logPath, constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | constants.O_NOFOLLOW, 0o600);
     const identity = options.user === undefined ? {} : { uid: options.user.uid, gid: options.user.gid };
-    const child = spawn(command, [...args], { cwd: options.cwd, env: options.env, shell: false, stdio: ['ignore', fd, fd], detached: true, ...identity });
+    let child;
+    try {
+      child = spawn(command, [...args], { cwd: options.cwd, env: options.env, shell: false, stdio: ['ignore', fd, fd], detached: true, ...identity });
+    } finally {
+      // spawn gives the child its own descriptors. The runner closes its copy once, even if spawn throws.
+      closeSync(fd);
+    }
     let timedOut = false;
     let cancelled = false;
     const killGroup = (): void => {
@@ -1268,22 +1307,19 @@ export const spawnProcess: Spawner = async (command, args, options) => {
     };
     const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
     for (const signal of signals) process.on(signal, onSignal);
-    const done = (): void => {
-      clearTimeout(timer);
-      for (const signal of signals) process.off(signal, onSignal);
-      closeSync(fd);
-    };
     const timer = setTimeout(() => {
       timedOut = true;
       killGroup();
     }, options.timeoutSeconds * 1000);
+    let spawnError: Error | undefined;
     child.on('error', (error) => {
-      done();
-      reject(error);
+      spawnError ??= error;
     });
-    child.on('close', (code, signal) => {
-      done();
-      resolvePromise({ code, signal, timedOut, cancelled });
+    child.once('close', (code, signal) => {
+      clearTimeout(timer);
+      for (const signal of signals) process.off(signal, onSignal);
+      if (spawnError !== undefined) reject(spawnError);
+      else resolvePromise({ code, signal, timedOut, cancelled });
     });
   });
   if (select === undefined) return ended;
@@ -1520,6 +1556,7 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     if (head !== seeThrough.commit) fail('E_GIT', 'The See-through checkout is not at the pinned commit.');
     await checkSource(lay, manifest);
   }
+  checkSealedTree(lay.seeThrough, host, 'see-through', false, { action: 'set', mode: sourceModes(lay, manifest) });
   summary.seeThrough = { commit: seeThrough.commit, files: manifest.seeThrough.files.length };
 
   // 2. Wheels.
@@ -1531,6 +1568,7 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     await download(deps.fetcher, 'wheels', wheel.url, target, wheel.size, wheelCheck(wheel), log);
     downloadedWheels += 1;
   }
+  checkSealedTree(lay.wheelhouse, host, 'wheelhouse', false, { action: 'set', mode: downloadMode });
   summary.wheels = { total: manifest.python.wheels.length, downloaded: downloadedWheels };
 
   // 3. Model files into the Hugging Face cache layout: refs/main and real files in snapshots/<revision>/ (no links).
@@ -1555,6 +1593,7 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     await download(deps.fetcher, 'models', url, target, file.size, modelCheck(file), log);
     downloadedModels += 1;
   }
+  checkSealedTree(lay.hfHome, host, 'hf', false, { action: 'set', mode: downloadMode });
   summary.models = { total: manifest.models.files.length, downloaded: downloadedModels };
 
   // 4. The venv, as the run user: Python 3.12 without pip, then pip from the checked pip wheel, offline, hash-checked wheels only.
@@ -1599,16 +1638,10 @@ export async function prepare(bundle: LoadedBundle, lay: Layout, log: Logger, de
     const installProblems = processProblems(install, 'pip install');
     if (installProblems.length > 0) fail('E_PROCESS', installProblems.join(' '), 'Remove venv. Stop here and report it.');
     if (install.code !== 0) fail('E_INSTALL', 'pip install failed (see evidence/install.log).', 'Remove venv and run prepare again. Do not install other versions.');
-    sealTree(lay.venv, host);
+    sealTree(lay.venv, host, true);
   }
   summary.venv = checkVenv(lay, manifest);
-  for (const [path, label] of [
-    [lay.seeThrough, 'see-through'],
-    [lay.wheelhouse, 'wheelhouse'],
-    [lay.hfHome, 'hf']
-  ] as const)
-    checkSealedTree(path, host, label);
-  checkSealedTree(lay.venv, host, 'venv', true);
+  checkSealedTree(lay.venv, host, 'venv', true, { action: 'set' });
   summary.identity = { runUser: identity.name, uid: identity.uid };
   log.event('prepare', summary);
   return summary;
