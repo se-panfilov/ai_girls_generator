@@ -65,7 +65,8 @@ The bundle writes `requirements.lock` with exactly one hash per package, so pip 
 
 The owner gives the input pin when the bundle is built (`--input-name`, `--input-sha256`). See [Input pins](../README.md#input-pins) for the pins that were used.
 The L0-1 input is `concept-mirrored.png`, a mirrored copy of a paid asset (Akane), from the project file `l0-input-v1.tar.gz`.
-The MVP-E input is `concept-jun.png`, a x4 upscale of one sprite frame of a paid asset (Hero Jun), from the project file `jun-input-v1.tar.gz`.
+The MVP-E input is `concept-jun.png`, a x4 upscale of one sprite frame of a paid asset (Hero Jun), from the project file `jun-input-v2.tar.gz`.
+It is square, and each pixel with alpha 0 has white RGB, as in the L0-1 input. Reason: the pinned See-through code gives the RGB of alpha-0 pixels to the model without change, and pads a non-square input with `(0, 0, 0, 0)` (`common/utils/inference_utils.py` `apply_layerdiff`, `common/utils/cv.py` `center_square_pad_resize`).
 The input images are not in Git. Both characters are technical benchmarks of the decomposition only. [The content rules](../../../AGENTS.md#content-rules) apply.
 
 ## Installation qualification
