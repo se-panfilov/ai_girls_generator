@@ -103,6 +103,7 @@ sh /workspace/l0-1-bundle/run.sh prepare --work /workspace/l0-1
 
 As root, it gets See-through at the pinned commit, 79 wheels (about 4.1 GB), and the model files (about 13.4 GB), and checks each file by size and hash.
 As `aigg-l0`, it makes the venv and installs the wheels offline from the checked files. Then root takes the venv: the run user cannot change it later.
+`prepare` sets the read, search, and execute permissions needed by `aigg-l0`, even if the caller uses `umask 077`.
 It does not run See-through. If it stops, run it again: it keeps the checked files and never replaces a file with other content.
 
 Then check, without third-party code:

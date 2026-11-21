@@ -73,7 +73,8 @@ export const testInput: InputPin = { name: 'synthetic-input.png', sha256: create
 
 export const sourceContent: Record<string, string> = {
   [seeThrough.script]: 'print("synthetic")\n',
-  'common/utils/helper.py': 'VALUE = 1\n'
+  'common/utils/helper.py': 'VALUE = 1\n',
+  'common/utils/tool.sh': '#!/bin/sh\n'
 };
 
 const weightBytes = Buffer.from('synthetic weights');
@@ -100,7 +101,7 @@ export function syntheticManifest(): Synthetic {
     modelBytes.set(`${repository.key}/unet/diffusion_pytorch_model.safetensors`, weightBytes);
     modelFiles.push({ repo: repository.key, path: 'unet/diffusion_pytorch_model.safetensors', size: weightBytes.length, gitBlobSha1: '0'.repeat(40), sha256: sha256(weightBytes) });
   }
-  const sourceFiles = Object.entries(sourceContent).map(([path, content]) => ({ path, size: Buffer.byteLength(content), sha256: sha256(content), mode: '100644' }));
+  const sourceFiles = Object.entries(sourceContent).map(([path, content]) => ({ path, size: Buffer.byteLength(content), sha256: sha256(content), mode: path.endsWith('.sh') ? '100755' : '100644' }));
   const lock = requirementsLock(wheels);
   const manifest = {
     format: bundleFormat,
@@ -131,7 +132,7 @@ export function writeBundle(directory: string, synthetic: Synthetic): LoadedBund
 export function writeSource(lay: Layout): void {
   for (const [path, content] of Object.entries(sourceContent)) {
     mkdirSync(dirname(join(lay.seeThrough, path)), { recursive: true });
-    writeFileSync(join(lay.seeThrough, path), content);
+    writeFileSync(join(lay.seeThrough, path), content, { mode: path.endsWith('.sh') ? 0o755 : 0o644 });
   }
 }
 

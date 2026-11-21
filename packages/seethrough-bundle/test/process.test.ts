@@ -1,6 +1,6 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -48,6 +48,45 @@ afterEach(async () => {
 
 /** A tree: the direct child (sh), a background sleep in its group, and a sleep that leaves the group with setsid. */
 const tree = 'sleep 300 & setsid sleep 301 & sleep 302';
+
+describe('failed child spawning', () => {
+  it('keeps the original error, closes log descriptors, and removes signal handlers', () => {
+    const root = temporaryDirectory('spawn-error');
+    const denied = join(root, 'python');
+    writeFileSync(denied, '#!/bin/sh\n', { mode: 0o600 });
+    // A separate Node process detects event handler exceptions that would otherwise interrupt Vitest.
+    const runner = new URL('../dist/src/runner.js', import.meta.url).href;
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `
+      import assert from 'node:assert/strict';
+      import { readdirSync } from 'node:fs';
+      import { spawnProcess } from ${JSON.stringify(runner)};
+      const [cwd, denied] = process.argv.slice(1);
+      const options = { cwd, env: {}, timeoutSeconds: 30, logPath: cwd + '/spawn.log' };
+      const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+      const handlers = () => signals.map(signal => process.listenerCount(signal));
+      const expectedHandlers = handlers();
+      assert.equal((await spawnProcess('/usr/bin/true', [], options)).code, 0);
+      const descriptors = readdirSync('/dev/fd').length;
+      for (const [command, code] of [[denied, 'EACCES'], [cwd + '/missing', 'ENOENT'], ['', 'ERR_INVALID_ARG_VALUE']]) {
+        await assert.rejects(spawnProcess(command, [], options), { code });
+      }
+      await new Promise(resolve => setImmediate(resolve));
+      assert.deepEqual(handlers(), expectedHandlers);
+      assert.equal(readdirSync('/dev/fd').length, descriptors);
+    `,
+        root,
+        denied
+      ],
+      { encoding: 'utf8', timeout: 10_000 }
+    );
+    expect(result.status, result.stderr).toBe(0);
+  });
+});
 
 describe.runIf(linux)('process tree (Linux)', () => {
   it('shows the risk: SIGKILL of the direct child leaves its descendants alive', async () => {
