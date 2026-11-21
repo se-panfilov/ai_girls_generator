@@ -20,7 +20,7 @@ import {
 } from '@seethrough-bundle/runner';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { loopbackOnly, quietLog, readyWork, sha256, syntheticImage, temporaryDirectory, testHost, writeQualified } from './helpers';
+import { loopbackOnly, quietLog, readyWork, temporaryDirectory, testHost, writeQualified } from './helpers';
 
 // Stop control of the process tree. The Linux tests start real processes (sh, sleep, setsid) with a random marker in their
 // environment, and select only the processes with this marker. They start no model and no See-through code.
@@ -168,7 +168,7 @@ describe('run result after a stop', () => {
         spawner: stopped(item.result),
         capture: gpuWith(''),
         env: {},
-        expectedInputSha256: sha256(syntheticImage),
+
         host: testHost(),
         gpuReleaseMs: 0
       });
@@ -186,7 +186,7 @@ describe('run result after a stop', () => {
       spawner: stopped({ code: null, signal: 'SIGKILL', timedOut: true, leftovers: { killed: 1, survivors: [] } }),
       capture: gpuWith('31337\n'),
       env: {},
-      expectedInputSha256: sha256(syntheticImage),
+
       host: testHost(),
       gpuReleaseMs: 0
     });

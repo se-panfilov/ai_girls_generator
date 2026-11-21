@@ -6,19 +6,23 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { bundleFiles, type PlannedFile } from '@seethrough-bundle/bundle';
-import { RunnerError, show } from '@seethrough-bundle/runner';
+import { parseInputPin, RunnerError, show } from '@seethrough-bundle/runner';
 
-const help = `Usage: aigg-seethrough-bundle bundle --out <dir> [--dry-run] [--force]
+const help = `Usage: aigg-seethrough-bundle bundle --out <dir> --input-name <name.png> --input-sha256 <hex> [--dry-run] [--force]
 
-Write the L0-1 See-through owner-run bundle: run.sh, runner.mjs, guard.py, qualify.py, manifest.json, requirements.lock, README.md, and SHA256SUMS.
+Write the See-through owner-run bundle: run.sh, runner.mjs, guard.py, qualify.py, manifest.json, requirements.lock, README.md, and SHA256SUMS.
+The bundle runs only the one input image that --input-name and --input-sha256 pin. The command does not read the image.
 The command reads the pinned data files of this package. It uses no network, starts no process, and runs no model.
 The owner copies the bundle to the GPU host. See docs/OWNER_RUN.md.
 
 Options:
-  --out <dir>  The output directory. It must be new or empty, or --force must be given. A link is refused.
-  --dry-run    Print the report and write nothing.
-  --force      Replace files with the same names in an existing output directory.
-  --help       Print this text.
+  --out <dir>             The output directory. It must be new or empty, or --force must be given. A link is refused.
+  --input-name <name>     The file name of the input image on the GPU host: lowercase a-z, 0-9, _ and -, extension .png.
+                          See-through names its outputs after it (<stem>.psd.json and <stem>/).
+  --input-sha256 <hex>    The SHA-256 of the input image (64 lowercase hexadecimal characters).
+  --dry-run               Print the report and write nothing.
+  --force                 Replace files with the same names in an existing output directory.
+  --help                  Print this text.
 
 The command writes one JSON report to stdout. Exit status: 0 PASS, 1 FAIL, 2 usage or input error.
 `;
@@ -95,7 +99,14 @@ export function run(argv: readonly string[], root: string): number {
       args: [...argv],
       allowPositionals: true,
       strict: true,
-      options: { out: { type: 'string' }, 'dry-run': { type: 'boolean' }, force: { type: 'boolean' }, help: { type: 'boolean' } }
+      options: {
+        out: { type: 'string' },
+        'input-name': { type: 'string' },
+        'input-sha256': { type: 'string' },
+        'dry-run': { type: 'boolean' },
+        force: { type: 'boolean' },
+        help: { type: 'boolean' }
+      }
     });
   } catch (error) {
     process.stderr.write(`E_USAGE: ${show(error instanceof Error ? error.message : 'arguments')}\n`);
@@ -109,11 +120,16 @@ export function run(argv: readonly string[], root: string): number {
   try {
     if (positionals.length !== 1 || positionals[0] !== 'bundle') throw new UsageError('Give the command bundle. Run aigg-seethrough-bundle --help.');
     if (values.out === undefined || values.out === '') throw new UsageError('--out <dir> is required.');
-    const files = bundleFiles(loadData(root));
+    const inputName = values['input-name'];
+    const inputSha256 = values['input-sha256'];
+    if (inputName === undefined || inputSha256 === undefined) throw new UsageError('--input-name <name.png> and --input-sha256 <hex> are required.');
+    const input = parseInputPin({ name: inputName, sha256: inputSha256 });
+    const files = bundleFiles(loadData(root), input);
     const report = {
       format: 'aigg.l0-seethrough-bundle-report/0.1',
       status: 'PASS',
       dryRun: values['dry-run'] === true,
+      input,
       out: resolve(values.out),
       files: files.map((file) => ({ name: file.name, bytes: file.bytes.length, sha256: createHash('sha256').update(file.bytes).digest('hex') }))
     };

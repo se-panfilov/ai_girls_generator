@@ -10,7 +10,7 @@ The run has four gates. Each gate needs its own owner permission. You can stop a
 | G1   | Pod and host setup        | Rent the Pod, make the run user, close credential files.                           | None                                                     |
 | G2   | Preparation               | Downloads from pinned sources, offline installation of the wheels as the run user. | pip installs wheels (no wheel code runs at installation) |
 | G3   | Environment qualification | `qualify`: imports, exact versions, one small CUDA operation. No model is loaded.  | Python packages are imported and run as the run user     |
-| G4   | Inference (the L0-1 run)  | `run`: one See-through decomposition of `concept-mirrored.png`.                    | See-through and the models run as the run user           |
+| G4   | Inference (the L0-1 run)  | `run`: one See-through decomposition of the pinned `<input>.png`.                  | See-through and the models run as the run user           |
 
 Stop at the first FAIL or BLOCKED. Do not change a setting, a version, a model, or an argument to get past it. Collect the evidence, terminate the Pod, and report the code.
 
@@ -18,9 +18,9 @@ Stop at the first FAIL or BLOCKED. Do not change a setting, a version, a model, 
 
 1. Build or get the bundle directory and check it: `cd <bundle>` and `shasum -a 256 -c SHA256SUMS`.
 2. Compare `shasum -a 256 SHA256SUMS` with the value in the pull request. They must be equal.
-3. Get the input from the project file `l0-input-v1.tar.gz`: `tar -xzf l0-input-v1.tar.gz l0-input-v1/concept-mirrored.png`.
-   Check it: `shasum -a 256 l0-input-v1/concept-mirrored.png` must give `175b3292437165380dd6cfb07c2b46b05a7dee11f90cd24307ba05326e8eae8b`.
-   Copy only this file to the Pod. Do not copy `concept-original.png`, the Akane PSD files, or the Akane archive.
+3. Get the input image that the bundle was built for (`Input:` line in the bundle `README.md`). See [Input pins](../README.md#input-pins).
+   Check it: `shasum -a 256 <input>.png` must give the SHA-256 of the pin.
+   Copy only this file to the Pod. Do not copy other files of its source (the licensed archive, PSD files, or the original image).
 
 ## 1. Start the Pod (G1)
 
@@ -81,16 +81,16 @@ From your computer:
 
 ```sh
 scp -P <PORT> -i ~/.ssh/<key> -r <bundle> root@<IP>:/workspace/l0-1-bundle
-scp -P <PORT> -i ~/.ssh/<key> l0-input-v1/concept-mirrored.png root@<IP>:/workspace/concept-mirrored.png
+scp -P <PORT> -i ~/.ssh/<key> <input>.png root@<IP>:/workspace/<input>.png
 ```
 
 On the Pod:
 
 ```sh
-chown -R root:root /workspace/l0-1-bundle /workspace/concept-mirrored.png
-chmod -R go-w /workspace/l0-1-bundle && chmod 644 /workspace/concept-mirrored.png
+chown -R root:root /workspace/l0-1-bundle /workspace/<input>.png
+chmod -R go-w /workspace/l0-1-bundle && chmod 644 /workspace/<input>.png
 mkdir -m 755 /workspace/l0-1
-sh /workspace/l0-1-bundle/run.sh preflight --work /workspace/l0-1 --input /workspace/concept-mirrored.png
+sh /workspace/l0-1-bundle/run.sh preflight --work /workspace/l0-1 --input /workspace/<input>.png
 ```
 
 The expected result is INCOMPLETE (exit status 3): the code, wheels, models, and venv are missing. Every other check must be PASS. FAIL stops here.
@@ -108,7 +108,7 @@ It does not run See-through. If it stops, run it again: it keeps the checked fil
 Then check, without third-party code:
 
 ```sh
-sh /workspace/l0-1-bundle/run.sh preflight --work /workspace/l0-1 --input /workspace/concept-mirrored.png
+sh /workspace/l0-1-bundle/run.sh preflight --work /workspace/l0-1 --input /workspace/<input>.png
 sh /workspace/l0-1-bundle/run.sh gpu --work /workspace/l0-1
 sh /workspace/l0-1-bundle/run.sh isolation --work /workspace/l0-1
 ```
@@ -133,7 +133,7 @@ It loads no model file. The result is `evidence/qualify.json`. PASS (exit status
 ## 6. Inference (G4: the L0-1 run, once)
 
 ```sh
-sh /workspace/l0-1-bundle/run.sh run --work /workspace/l0-1 --input /workspace/concept-mirrored.png
+sh /workspace/l0-1-bundle/run.sh run --work /workspace/l0-1 --input /workspace/<input>.png
 sh /workspace/l0-1-bundle/run.sh status --work /workspace/l0-1
 ps -u aigg-l0
 ```

@@ -12,9 +12,11 @@ The goal is a first L0-1 execution that is safe enough to review, not a general 
 | See-through code (Apache-2.0)  | Untrusted, pinned        | Third-party Python. Pinned by Git commit and by SHA-256 of each file. Runs only as the run user.           |
 | Model files (Hugging Face)     | Untrusted, pinned        | Executable input. Only safetensors weights. Pinned by revision, size, and SHA-256 or Git blob id.          |
 | Python wheels (PyPI)           | Untrusted, pinned        | Third-party code, also native code. Pinned by file name, URL, size, and SHA-256. No source builds.         |
-| `concept-mirrored.png`         | Confidential input       | Derived from a paid asset. Only this file goes to the Pod. Pinned by SHA-256.                              |
+| Input image (`<input>.png`)    | Confidential input       | Derived from a paid asset. Only this file goes to the Pod. Pinned by SHA-256 in `manifest.json`.           |
 | The GPU host (Runpod Pod)      | Owner-controlled, rented | The owner starts and terminates it. No credentials of the owner or of services go to the Pod.              |
 | Outputs (PSD, PNG, logs)       | Untrusted data           | Written by third-party code. The runner checks paths, types, and sizes. They are not committed to Git.     |
+
+The input pin (file name and SHA-256) is the only pin that comes from `manifest.json` and not from the runner source. The owner sets it when the bundle is built. The runner checks its form only: a plain lowercase `.png` name (no path) and a 64-character SHA-256. A changed pin changes `manifest.json`, `SHA256SUMS`, and the bundle hash that the owner compares.
 
 ## Identities and permissions
 
