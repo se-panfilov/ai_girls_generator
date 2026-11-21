@@ -544,7 +544,7 @@ describe('prepare', () => {
     chmodSync(lay.seeThrough, 0o700);
     chmodSync(join(lay.venv, 'bin'), 0o700);
     chmodSync(sourceTool, 0o600);
-    if (linuxRoot) expect(probePython().error?.code).toBe('EACCES');
+    if (linuxRoot) expect(probePython().error).toMatchObject({ code: 'EACCES' });
     expect((await preflight(bundle, lay, inputPath, quietLog, {}, prepareHost)).checks.find((check) => check.id === 'permissions')?.status).toBe('FAIL');
     await prepare(bundle, lay, quietLog, { fetcher: noFetch, spawner: noSpawn, env, host: prepareHost });
     expect(mode(sourceTool)).toBe(0o755);
