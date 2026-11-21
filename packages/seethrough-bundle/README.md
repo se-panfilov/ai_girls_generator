@@ -32,7 +32,7 @@ The image is not in Git. The owner gives the pin and checks the SHA-256 of the i
 | Use                 | `--input-name`         | `--input-sha256`                                                   | Source of the image                |
 | ------------------- | ---------------------- | ------------------------------------------------------------------ | ---------------------------------- |
 | L0-1 (Akane)        | `concept-mirrored.png` | `175b3292437165380dd6cfb07c2b46b05a7dee11f90cd24307ba05326e8eae8b` | Project file `l0-input-v1.tar.gz`  |
-| MVP-E (Character B) | `concept-jun.png`      | `747d0ae48628a95e291f77252e1416dbc9016f8bd1cc779e3aaaa890fadf0887` | Project file `jun-input-v1.tar.gz` |
+| MVP-E (Character B) | `concept-jun.png`      | `133a6738d18ef3c8caa46026b250275a41b668a6e4b7111111f7ea995621ece0` | Project file `jun-input-v2.tar.gz` |
 
 ## Runner commands on the GPU host
 
