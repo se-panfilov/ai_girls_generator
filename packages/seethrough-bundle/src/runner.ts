@@ -2,10 +2,12 @@
 //
 // This module is self-contained: it imports only Node.js built-ins, so the build gives one file that the bundle copies as runner.mjs.
 // Scope: one standalone See-through decomposition (inference/scripts/inference_psd.py) of one pinned input image.
+// The input pin (file name and SHA-256) is in manifest.json. The owner sets it when the bundle is built.
 //
 // Trust boundaries and controls:
 // - The bundle is data from the repository. run.sh checks SHA256SUMS and starts the runner with an empty environment (only PATH).
 //   The runner checks manifest.json against the pins in this file and checks each bundle file against manifest.json.
+//   The input pin is the only pin that comes from manifest.json, not from this file. The runner checks only its form.
 // - Identities: the runner itself runs as root. Every third-party Python process (venv creation, pip, qualify, See-through) runs as
 //   the dedicated unprivileged user aigg-l0. The bundle, the guard configuration, the code, the venv, and the model cache belong
 //   to root and are not writable by group or others. The run user can write only in run/ and output/.
@@ -69,12 +71,17 @@ export const modelRepositories: readonly ModelRepository[] = [
   { key: 'marigold', repository: '24yearsold/seethroughv0.0.1_marigold', revision: '4f4ffc46050b6feb764b628859968a26e76e6b6a' }
 ];
 
-export const input = {
-  name: 'concept-mirrored.png',
-  stem: 'concept-mirrored',
-  sha256: '175b3292437165380dd6cfb07c2b46b05a7dee11f90cd24307ba05326e8eae8b',
-  maxBytes: 256 * 1024 * 1024
-} as const;
+/** The input image pin: a plain PNG file name and the SHA-256 of the file. The owner sets it when the bundle is built. */
+export type InputPin = { readonly name: string; readonly sha256: string };
+
+/** The largest input image. */
+export const inputMaxBytes = 256 * 1024 * 1024;
+
+/** A plain lowercase file name with the extension .png. See-through names its outputs after the stem. */
+export const inputNamePattern = /^[a-z0-9][a-z0-9_-]{0,62}\.png$/;
+
+/** The file name without .png. See-through writes <stem>.psd, <stem>_depth.psd, <stem>.psd.json, and <stem>/. */
+export const inputStem = (pin: InputPin): string => pin.name.slice(0, -'.png'.length);
 
 export const seed = 1001;
 
@@ -358,7 +365,7 @@ export type Manifest = {
   readonly seeThrough: { readonly repository: string; readonly commit: string; readonly script: string; readonly files: readonly SourceFile[] };
   readonly models: { readonly repositories: readonly ModelRepository[]; readonly files: readonly ModelFile[] };
   readonly python: { readonly version: string; readonly wheels: readonly Wheel[] };
-  readonly input: { readonly name: string; readonly sha256: string };
+  readonly input: InputPin;
   readonly run: { readonly seed: number; readonly forbiddenArguments: readonly string[] };
   readonly bundleFiles: readonly BundleFile[];
 };
@@ -447,6 +454,15 @@ export function parseSourceFile(value: unknown): SourceFile {
   return { path, size: size as number, sha256: hash, mode };
 }
 
+/** Checks the form of an input pin. It does not read the image. */
+export function parseInputPin(value: unknown): InputPin {
+  if (!isRecord(value)) return fail('E_MANIFEST_INPUT', 'manifest.json input must be an object with name and sha256.');
+  const { name, sha256: hash } = value;
+  if (typeof name !== 'string' || !inputNamePattern.test(name)) fail('E_MANIFEST_INPUT', `The input name ${show(name)} must be a plain lowercase PNG file name (a-z, 0-9, _ and -).`);
+  if (typeof hash !== 'string' || !hex64.test(hash)) fail('E_MANIFEST_INPUT', 'The input sha256 must be 64 lowercase hexadecimal characters.');
+  return { name, sha256: hash };
+}
+
 /** Parses manifest.json and checks it against the pins in this file. */
 export function parseManifest(value: unknown): Manifest {
   if (!isRecord(value) || value.format !== bundleFormat) return fail('E_MANIFEST', `manifest.json format must be ${bundleFormat}.`);
@@ -467,8 +483,7 @@ export function parseManifest(value: unknown): Manifest {
   if (!isRecord(python) || python.version !== '3.12') fail('E_MANIFEST', 'manifest.json python.version must be 3.12.');
   const wheels = list(python.wheels, 'python.wheels').map(parseWheel);
   if (!wheels.some((wheel) => wheel.name === 'pip')) fail('E_MANIFEST', 'manifest.json does not list the pip wheel.');
-  const inputValue = value.input;
-  if (!isRecord(inputValue) || inputValue.name !== input.name || inputValue.sha256 !== input.sha256) fail('E_MANIFEST_PIN', 'The input image in manifest.json is not the pinned image.');
+  const pinnedInput = parseInputPin(value.input);
   const run = value.run;
   if (!isRecord(run) || run.seed !== seed || JSON.stringify(run.forbiddenArguments) !== JSON.stringify(forbiddenArguments))
     fail('E_MANIFEST_PIN', 'The run settings in manifest.json are not the pinned values.');
@@ -502,7 +517,7 @@ export function parseManifest(value: unknown): Manifest {
     seeThrough: { repository: seeThrough.repository, commit: seeThrough.commit, script: seeThrough.script, files: sourceFiles },
     models: { repositories: modelRepositories, files: modelFiles },
     python: { version: '3.12', wheels },
-    input: { name: input.name, sha256: input.sha256 },
+    input: pinnedInput,
     run: { seed, forbiddenArguments },
     bundleFiles
   };
@@ -549,7 +564,6 @@ export type Layout = {
   readonly venv: string;
   readonly python: string;
   readonly inputDirectory: string;
-  readonly inputPath: string;
   readonly control: string;
   readonly runDirectory: string;
   readonly logs: string;
@@ -568,7 +582,6 @@ export function layout(work: string): Layout {
     venv,
     python: join(venv, 'bin', 'python'),
     inputDirectory: join(work, 'input'),
-    inputPath: join(work, 'input', input.name),
     control: join(work, 'control'),
     runDirectory: join(work, 'run'),
     logs: join(work, 'run', 'logs'),
@@ -578,6 +591,11 @@ export function layout(work: string): Layout {
 }
 
 /** The work directory must exist, be a real directory of the runner user, and not be writable by other users. */
+/** The path of the pinned input image in the work directory. */
+export function inputPathOf(lay: Layout, pin: InputPin): string {
+  return join(lay.inputDirectory, pin.name);
+}
+
 export function checkWork(path: string, host: Host = realHost): Layout {
   const full = resolve(path);
   const found = kind(full);
@@ -885,10 +903,10 @@ export function findPython(pathValue: string | undefined): string | null {
 
 export type InputState = { readonly state: 'verified' | 'missing'; readonly path: string | null };
 
-export function checkInputFile(path: string, expected: string = input.sha256): void {
-  const bytes = readSmall(path, input.maxBytes, 'The input image');
+export function checkInputFile(path: string, pin: InputPin): void {
+  const bytes = readSmall(path, inputMaxBytes, 'The input image');
   if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') fail('E_INPUT', 'The input image is not a PNG file.', undefined, 2);
-  if (sha256(bytes) !== expected) fail('E_INPUT_HASH', `The input image is not the pinned ${input.name} (SHA-256 ${input.sha256}).`, 'Use concept-mirrored.png from l0-input-v1.tar.gz.', 2);
+  if (sha256(bytes) !== pin.sha256) fail('E_INPUT_HASH', `The input image is not the pinned ${pin.name} (SHA-256 ${pin.sha256}).`, 'Use the image that the bundle was built for (see README.md).', 2);
 }
 
 // ---------------------------------------------------------------- preflight
@@ -900,15 +918,7 @@ export type PreflightReport = { readonly format: string; readonly status: 'READY
  * preflight: reads files only. It starts no process, uses no network, and does not import See-through code.
  * Missing files give INCOMPLETE. Files with other content give FAIL.
  */
-export async function preflight(
-  bundle: LoadedBundle,
-  lay: Layout,
-  inputPath: string | null,
-  log: Logger,
-  env: NodeJS.ProcessEnv = process.env,
-  expectedInput: string = input.sha256,
-  host: Host = realHost
-): Promise<PreflightReport> {
+export async function preflight(bundle: LoadedBundle, lay: Layout, inputPath: string | null, log: Logger, env: NodeJS.ProcessEnv = process.env, host: Host = realHost): Promise<PreflightReport> {
   const checks: Check[] = [];
   const run = async (id: string, action: () => Promise<string | null> | string | null): Promise<void> => {
     try {
@@ -983,9 +993,10 @@ export async function preflight(
   });
   await run('venv', () => (checkVenv(lay, manifest).state === 'missing' ? 'The venv is missing.' : null));
   await run('input', () => {
-    const path = inputPath ?? (kind(lay.inputPath) === 'missing' ? null : lay.inputPath);
-    if (path === null || kind(path) === 'missing') return 'No input image. Give --input concept-mirrored.png.';
-    checkInputFile(path, expectedInput);
+    const pinned = inputPathOf(lay, manifest.input);
+    const path = inputPath ?? (kind(pinned) === 'missing' ? null : pinned);
+    if (path === null || kind(path) === 'missing') return `No input image. Give --input ${manifest.input.name}.`;
+    checkInputFile(path, manifest.input);
     return null;
   });
   const status = checks.some((check) => check.status === 'FAIL') ? 'FAIL' : checks.some((check) => check.status === 'MISSING') ? 'INCOMPLETE' : 'READY';
@@ -1700,7 +1711,7 @@ export function modelFileHashes(lay: Layout, manifest: Manifest): { file: string
   }));
 }
 
-export async function collectOutputs(lay: Layout): Promise<OutputFile[]> {
+export async function collectOutputs(lay: Layout, pin: InputPin): Promise<OutputFile[]> {
   const files = walk(lay.output);
   if (files.length > limits.outputFiles) fail('E_OUTPUT_LIMIT', `The output has ${files.length} files. The limit is ${limits.outputFiles}.`);
   const result: OutputFile[] = [];
@@ -1714,17 +1725,15 @@ export async function collectOutputs(lay: Layout): Promise<OutputFile[]> {
     if (total > limits.outputBytes) fail('E_OUTPUT_LIMIT', `The output is larger than ${limits.outputBytes} bytes.`);
     result.push({ path, bytes, sha256: await fileSha256(full) });
   }
-  for (const expected of [`${input.stem}.psd`, `${input.stem}_depth.psd`, `${input.stem}.psd.json`])
-    if (!result.some((file) => file.path === expected)) fail('E_OUTPUT_MISSING', `The output has no ${expected}.`);
+  const stem = inputStem(pin);
+  for (const expected of [`${stem}.psd`, `${stem}_depth.psd`, `${stem}.psd.json`]) if (!result.some((file) => file.path === expected)) fail('E_OUTPUT_MISSING', `The output has no ${expected}.`);
   return result;
 }
 
-/** expectedInputSha256 exists for tests with synthetic images only. The command line never sets it. */
 export type RunDependencies = {
   readonly spawner: Spawner;
   readonly capture: Capture;
   readonly env: NodeJS.ProcessEnv;
-  readonly expectedInputSha256?: string;
   readonly host?: Host;
   readonly acceptGuardOnlyNetwork?: boolean;
   /** How long to wait until nvidia-smi shows no compute process after the stage. Tests use a short time. */
@@ -1795,7 +1804,7 @@ export async function qualify(bundle: LoadedBundle, lay: Layout, log: Logger, de
   requireRoot(host);
   const identity = identityFor(host);
   realDirectoryBelow(lay.work, 'evidence', 0o700);
-  requireReadyWithoutInput(await preflight(bundle, lay, null, log, deps.env, deps.expectedInputSha256 ?? input.sha256, host));
+  requireReadyWithoutInput(await preflight(bundle, lay, null, log, deps.env, host));
   const gpu = await gpuCheck(lay, log, deps.capture, deps.env);
   if (gpu.status !== 'PASS') return fail('E_GPU_BLOCKED', gpu.message, 'BLOCKED: use a GPU that meets the limits in README.md.', 3);
   const network = networkMode(await isolationCheck(lay, identity, deps.capture, deps.env, log), deps.acceptGuardOnlyNetwork === true);
@@ -1902,8 +1911,9 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
   if (kind(lay.output) !== 'missing')
     fail('E_OUTPUT_EXISTS', 'The output directory exists. A previous run possibly stopped.', 'Keep it as evidence. A new run is an owner decision: use a new work directory.', 3);
   const qualifySha256 = requireQualified(lay, bundle);
-  const expectedInput = deps.expectedInputSha256 ?? input.sha256;
-  const report = await preflight(bundle, lay, inputPath, log, deps.env, expectedInput, host);
+  const pin = manifest.input;
+  const pinnedPath = inputPathOf(lay, pin);
+  const report = await preflight(bundle, lay, inputPath, log, deps.env, host);
   if (report.status !== 'READY') return fail('E_PREFLIGHT', `preflight is ${report.status}.`, 'Run preflight and fix each item that is not PASS.', report.status === 'FAIL' ? 1 : 3);
   const gpu = await gpuCheck(lay, log, deps.capture, deps.env);
   if (gpu.status !== 'PASS') return fail('E_GPU_BLOCKED', gpu.message, 'BLOCKED: use a GPU that meets the limits in README.md.', 3);
@@ -1912,16 +1922,16 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
   realDirectoryBelow(lay.work, 'input');
   realDirectoryBelow(lay.work, 'evidence', 0o700);
   prepareRunDirectories(lay, identity, host);
-  if (inputPath !== lay.inputPath) {
-    if (kind(lay.inputPath) !== 'missing') fail('E_INPUT', 'work/input already has an image.', 'Remove it or run without --input.', 2);
-    writeAtomic(lay.inputPath, readSmall(inputPath, input.maxBytes, 'The input image'), 0o644);
+  if (inputPath !== pinnedPath) {
+    if (kind(pinnedPath) !== 'missing') fail('E_INPUT', 'work/input already has an image.', 'Remove it or run without --input.', 2);
+    writeAtomic(pinnedPath, readSmall(inputPath, inputMaxBytes, 'The input image'), 0o644);
   }
-  checkInputFile(lay.inputPath, expectedInput);
+  checkInputFile(pinnedPath, pin);
   runUserDirectory(lay, 'output', identity, host);
 
   const guardLog = join(lay.logs, 'guard.jsonl');
   if (kind(guardLog) !== 'missing' || kind(join(lay.evidence, 'guard.jsonl')) !== 'missing') fail('E_ALREADY_RUN', 'A guard log of a run exists.', 'Use a new work directory.', 3);
-  const argv = seeThroughArguments(lay.inputPath, lay.output);
+  const argv = seeThroughArguments(pinnedPath, lay.output);
   for (const forbidden of forbiddenArguments) if (argv.includes(forbidden)) fail('E_INTERNAL', `The argument ${forbidden} is forbidden.`);
   const configPath = writeGuardConfig(lay, 'guard-run.json', {
     kind: 'see-through',
@@ -1961,7 +1971,7 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
   sealTree(lay.output, host);
   let outputs: OutputFile[] = [];
   try {
-    outputs = await collectOutputs(lay);
+    outputs = await collectOutputs(lay, pin);
   } catch (error) {
     if (!(error instanceof RunnerError)) throw error;
     problems.push(`${error.code}: ${error.message}`);
@@ -1972,7 +1982,7 @@ export async function runOnce(bundle: LoadedBundle, lay: Layout, inputPath: stri
     problems,
     seeThrough: { repository: seeThrough.repository, commit: seeThrough.commit, script: seeThrough.script },
     models: modelRepositories,
-    input: { name: input.name, sha256: input.sha256 },
+    input: { name: pin.name, sha256: pin.sha256 },
     argv: argv.map((item) => item.replace(lay.work, '<work>')),
     seed,
     identity: { runUser: identity.name, uid: identity.uid },
@@ -2059,7 +2069,7 @@ export async function evidenceSums(lay: Layout): Promise<string> {
 
 // ---------------------------------------------------------------- command line
 
-const help = `Usage: sh run.sh <command> --work <dir> [--input <concept-mirrored.png>] [--accept-guard-only-network]
+const help = `Usage: sh run.sh <command> --work <dir> [--input <png>] [--accept-guard-only-network]
 
 Commands (the owner runs them in this order and can stop after each one):
   preflight   Check the bundle, permissions, the run user, and every file that exists. Reads files only: no network, no process,
@@ -2151,7 +2161,7 @@ export async function main(argv: readonly string[], deps: PrepareDependencies & 
       process.stdout.write(`${JSON.stringify({ status: report.status, problems: report.problems }, null, 2)}\n`);
       return report.status === 'PASS' ? 0 : 1;
     }
-    const inputPath = parsed.values.input === undefined ? lay.inputPath : resolve(parsed.values.input);
+    const inputPath = parsed.values.input === undefined ? inputPathOf(lay, bundle.manifest.input) : resolve(parsed.values.input);
     const result = await runOnce(bundle, lay, inputPath, log, { ...deps, acceptGuardOnlyNetwork });
     process.stdout.write(`${JSON.stringify({ status: result.status, problems: result.problems, seconds: result.seconds }, null, 2)}\n`);
     return result.status === 'PASS' ? 0 : 1;

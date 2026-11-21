@@ -25,7 +25,7 @@ import {
 } from '@seethrough-bundle/runner';
 import { describe, expect, it } from 'vitest';
 
-import { loopbackOnly, quietLog, readyWork, sha256, syntheticGroup, syntheticImage, syntheticPasswd, temporaryDirectory, testHost, writeQualified } from './helpers';
+import { loopbackOnly, quietLog, readyWork, syntheticGroup, syntheticPasswd, temporaryDirectory, testHost, writeQualified } from './helpers';
 
 // Tests for the remediation of the independent audit: run user, permissions, network isolation, qualify, model cache, wheel tags,
 // and output types. All tests use synthetic files. No model, wheel, or See-through code runs.
@@ -76,7 +76,7 @@ describe('run user', () => {
   it('gives INCOMPLETE in preflight when the run user does not exist yet', async () => {
     const { bundle, lay, inputPath } = readyWork();
     const host = { ...testHost(), readText: () => null };
-    const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), host);
+    const report = await preflight(bundle, lay, inputPath, quietLog, {}, host);
     expect(report.status).toBe('INCOMPLETE');
     expect(report.checks.find((check) => check.id === 'run-user')?.status).toBe('MISSING');
   });
@@ -86,7 +86,7 @@ describe('permissions', () => {
   it('refuses a bundle file that others can write, and starts nothing', async () => {
     const { bundle, lay, inputPath } = readyWork();
     chmodSync(join(bundle.root, 'guard.py'), 0o666);
-    const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), testHost());
+    const report = await preflight(bundle, lay, inputPath, quietLog, {}, testHost());
     expect(report.checks.find((check) => check.id === 'permissions')?.message).toContain('E_BUNDLE_PERMISSIONS');
     expect(await codeOf(() => prepare(bundle, lay, quietLog, { fetcher: noFetch, spawner: noSpawn, env: {}, host: testHost() }))).toBe('E_BUNDLE_PERMISSIONS');
   });
@@ -96,7 +96,7 @@ describe('permissions', () => {
       const { bundle, lay, inputPath } = readyWork();
       const path = target === 'venv' ? join(lay.venv, 'pyvenv.cfg') : target === 'model' ? modelPath(lay, bundle.manifest.models.files[0]!) : join(lay.seeThrough, 'common', 'utils', 'helper.py');
       chmodSync(path, 0o646);
-      const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), testHost());
+      const report = await preflight(bundle, lay, inputPath, quietLog, {}, testHost());
       expect(report.checks.find((check) => check.id === 'permissions')?.status).toBe('FAIL');
     }
   });
@@ -107,7 +107,7 @@ describe('permissions', () => {
     mkdirSync(join(root, 'work'), { mode: 0o755 });
     const { bundle, inputPath } = readyWork();
     const lay = layout(join(root, 'work'));
-    const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), testHost());
+    const report = await preflight(bundle, lay, inputPath, quietLog, {}, testHost());
     expect(report.checks.find((check) => check.id === 'permissions')?.message).toContain('writable by group or others');
   });
 
@@ -119,7 +119,7 @@ describe('permissions', () => {
     const host = { ...testHost(), secretPaths: [secret] };
     expect(await codeOf(() => prepare(bundle, lay, quietLog, { fetcher: noFetch, spawner: noSpawn, env: {}, host }))).toBe('E_HOST_SECRET_READABLE');
     chmodSync(secret, 0o600);
-    const report = await preflight(bundle, lay, null, quietLog, {}, sha256(syntheticImage), host);
+    const report = await preflight(bundle, lay, null, quietLog, {}, host);
     expect(report.checks.find((check) => check.id === 'host-secrets')?.status).toBe('PASS');
   });
 });
@@ -143,7 +143,7 @@ describe('network isolation', () => {
 
     const { bundle, lay, inputPath } = readyWork();
     writeQualified(lay, bundle);
-    const deps = { spawner: noSpawn, capture: gpu(null), env: {}, expectedInputSha256: sha256(syntheticImage), host: testHost() };
+    const deps = { spawner: noSpawn, capture: gpu(null), env: {}, host: testHost() };
     expect(await codeOf(() => runOnce(bundle, lay, inputPath, quietLog, deps))).toBe('E_NETWORK_ISOLATION_UNAVAILABLE');
     expect(existsSync(lay.output)).toBe(false);
 
@@ -186,7 +186,7 @@ describe('qualify', () => {
 
   it('passes only with exact versions and a working CUDA runtime, and run needs that PASS for the same bundle', async () => {
     const { bundle, lay, inputPath } = readyWork();
-    const deps = { capture: gpu(loopbackOnly), env: {}, expectedInputSha256: sha256(syntheticImage), host: testHost() };
+    const deps = { capture: gpu(loopbackOnly), env: {}, host: testHost() };
     expect(await codeOf(() => runOnce(bundle, lay, inputPath, quietLog, { ...deps, spawner: noSpawn }))).toBe('E_NOT_QUALIFIED');
     const report = await qualify(bundle, lay, quietLog, { ...deps, spawner: fakeQualify(passing) });
     expect(report.status).toBe('PASS');
@@ -225,7 +225,7 @@ describe('model cache and wheelhouse', () => {
     for (const change of cases) {
       const { bundle, lay, inputPath } = readyWork();
       change(lay);
-      const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), testHost());
+      const report = await preflight(bundle, lay, inputPath, quietLog, {}, testHost());
       expect(report.status).toBe('FAIL');
       expect(
         report.checks
@@ -243,7 +243,7 @@ describe('model cache and wheelhouse', () => {
     writeFileSync(`${path}.part`, readFileSync(path));
     const { rmSync } = await import('node:fs');
     rmSync(path);
-    const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), testHost());
+    const report = await preflight(bundle, lay, inputPath, quietLog, {}, testHost());
     expect(report.checks.find((check) => check.id === 'models')?.status).toBe('MISSING');
   });
 });
@@ -264,7 +264,7 @@ describe('wheel compatibility (static, no installation)', () => {
   it('gives FAIL in preflight when the host glibc is older than the wheels need', async () => {
     const { bundle, lay, inputPath } = readyWork();
     expect(requiredGlibc([{ name: 'a', version: '1', file: 'a-1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl', url: '', size: 1, sha256: '' }])).toBe(27);
-    const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), { ...testHost(), glibc: () => null });
+    const report = await preflight(bundle, lay, inputPath, quietLog, {}, { ...testHost(), glibc: () => null });
     expect(report.checks.find((check) => check.id === 'glibc')?.status).toBe('FAIL');
   });
 });
@@ -277,10 +277,10 @@ describe('outputs and evidence', () => {
       const config = JSON.parse(readFileSync(args[args.length - 1] ?? '', 'utf8')) as { log: string };
       const reads = bundle.manifest.models.files.filter((file) => file.sha256 === null).map((file) => JSON.stringify({ kind: 'read', event: 'open', detail: modelPath(lay, file) }));
       writeFileSync(config.log, `${[JSON.stringify({ kind: 'start', event: 'guard', detail: {} }), ...reads, JSON.stringify({ kind: 'end', event: 'guard', detail: {} })].join('\n')}\n`);
-      for (const name of ['concept-mirrored.psd', 'concept-mirrored_depth.psd', 'concept-mirrored.psd.json', 'unet.safetensors']) writeFileSync(join(lay.output, name), name);
+      for (const name of ['synthetic-input.psd', 'synthetic-input_depth.psd', 'synthetic-input.psd.json', 'unet.safetensors']) writeFileSync(join(lay.output, name), name);
       return Promise.resolve({ code: 0, signal: null, timedOut: false });
     };
-    const result = await runOnce(bundle, lay, inputPath, quietLog, { spawner, capture: gpu(loopbackOnly), env: {}, expectedInputSha256: sha256(syntheticImage), host: testHost() });
+    const result = await runOnce(bundle, lay, inputPath, quietLog, { spawner, capture: gpu(loopbackOnly), env: {}, host: testHost() });
     expect(result.status).toBe('FAIL');
     expect(String(result.problems)).toContain('E_OUTPUT_TYPE');
     expect(await codeOf(() => collect(lay, testHost()))).toBe('E_OUTPUT_TYPE');

@@ -5,7 +5,7 @@ import {
   bundleFormat,
   fail,
   forbiddenArguments,
-  input,
+  type InputPin,
   limits,
   type Manifest,
   minimumNode,
@@ -69,12 +69,12 @@ function readme(manifest: Manifest): string {
   const repos = modelRepositories.map((item) => `| \`${item.key}\` | \`${item.repository}\` | \`${item.revision}\` |`).join('\n');
   return `# L0-1 See-through bundle
 
-**Draft, L0-1 only.** This bundle does one standalone See-through layer decomposition of one pinned image on a GPU host that the owner starts.
-The owner gave a preliminary agreement for the two models below, for L0-1 only. The final permission to download and use them comes after the audit of this bundle.
+**Draft.** This bundle does one standalone See-through layer decomposition of one pinned image on a GPU host that the owner starts.
+The owner decides for each run and each input image if the two models below can be downloaded and used.
 Do not run any step on the GPU host before that permission.
 
 The bundle needs no credentials, no API key, no Hugging Face token, and no public HTTP port. Do not put secrets on the Pod.
-Do not copy the original Akane PSD, the original concept image, or other Akane files to the Pod. Only \`${input.name}\` goes there.
+Only the pinned input image \`${manifest.input.name}\` goes to the Pod. Do not copy other files of its source (for example a licensed archive, a PSD, or the original image).
 
 ## What it uses
 
@@ -141,13 +141,13 @@ See the owner instructions in the repository (\`packages/seethrough-bundle/docs/
 
 \`inference_psd.py\` with seed ${seed}, resolution 1280, depth resolution 768, 30 steps, \`--save_to_psd\`, and \`--disable_progressbar\`.
 Forbidden arguments: ${forbiddenArguments.map((item) => `\`${item}\``).join(', ')}.
-Input: \`${input.name}\`, SHA-256 \`${input.sha256}\`. Any other image is refused.
+Input: \`${manifest.input.name}\`, SHA-256 \`${manifest.input.sha256}\`. The owner set this pin when the bundle was built. Any other image is refused.
 One run per work directory. A second run needs a new work directory and an owner decision.
 `;
 }
 
-/** Builds the bundle files from the data files, the guard, and the compiled runner. */
-export function bundleFiles(data: BundleData): PlannedFile[] {
+/** Builds the bundle files from the data files, the guard, the compiled runner, and the input pin that the owner gives. */
+export function bundleFiles(data: BundleData, input: InputPin): PlannedFile[] {
   if (data.runner.length === 0) fail('E_INPUT', 'The runner file is empty. Build the package first.');
   if (!Array.isArray(data.wheels) || !Array.isArray(data.modelFiles) || !Array.isArray(data.sourceFiles)) return fail('E_DATA', 'A data file is not a JSON list.');
   checkWheelAges(data.wheels);

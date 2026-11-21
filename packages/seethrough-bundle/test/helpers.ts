@@ -9,7 +9,7 @@ import {
   forbiddenArguments,
   gitBlobSha1,
   type Host,
-  input,
+  type InputPin,
   type Layout,
   layout,
   loadBundle,
@@ -68,6 +68,9 @@ export function temporaryDirectory(prefix: string): string {
 /** A small PNG-like file: the PNG signature and some bytes. The runner checks only the signature and the SHA-256. */
 export const syntheticImage = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('synthetic image for tests')]);
 
+/** The input pin of the synthetic bundle: the synthetic image under a name that no real input uses. */
+export const testInput: InputPin = { name: 'synthetic-input.png', sha256: createHash('sha256').update(syntheticImage).digest('hex') };
+
 export const sourceContent: Record<string, string> = {
   [seeThrough.script]: 'print("synthetic")\n',
   'common/utils/helper.py': 'VALUE = 1\n'
@@ -104,7 +107,7 @@ export function syntheticManifest(): Synthetic {
     seeThrough: { repository: seeThrough.repository, commit: seeThrough.commit, script: seeThrough.script, files: sourceFiles },
     models: { repositories: modelRepositories, files: modelFiles },
     python: { version: '3.12', wheels },
-    input: { name: input.name, sha256: input.sha256 },
+    input: testInput,
     run: { seed, forbiddenArguments },
     bundleFiles: [
       { path: 'guard.py', sha256: sha256(guardSource) },
@@ -174,7 +177,7 @@ export function readyWork(): { bundle: LoadedBundle; lay: Layout; synthetic: Syn
   writeWheels(lay, synthetic);
   writeModels(lay, bundle, synthetic);
   writeVenv(lay, synthetic);
-  const inputPath = join(root, input.name);
+  const inputPath = join(root, testInput.name);
   writeFileSync(inputPath, syntheticImage);
   return { bundle, lay, synthetic, inputPath, root };
 }

@@ -18,7 +18,7 @@ import {
   forbiddenArguments,
   gitBlobSha1,
   type Host,
-  input,
+  inputPathOf,
   layout,
   loadBundle,
   modelCheck,
@@ -37,7 +37,7 @@ import {
 } from '@seethrough-bundle/runner';
 import { describe, expect, it } from 'vitest';
 
-import { loopbackOnly, quietLog, readyWork, sha256, syntheticImage, syntheticManifest, temporaryDirectory, testHost, writeBundle, writeQualified } from './helpers';
+import { loopbackOnly, quietLog, readyWork, sha256, syntheticImage, syntheticManifest, temporaryDirectory, testHost, testInput, writeBundle, writeQualified } from './helpers';
 
 const host: Host = testHost();
 /** nvidia-smi gives an RTX A5000 and no compute process. unshare gives a namespace with only loopback. */
@@ -72,7 +72,7 @@ type Editable = {
   seeThrough: { commit: string; files: { path: string }[] };
   models: { repositories: { revision: string }[]; files: { path: string; repo: string; sha256: string | null }[] };
   python: { wheels: { file: string; url: string }[] };
-  input: { sha256: string };
+  input: { name: string; sha256: string };
   run: { seed: number; forbiddenArguments: string[] };
 };
 
@@ -88,12 +88,21 @@ describe('manifest pins', () => {
     expect(code(() => parseManifest(syntheticManifest().manifest))).toBe('NO_ERROR');
   });
 
-  it('refuses another See-through commit, model revision, input image, seed, or forbidden argument list', () => {
+  it('refuses another See-through commit, model revision, seed, or forbidden argument list', () => {
     expect(mutate((m) => (m.seeThrough.commit = 'a'.repeat(40)))).toBe('E_MANIFEST_PIN');
     expect(mutate((m) => (m.models.repositories[0]!.revision = 'b'.repeat(40)))).toBe('E_MANIFEST_PIN');
-    expect(mutate((m) => (m.input.sha256 = 'c'.repeat(64)))).toBe('E_MANIFEST_PIN');
     expect(mutate((m) => (m.run.seed = 1))).toBe('E_MANIFEST_PIN');
     expect(mutate((m) => (m.run.forbiddenArguments = ['--tblr_split']))).toBe('E_MANIFEST_PIN');
+  });
+
+  it('takes any well-formed input pin from the manifest and refuses a malformed one', () => {
+    expect(mutate((m) => (m.input = { name: 'concept-jun.png', sha256: 'c'.repeat(64) }))).toBe('NO_ERROR');
+    expect(mutate((m) => (m.input = { name: 'character_b-2.png', sha256: 'd'.repeat(64) }))).toBe('NO_ERROR');
+    expect(mutate((m) => (m.input.name = `${'a'.repeat(63)}.png`))).toBe('NO_ERROR');
+    for (const name of ['', 'Concept.png', 'concept.PNG', 'concept.jpg', '../concept.png', 'a/b.png', '.png', '-concept.png', 'con cept.png', `${'a'.repeat(64)}.png`])
+      expect(mutate((m) => (m.input.name = name))).toBe('E_MANIFEST_INPUT');
+    for (const hash of ['', 'C'.repeat(64), 'c'.repeat(63), 'g'.repeat(64)]) expect(mutate((m) => (m.input.sha256 = hash))).toBe('E_MANIFEST_INPUT');
+    expect(mutate((m) => delete (m as { input?: unknown }).input)).toBe('E_MANIFEST_INPUT');
   });
 
   it('refuses pickle-based model files, source distributions, other download hosts, and unsafe paths', () => {
@@ -166,14 +175,14 @@ describe('work directory and input', () => {
 
   it('accepts only the input with the expected SHA-256, a PNG signature, and no link', () => {
     const root = temporaryDirectory('input');
-    const path = join(root, input.name);
+    const path = join(root, testInput.name);
     writeFileSync(path, syntheticImage);
-    expect(code(() => checkInputFile(path))).toBe('E_INPUT_HASH');
-    expect(code(() => checkInputFile(path, sha256(syntheticImage)))).toBe('NO_ERROR');
+    expect(code(() => checkInputFile(path, { ...testInput, sha256: 'c'.repeat(64) }))).toBe('E_INPUT_HASH');
+    expect(code(() => checkInputFile(path, testInput))).toBe('NO_ERROR');
     writeFileSync(join(root, 'text.png'), 'not a png');
-    expect(code(() => checkInputFile(join(root, 'text.png'), sha256('not a png')))).toBe('E_INPUT');
+    expect(code(() => checkInputFile(join(root, 'text.png'), { name: 'text.png', sha256: sha256('not a png') }))).toBe('E_INPUT');
     symlinkSync(path, join(root, 'link.png'));
-    expect(code(() => checkInputFile(join(root, 'link.png'), sha256(syntheticImage)))).toBe('E_FILE');
+    expect(code(() => checkInputFile(join(root, 'link.png'), testInput))).toBe('E_FILE');
   });
 });
 
@@ -213,20 +222,20 @@ describe('output paths', () => {
     const lay = layout(temporaryDirectory('output-spaces'));
     mkdirSync(lay.output);
     mkdirSync(lay.evidence);
-    mkdirSync(join(lay.output, 'concept-mirrored'));
-    for (const name of ['concept-mirrored.psd', 'concept-mirrored_depth.psd', 'concept-mirrored.psd.json']) writeFileSync(join(lay.output, name), name);
-    writeFileSync(join(lay.output, 'concept-mirrored', 'back hair.png'), 'layer');
+    mkdirSync(join(lay.output, 'synthetic-input'));
+    for (const name of ['synthetic-input.psd', 'synthetic-input_depth.psd', 'synthetic-input.psd.json']) writeFileSync(join(lay.output, name), name);
+    writeFileSync(join(lay.output, 'synthetic-input', 'back hair.png'), 'layer');
 
-    const files = await collectOutputs(lay);
-    expect(files.map((file) => file.path)).toContain('concept-mirrored/back hair.png');
-    expect(await evidenceSums(lay)).toContain('  output/concept-mirrored/back hair.png\n');
+    const files = await collectOutputs(lay, testInput);
+    expect(files.map((file) => file.path)).toContain('synthetic-input/back hair.png');
+    expect(await evidenceSums(lay)).toContain('  output/synthetic-input/back hair.png\n');
     expect((await collect(lay, host)).status).toBe('COLLECTED');
-    expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('  output/concept-mirrored/back hair.png\n');
+    expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('  output/synthetic-input/back hair.png\n');
   });
 
   it('keeps output files within the root with portable, printable names', () => {
     const root = temporaryDirectory('output-names');
-    expect(outputPath(root, 'concept-mirrored/front hair.png')).toBe(join(root, 'concept-mirrored', 'front hair.png'));
+    expect(outputPath(root, 'synthetic-input/front hair.png')).toBe(join(root, 'synthetic-input', 'front hair.png'));
     for (const name of [
       '/absolute.png',
       '../outside.png',
@@ -257,10 +266,10 @@ describe('output paths', () => {
     mkdirSync(lay.output);
     writeFileSync(join(lay.output, 'layer.png'), 'layer');
     symlinkSync(join(lay.output, 'layer.png'), join(lay.output, 'link.png'));
-    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_TREE');
+    expect(await codeAsync(() => collectOutputs(lay, testInput))).toBe('E_TREE');
     rmSync(join(lay.output, 'link.png'));
     writeFileSync(join(lay.output, 'script.txt'), 'text');
-    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_OUTPUT_TYPE');
+    expect(await codeAsync(() => collectOutputs(lay, testInput))).toBe('E_OUTPUT_TYPE');
   });
 
   it('enforces output byte and file count limits before hashing oversized data', async () => {
@@ -269,10 +278,10 @@ describe('output paths', () => {
     const oversized = join(lay.output, 'large.png');
     writeFileSync(oversized, '');
     truncateSync(oversized, 4 * 1024 * 1024 * 1024 + 1);
-    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_OUTPUT_LIMIT');
+    expect(await codeAsync(() => collectOutputs(lay, testInput))).toBe('E_OUTPUT_LIMIT');
     rmSync(oversized);
     for (let index = 0; index <= 2000; index++) writeFileSync(join(lay.output, `part-${index}.png`), '');
-    expect(await codeAsync(() => collectOutputs(lay))).toBe('E_OUTPUT_LIMIT');
+    expect(await codeAsync(() => collectOutputs(lay, testInput))).toBe('E_OUTPUT_LIMIT');
   });
 });
 
@@ -322,10 +331,10 @@ describe('bundle integrity', () => {
 describe('preflight', () => {
   it('starts no process and uses no network: READY with complete files, INCOMPLETE with missing files', async () => {
     const { bundle, lay, inputPath, synthetic } = readyWork();
-    const ready = await preflight(bundle, lay, inputPath, quietLog, { PATH: '/nonexistent' }, sha256(syntheticImage), host);
+    const ready = await preflight(bundle, lay, inputPath, quietLog, { PATH: '/nonexistent' }, host);
     expect(ready.status).toBe('READY');
     rmSync(join(lay.wheelhouse, [...synthetic.wheelBytes.keys()][1] ?? ''));
-    const incomplete = await preflight(bundle, lay, inputPath, quietLog, { PATH: '/nonexistent' }, sha256(syntheticImage), host);
+    const incomplete = await preflight(bundle, lay, inputPath, quietLog, { PATH: '/nonexistent' }, host);
     expect(incomplete.status).toBe('INCOMPLETE');
   });
 
@@ -333,13 +342,14 @@ describe('preflight', () => {
     const { bundle, lay, inputPath } = readyWork();
     const weight = bundle.manifest.models.files.find((file) => file.sha256 !== null);
     writeFileSync(modelPath(lay, weight ?? bundle.manifest.models.files[0]!), 'tampered weights');
-    const report = await preflight(bundle, lay, inputPath, quietLog, {}, sha256(syntheticImage), host);
+    const report = await preflight(bundle, lay, inputPath, quietLog, {}, host);
     expect(report.status).toBe('FAIL');
     expect(report.checks.find((check) => check.id === 'models')?.status).toBe('FAIL');
     const other = readyWork();
-    const mac = await preflight(other.bundle, other.lay, other.inputPath, quietLog, {}, sha256(syntheticImage), { ...host, platform: 'darwin' });
+    const mac = await preflight(other.bundle, other.lay, other.inputPath, quietLog, {}, { ...host, platform: 'darwin' });
     expect(mac.checks.find((check) => check.id === 'platform')?.status).toBe('FAIL');
-    const wrong = await preflight(other.bundle, other.lay, other.inputPath, quietLog, {}, input.sha256, host);
+    writeFileSync(other.inputPath, Buffer.concat([syntheticImage, Buffer.from('changed')]));
+    const wrong = await preflight(other.bundle, other.lay, other.inputPath, quietLog, {}, host);
     expect(wrong.checks.find((check) => check.id === 'input')?.status).toBe('FAIL');
   });
 });
@@ -471,7 +481,7 @@ describe('prepare', () => {
     const fetch = calls.find((call) => call.args.includes('fetch'));
     expect(fetch?.args).toEqual(expect.arrayContaining(['protocol.allow=never', 'https://github.com/shitagaki-lab/see-through.git', bundle.manifest.seeThrough.commit]));
     expect(readFileSync(join(lay.hfCache, 'models--layerdifforg--seethroughv0.0.2_layerdiff3d', 'refs', 'main'), 'utf8')).toBe(bundle.manifest.models.repositories[0]?.revision);
-    const report = await preflight(bundle, lay, null, quietLog, {}, sha256(syntheticImage), host);
+    const report = await preflight(bundle, lay, null, quietLog, {}, host);
     expect(report.checks.filter((check) => check.status !== 'PASS').map((check) => check.id)).toEqual(['input']);
   });
 
@@ -528,7 +538,7 @@ describe('run', () => {
       expect(config.log.startsWith(lay.logs)).toBe(true);
       const reads = bundle.manifest.models.files.filter((file) => file.sha256 === null).map((file) => JSON.stringify({ kind: 'read', event: 'open', detail: modelPath(lay, file) }));
       writeFileSync(config.log, `${[JSON.stringify({ kind: 'start', event: 'guard', detail: {} }), ...reads, ...extra, JSON.stringify({ kind: 'end', event: 'guard', detail: {} })].join('\n')}\n`);
-      for (const name of ['concept-mirrored.psd', 'concept-mirrored_depth.psd', 'concept-mirrored.psd.json']) writeFileSync(join(lay.output, name), name);
+      for (const name of ['synthetic-input.psd', 'synthetic-input_depth.psd', 'synthetic-input.psd.json']) writeFileSync(join(lay.output, name), name);
       return Promise.resolve({ code: 0, signal: null, timedOut: false });
     };
   }
@@ -536,11 +546,13 @@ describe('run', () => {
   it('gives PASS with a complete guard log and outputs, and refuses a second run', async () => {
     const { bundle, lay, inputPath } = readyWork();
     writeQualified(lay, bundle);
-    const deps = { spawner: fakeSeeThrough(lay, bundle), capture: gpuOk, env: {}, expectedInputSha256: sha256(syntheticImage), host };
+    const deps = { spawner: fakeSeeThrough(lay, bundle), capture: gpuOk, env: {}, host };
     const result = await runOnce(bundle, lay, inputPath, quietLog, deps);
     expect(result.status).toBe('PASS');
+    expect(result.input).toEqual(testInput);
+    expect(readFileSync(inputPathOf(lay, testInput)).equals(syntheticImage)).toBe(true);
     expect((result.modelFiles as { source: string }[]).filter((item) => item.source === 'computed')).toHaveLength(4);
-    expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('output/concept-mirrored.psd');
+    expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('output/synthetic-input.psd');
     expect(readFileSync(join(lay.evidence, 'SHA256SUMS'), 'utf8')).toContain('evidence/guard.jsonl');
     expect(result.network).toMatchObject({ mode: 'network-namespace' });
     expect(result.identity).toEqual({ runUser: 'aigg-l0', uid: 1500 });
@@ -551,7 +563,7 @@ describe('run', () => {
     const { bundle, lay, inputPath } = readyWork();
     writeQualified(lay, bundle);
     const denial = JSON.stringify({ kind: 'deny', event: 'socket.getaddrinfo', detail: 'huggingface.co' });
-    const result = await runOnce(bundle, lay, inputPath, quietLog, { spawner: fakeSeeThrough(lay, bundle, [denial]), capture: gpuOk, env: {}, expectedInputSha256: sha256(syntheticImage), host });
+    const result = await runOnce(bundle, lay, inputPath, quietLog, { spawner: fakeSeeThrough(lay, bundle, [denial]), capture: gpuOk, env: {}, host });
     expect(result.status).toBe('FAIL');
     expect(String(result.problems)).toContain('E_GUARD_DENIED');
   });
@@ -560,13 +572,14 @@ describe('run', () => {
     const { bundle, lay, inputPath } = readyWork();
     writeQualified(lay, bundle);
     const small: Capture = () => Promise.resolve({ code: 0, stdout: 'NVIDIA T4, 15360, 575.57.08\n' });
-    expect(await codeAsync(() => runOnce(bundle, lay, inputPath, quietLog, { spawner: noSpawn, capture: small, env: {}, expectedInputSha256: sha256(syntheticImage), host }))).toBe('E_GPU_BLOCKED');
+    expect(await codeAsync(() => runOnce(bundle, lay, inputPath, quietLog, { spawner: noSpawn, capture: small, env: {}, host }))).toBe('E_GPU_BLOCKED');
     expect(existsSync(lay.output)).toBe(false);
   });
 
   it('refuses another input image before any process starts', async () => {
     const { bundle, lay, inputPath } = readyWork();
     writeQualified(lay, bundle);
+    writeFileSync(inputPath, Buffer.concat([syntheticImage, Buffer.from('another image')]));
     expect(await codeAsync(() => runOnce(bundle, lay, inputPath, quietLog, { spawner: noSpawn, capture: gpuOk, env: {}, host }))).toBe('E_PREFLIGHT');
   });
 });

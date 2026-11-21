@@ -63,8 +63,10 @@ The bundle writes `requirements.lock` with exactly one hash per package, so pip 
 
 ## Input
 
-`concept-mirrored.png`, SHA-256 `175b3292437165380dd6cfb07c2b46b05a7dee11f90cd24307ba05326e8eae8b`, from the project file `l0-input-v1.tar.gz`. It is a mirrored copy of a paid asset. It is not in Git.
-Akane is a technical benchmark of the decomposition only. The source does not confirm the age of the character. [The content rules](../../../AGENTS.md#content-rules) apply.
+The owner gives the input pin when the bundle is built (`--input-name`, `--input-sha256`). See [Input pins](../README.md#input-pins) for the pins that were used.
+The L0-1 input is `concept-mirrored.png`, a mirrored copy of a paid asset (Akane), from the project file `l0-input-v1.tar.gz`.
+The MVP-E input is `concept-jun.png`, a x4 upscale of one sprite frame of a paid asset (Hero Jun), from the project file `jun-input-v1.tar.gz`.
+The input images are not in Git. Both characters are technical benchmarks of the decomposition only. [The content rules](../../../AGENTS.md#content-rules) apply.
 
 ## Installation qualification
 

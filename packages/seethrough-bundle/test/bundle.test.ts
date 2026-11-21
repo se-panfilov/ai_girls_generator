@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { bundleFiles, wheelCutoff } from '@seethrough-bundle/bundle';
-import { loadData } from '@seethrough-bundle/cli';
+import { loadData, run } from '@seethrough-bundle/cli';
 import { type ModelFile, normalizeName, parseManifest, qualifyModules, requiredGlibc, seeThrough, type SourceFile, type Wheel, wheelCompatible } from '@seethrough-bundle/runner';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { packageRoot, sha256 } from './helpers';
+import { packageRoot, sha256, testInput } from './helpers';
 
 // These tests read the committed data files. They do not download, install, or run anything.
 
@@ -84,8 +84,8 @@ describe('pinned data', () => {
 
 describe('bundle', () => {
   it('is deterministic and has SHA256SUMS for every other file', () => {
-    const first = bundleFiles(data);
-    const second = bundleFiles(data);
+    const first = bundleFiles(data, testInput);
+    const second = bundleFiles(data, testInput);
     expect(first.map((file) => sha256(file.bytes))).toEqual(second.map((file) => sha256(file.bytes)));
     expect(first.map((file) => file.name)).toEqual(['run.sh', 'runner.mjs', 'guard.py', 'qualify.py', 'requirements.lock', 'manifest.json', 'README.md', 'SHA256SUMS']);
     const sums = first.find((file) => file.name === 'SHA256SUMS')?.bytes.toString('utf8') ?? '';
@@ -97,14 +97,14 @@ describe('bundle', () => {
 
   it('refuses a wheel that was uploaded after the cutoff and a pickle-based model file', () => {
     const late = wheels.map((wheel, index) => (index === 0 ? { ...wheel, uploaded: '2026-11-01T00:00:00Z' } : wheel));
-    expect(() => bundleFiles({ ...data, wheels: late })).toThrow(/uploaded/);
+    expect(() => bundleFiles({ ...data, wheels: late }, testInput)).toThrow(/uploaded/);
     const pickle = [...models, { repo: 'layerdiff3d', path: 'lama_large_512px.ckpt', size: 1, gitBlobSha1: '0'.repeat(40), sha256: '0'.repeat(64) }];
-    expect(() => bundleFiles({ ...data, modelFiles: pickle })).toThrow(/pickle/);
+    expect(() => bundleFiles({ ...data, modelFiles: pickle }, testInput)).toThrow(/pickle/);
   });
 
   it('starts the runner with an empty environment except PATH', () => {
     const script =
-      bundleFiles(data)
+      bundleFiles(data, testInput)
         .find((file) => file.name === 'run.sh')
         ?.bytes.toString('utf8') ?? '';
     expect(script).toContain('exec env -i PATH="$PATH" "$NODE" runner.mjs "$@"');
@@ -112,10 +112,39 @@ describe('bundle', () => {
   });
 
   it('writes no date, host name, or local path into the bundle', () => {
-    for (const file of bundleFiles(data).filter((item) => item.name !== 'runner.mjs')) {
+    for (const file of bundleFiles(data, testInput).filter((item) => item.name !== 'runner.mjs')) {
       const text = file.bytes.toString('utf8');
       expect(text).not.toContain('/home/');
       expect(text).not.toContain('/tmp/');
+    }
+  });
+});
+
+describe('input pin', () => {
+  it('writes the pin that the owner gives into manifest.json and README.md', () => {
+    const pin = { name: 'concept-jun.png', sha256: 'e'.repeat(64) };
+    const files = bundleFiles(data, pin);
+    const manifest = parseManifest(JSON.parse(files.find((file) => file.name === 'manifest.json')?.bytes.toString('utf8') ?? '') as unknown);
+    expect(manifest.input).toEqual(pin);
+    expect(files.find((file) => file.name === 'README.md')?.bytes.toString('utf8')).toContain(`Input: \`concept-jun.png\`, SHA-256 \`${'e'.repeat(64)}\``);
+    expect(sha256(files.find((file) => file.name === 'manifest.json')?.bytes ?? Buffer.alloc(0))).not.toBe(
+      sha256(bundleFiles(data, testInput).find((file) => file.name === 'manifest.json')?.bytes ?? Buffer.alloc(0))
+    );
+  });
+
+  it('needs --input-name and --input-sha256 on the command line and refuses a malformed pin', () => {
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    try {
+      expect(run(['bundle', '--out', '/nonexistent/out', '--dry-run'], packageRoot)).toBe(2);
+      expect(run(['bundle', '--out', '/nonexistent/out', '--dry-run', '--input-name', 'concept-jun.png'], packageRoot)).toBe(2);
+      expect(run(['bundle', '--out', '/nonexistent/out', '--dry-run', '--input-name', '../x.png', '--input-sha256', 'e'.repeat(64)], packageRoot)).toBe(1);
+      expect(run(['bundle', '--out', '/nonexistent/out', '--dry-run', '--input-name', 'concept-jun.png', '--input-sha256', 'e'.repeat(64)], packageRoot)).toBe(0);
+      const report = JSON.parse(String(stdout.mock.calls.at(-1)?.[0])) as { input: unknown; dryRun: boolean };
+      expect(report).toMatchObject({ dryRun: true, input: { name: 'concept-jun.png', sha256: 'e'.repeat(64) } });
+    } finally {
+      stderr.mockRestore();
+      stdout.mockRestore();
     }
   });
 });

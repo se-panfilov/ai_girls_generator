@@ -1,9 +1,10 @@
 # @aigg/seethrough-bundle
 
-**Draft, L0-1 only.** This package builds the owner-run bundle for the L0-1 experiment: one standalone See-through layer decomposition of one pinned concept image (`concept-mirrored.png`).
+**Draft.** This package builds the owner-run bundle for one standalone See-through layer decomposition of one pinned concept image.
+The owner gives the input pin (file name and SHA-256) when the bundle is built. The first use was the L0-1 experiment (`concept-mirrored.png`). See [Input pins](#input-pins).
 See [the T0 ADR](../../docs/proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md) for the W → L → M strategy. The package does not change the production pipeline, the rig contract, or the T1a template.
 
-**Status of the models.** The owner gave a preliminary agreement for LayerDiff3D and Marigold See-through, for L0-1 only, at the pinned revisions. The final permission to download and use them comes after an independent audit of this bundle. They are not in [the model license registry](../../docs/MODEL_LICENSES.md) as approved models.
+**Status of the models.** The owner gave a preliminary agreement for LayerDiff3D and Marigold See-through, for L0-1 only, at the pinned revisions. Each other run (another input image) needs a new owner permission. They are not in [the model license registry](../../docs/MODEL_LICENSES.md) as approved models.
 
 The package itself uses no network, starts no process, and runs no model. Its tests use synthetic files only.
 
@@ -12,13 +13,26 @@ The package itself uses no network, starts no process, and runs no model. Its te
 Build first: `npm run build --workspace @aigg/seethrough-bundle`. Then run from the root:
 
 ```sh
-node packages/seethrough-bundle/dist/src/cli.js bundle --out <dir> [--dry-run] [--force]
+node packages/seethrough-bundle/dist/src/cli.js bundle --out <dir> --input-name <name.png> --input-sha256 <hex> [--dry-run] [--force]
 ```
+
+`--input-name` is a lowercase file name (a-z, 0-9, `_`, `-`) with the extension `.png`. See-through names its outputs after it (`<stem>.psd.json` and `<stem>/`).
+`--input-sha256` is the SHA-256 of the image. The command does not read the image. The runner refuses every other image.
 
 The bundle has `run.sh`, `runner.mjs`, `guard.py`, `qualify.py`, `manifest.json`, `requirements.lock`, `README.md`, and `SHA256SUMS`. The build is deterministic.
 The owner copies the bundle to the GPU host and follows [the owner instructions](docs/OWNER_RUN.md).
 
 Output files may have one ASCII space between name characters, as in `back hair.png`. The runner still refuses unsafe paths, links, special files, other file types, and output above its limits.
+
+## Input pins
+
+The input pin is in `manifest.json`. It is the only pin that does not come from the runner source: the runner checks only its form (file name pattern and a 64-character lowercase SHA-256).
+The image is not in Git. The owner gives the pin and checks the SHA-256 of the image before the copy to the Pod.
+
+| Use                 | `--input-name`         | `--input-sha256`                                                   | Source of the image                |
+| ------------------- | ---------------------- | ------------------------------------------------------------------ | ---------------------------------- |
+| L0-1 (Akane)        | `concept-mirrored.png` | `175b3292437165380dd6cfb07c2b46b05a7dee11f90cd24307ba05326e8eae8b` | Project file `l0-input-v1.tar.gz`  |
+| MVP-E (Character B) | `concept-jun.png`      | `747d0ae48628a95e291f77252e1416dbc9016f8bd1cc779e3aaaa890fadf0887` | Project file `jun-input-v1.tar.gz` |
 
 ## Runner commands on the GPU host
 
