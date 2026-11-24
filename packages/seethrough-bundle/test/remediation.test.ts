@@ -161,7 +161,7 @@ describe('network isolation', () => {
 });
 
 describe('qualify', () => {
-  function fakeQualify(output: (expect: { packages: Record<string, string> }) => Record<string, unknown>): Spawner {
+  function fakeQualify(output: (expect: { packages: Record<string, string> }) => Record<string, unknown>, denyAfterEnd = false): Spawner {
     return (command, args, options) => {
       expect(command).toBe('unshare');
       expect(options.user?.uid).toBe(1500);
@@ -170,7 +170,12 @@ describe('qualify', () => {
       expect(config.script.endsWith('qualify.py')).toBe(true);
       const expectData = JSON.parse(readFileSync(config.argv[1] ?? '', 'utf8')) as { packages: Record<string, string> };
       writeFileSync(config.argv[3] ?? '', JSON.stringify(output(expectData)));
-      writeFileSync(config.log, `${JSON.stringify({ kind: 'start', event: 'guard', detail: {} })}\n${JSON.stringify({ kind: 'end', event: 'guard', detail: {} })}\n`);
+      const records = [
+        { kind: 'start', event: 'guard', detail: {} },
+        { kind: 'end', event: 'guard', detail: { denied: 0 } }
+      ];
+      if (denyAfterEnd) records.push({ kind: 'deny', event: 'os.remove', detail: {} });
+      writeFileSync(config.log, `${records.map((record) => JSON.stringify(record)).join('\n')}\n`);
       return Promise.resolve({ code: 0, signal: null, timedOut: false });
     };
   }
@@ -195,6 +200,14 @@ describe('qualify', () => {
 
     const wrong = await qualify(bundle, lay, quietLog, { ...deps, spawner: fakeQualify((e) => ({ ...passing(e), distributions: { ...e.packages, einops: '0.8.1' } })) });
     expect(wrong.status).toBe('FAIL');
+    expect(await codeOf(() => runOnce(bundle, lay, inputPath, quietLog, { ...deps, spawner: noSpawn }))).toBe('E_NOT_QUALIFIED');
+  });
+
+  it('fails qualification on a shutdown denial despite a passing Python report and exit code', async () => {
+    const { bundle, lay, inputPath } = readyWork();
+    const deps = { capture: gpu(loopbackOnly), env: {}, host: testHost() };
+    const report = await qualify(bundle, lay, quietLog, { ...deps, spawner: fakeQualify(passing, true) });
+    expect(report).toMatchObject({ status: 'FAIL', exit: { code: 0 }, output: { status: 'PASS' }, problems: [expect.stringContaining('E_GUARD_DENIED')] });
     expect(await codeOf(() => runOnce(bundle, lay, inputPath, quietLog, { ...deps, spawner: noSpawn }))).toBe('E_NOT_QUALIFIED');
   });
 

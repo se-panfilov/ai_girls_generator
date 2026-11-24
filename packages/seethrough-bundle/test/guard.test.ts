@@ -75,6 +75,37 @@ describe.runIf(python !== undefined)('guard.py (needs Python 3.12)', () => {
     expect(result.status).toBe(3);
   });
 
+  it('denies external network events and wildcard binds', () => {
+    const result = runGuard(`import socket, sys
+with socket.socket() as tcp, socket.socket(type=socket.SOCK_DGRAM) as udp:
+    for action in (
+        lambda: sys.audit("socket.connect", tcp, ("192.0.2.1", 9)),
+        lambda: sys.audit("socket.sendto", udp, ("192.0.2.1", 9)),
+        lambda: sys.audit("socket.getaddrinfo", "example.invalid", 443, 0, 0, 0),
+        lambda: tcp.bind(("0.0.0.0", 0)),
+    ):
+        try:
+            action()
+        except PermissionError:
+            pass
+`);
+    expect(denied(result.records)).toEqual(['socket.connect', 'socket.sendto', 'socket.getaddrinfo', 'socket.bind']);
+    expect(result.status).toBe(3);
+  });
+
+  it('denies wildcard and non-loopback IPv6 binds', () => {
+    const result = runGuard(`import socket, sys
+with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe:
+    for address in (("::", 0), ("2001:db8::1", 0)):
+        try:
+            sys.audit("socket.bind", probe, address)
+        except PermissionError:
+            pass
+`);
+    expect(denied(result.records)).toEqual(['socket.bind', 'socket.bind']);
+    expect(result.status).toBe(3);
+  });
+
   it('denies new processes', () => {
     const result = runGuard(`import subprocess, os\ntry:\n    subprocess.run(["true"])\nexcept PermissionError:\n    pass\ntry:\n    os.system("true")\nexcept PermissionError:\n    pass\n`);
     expect(denied(result.records)).toEqual(expect.arrayContaining(['subprocess.Popen', 'os.system']));
@@ -93,6 +124,35 @@ describe.runIf(python !== undefined)('guard.py (needs Python 3.12)', () => {
     expect(denied(result.records)).toEqual(['open', 'os.remove', 'os.rename', 'open']);
     expect(existsSync(join(result.root, 'outside.txt'))).toBe(false);
     expect(existsSync(join(result.root, 'output'))).toBe(true);
+  });
+
+  it('protects a checkout file from writes, renames, and directory-relative deletion', () => {
+    const result = runGuard(
+      `import os
+with open("pinned.py") as pinned:
+    assert pinned.read() == "VALUE = 1\\n"
+checkout_fd = os.open(os.getcwd(), os.O_RDONLY | os.O_DIRECTORY)
+try:
+    for action in (
+        lambda: open("pinned.py", "w"),
+        lambda: os.rename("pinned.py", os.path.join(os.environ["ROOT"], "output", "moved.py")),
+        lambda: os.unlink("pinned.py", dir_fd=checkout_fd),
+    ):
+        try:
+            action()
+        except PermissionError:
+            pass
+finally:
+    os.close(checkout_fd)
+`,
+      [],
+      ['-I', '-B'],
+      { kind: 'see-through', files: { 'st/pinned.py': 'VALUE = 1\n' } }
+    );
+    expect(denied(result.records)).toEqual(['open', 'os.rename', 'os.remove']);
+    expect(result.status).toBe(3);
+    expect(readFileSync(join(result.root, 'st', 'pinned.py'), 'utf8')).toBe('VALUE = 1\n');
+    expect(existsSync(join(result.root, 'output', 'moved.py'))).toBe(false);
   });
 
   it('records reads below the model cache', () => {
