@@ -44,7 +44,30 @@ The input pin (file name and SHA-256) is the only pin that comes from `manifest.
 `isolation` checks, as the run user, that `unshare --user --net --map-current-user` works and that the new namespace has only `lo`. The runner changes no firewall rule and uses no privileged container.
 If the Pod does not allow user namespaces (for example a container seccomp profile), `qualify` and `run` are BLOCKED. The owner can accept the weaker guard-only mode with `--accept-guard-only-network`. The choice is written to `qualify.json` and `result.json`.
 
-Guard-only mode limits: the offline settings and the guard stop network calls from Python code, and the run user has no credentials. Native code (C, C++, Rust, CUDA libraries) can still open a network connection. This mode is bounded, not isolated.
+The guard denies the audited connection, datagram, and name lookup operations. For compatibility with the urllib3 capability probe, it permits only an IPv6 stream socket bind to the exact address `::1` and port `0`. The guard records the permitted attempt as `allow`. The OS can still refuse it. Wildcard binds, other addresses or ports, and datagram binds are denied.
+This exception lets Python request an ephemeral local endpoint. Other processes in the same network namespace can use loopback, and the audit hook does not cover every socket operation. Native code (C, C++, Rust, CUDA libraries) can still open a network connection in guard-only mode. The owner must still accept that mode explicitly.
+
+## Audited filesystem paths
+
+The Python 3.12 audit events provide these path and descriptor arguments.
+
+| Event                                    | Arguments                                                                        |
+| ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `os.remove`, `os.rmdir`, `shutil.rmtree` | `path, dir_fd`                                                                   |
+| `os.mkdir`, `os.chmod`                   | `path, mode, dir_fd`                                                             |
+| `os.chown`                               | `path, uid, gid, dir_fd`                                                         |
+| `os.utime`                               | `path, times, ns, dir_fd`                                                        |
+| `os.rename`, `os.link`                   | `src, dst, src_dir_fd, dst_dir_fd`                                               |
+| `os.symlink`                             | `src, dst, dir_fd` (the descriptor applies to the new link)                      |
+| `open`                                   | `path, mode, flags` (an `os.open` directory descriptor is absent from the event) |
+| `os.truncate`                            | `path or fd, length`                                                             |
+| `shutil.copyfile`, `shutil.move`         | `src, dst`                                                                       |
+
+For a relative path with an explicit directory descriptor, the guard checks that the descriptor is a directory and resolves its live path with Linux `/proc/self/fd`. It compares the opened object and the named object by device and inode. The directory and resolved target must be inside the configured write roots. An invalid or unresolved descriptor causes a denial. Absolute paths use their own location. A relative write through `open` is denied because the audit event cannot identify its directory. Writable file descriptors also require a verified path.
+
+The guard checks both a directory entry and its resolved target. It checks both ends of a rename or copy, and checks a symlink target relative to the new link's directory. It denies creation of hard links and changes through existing multiply linked files. It records descriptor-based permissions as `allow`. Qualification and inference fail on any denial in the full guard log, including records after the end marker.
+
+The path and descriptor checks occur before the system call. A path, symlink, or descriptor can change between the check and use. The guard provides defense in depth. Root ownership and Linux file permissions protect the pinned checkout and other sealed trees.
 
 ## Threats and controls
 
@@ -59,7 +82,7 @@ Guard-only mode limits: the offline settings and the guard stop network calls fr
 | A download from another host                       | Per-source host lists (see Network). Each redirect target is checked. A malformed or missing location and more than 5 redirects stop the download.                                                   |
 | Another revision or file in the model cache        | `hf/` may hold only `hub/` with the two pinned repository folders, and each only `refs/main` (the pinned revision) and the pinned files in `snapshots/<revision>/`. No token file.                   |
 | Pickle-based model files (SAM `.pt`, LaMa `.ckpt`) | The manifest refuses `.bin`, `.pt`, `.pth`, `.ckpt`, `.pkl`. `--tblr_split` (the only path to LaMa) is forbidden in the runner and in the guard. The guard denies pickle class lookups.              |
-| Automatic downloads at run time                    | Network namespace, `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, a run-local `HF_HOME` with only pinned files, and the guard denies all network calls.                                               |
+| Automatic downloads at run time                    | Network namespace, `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`, a run-local `HF_HOME` with only pinned files, and the guard denies audited connection and name lookup operations.                   |
 | Silent fallback in See-through                     | The runner requires that the LayerDiff3D `scheduler/scheduler_config.json` and both `model_index.json` files were read from the pinned cache. A read of another cache file is an error.              |
 | Source builds and floating dependencies            | pip runs with `--no-index`, `--require-hashes`, `--only-binary :all:`, `--no-deps`, `--isolated`, and only the local checked wheels. The venv must contain exactly the pinned packages.              |
 | Wheels for another platform                        | The manifest accepts only wheels with tags for CPython 3.12 (or abi3, or py3) and `manylinux` up to glibc 2.28 on x86_64. `preflight` checks the glibc of the host.                                  |
