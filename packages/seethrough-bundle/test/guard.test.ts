@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, linkSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 import { guardFormat } from '@seethrough-bundle/runner';
 import { describe, expect, it } from 'vitest';
@@ -12,6 +12,18 @@ import { packageRoot, temporaryDirectory } from './helpers';
 
 const python = [process.env.AIGG_PYTHON312, '/usr/bin/python3.12', '/usr/local/bin/python3.12', '/opt/homebrew/bin/python3.12'].find((path) => path !== undefined && path !== '' && existsSync(path));
 const guard = join(packageRoot, 'assets', 'guard.py');
+const ipv6Unsupported =
+  python !== undefined &&
+  spawnSync(
+    python,
+    [
+      '-I',
+      '-B',
+      '-c',
+      'import errno, socket\ntry: socket.socket(socket.AF_INET6).close()\nexcept OSError as error:\n    if error.errno in (errno.EAFNOSUPPORT, errno.EPROTONOSUPPORT): raise SystemExit(77)\n    raise'
+    ],
+    { timeout: 5000 }
+  ).status === 77;
 
 type Records = { kind: string; event: string; detail: unknown }[];
 
@@ -19,7 +31,7 @@ function runGuard(
   script: string,
   argv: string[] = [],
   flags = ['-I', '-B'],
-  target: { kind: string; script?: string; files?: Record<string, string> } = { kind: 'see-through' }
+  target: { kind: string; script?: string; files?: Record<string, string>; addLinks?: (root: string) => void } = { kind: 'see-through' }
 ): { status: number | null; records: Records; root: string; stderr: string } {
   const root = temporaryDirectory('guard');
   const st = join(root, 'st');
@@ -30,7 +42,12 @@ function runGuard(
   writeFileSync(join(root, 'hf', 'hub', 'models--a--b', 'config.json'), '{}');
   writeFileSync(join(st, 'common', 'helper', '__init__.py'), 'VALUE = 7\n');
   writeFileSync(join(st, 'inference', 'target.py'), script);
-  for (const [name, content] of Object.entries(target.files ?? {})) writeFileSync(join(root, name), content);
+  for (const [name, content] of Object.entries(target.files ?? {})) {
+    const path = join(root, name);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, content);
+  }
+  target.addLinks?.(root);
   const log = join(root, 'guard.jsonl');
   const config = join(root, 'config.json');
   writeFileSync(
@@ -75,6 +92,55 @@ describe.runIf(python !== undefined)('guard.py (needs Python 3.12)', () => {
     expect(result.status).toBe(3);
   });
 
+  it('denies external network events and wildcard binds', () => {
+    const result = runGuard(`import socket, sys
+with socket.socket() as tcp, socket.socket(type=socket.SOCK_DGRAM) as udp:
+    for action in (
+        lambda: sys.audit("socket.connect", tcp, ("192.0.2.1", 9)),
+        lambda: sys.audit("socket.sendto", udp, ("192.0.2.1", 9)),
+        lambda: sys.audit("socket.getaddrinfo", "example.invalid", 443, 0, 0, 0),
+        lambda: tcp.bind(("0.0.0.0", 0)),
+    ):
+        try:
+            action()
+        except PermissionError:
+            pass
+`);
+    expect(denied(result.records)).toEqual(['socket.connect', 'socket.sendto', 'socket.getaddrinfo', 'socket.bind']);
+    expect(result.status).toBe(3);
+  });
+
+  it.skipIf(ipv6Unsupported)('denies wildcard and non-loopback IPv6 binds', () => {
+    const result = runGuard(`import socket
+with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe:
+    for address in (("::", 0), ("2001:db8::1", 0), ("::1", 12345), ("::1", 0, 0, 0)):
+        try:
+            probe.bind(address)
+        except PermissionError:
+            pass
+with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as datagram:
+    try:
+        datagram.bind(("::1", 0))
+    except PermissionError:
+        pass
+`);
+    expect(denied(result.records)).toEqual(Array.from({ length: 5 }, () => 'socket.bind'));
+    expect(result.status).toBe(3);
+  });
+
+  it.skipIf(ipv6Unsupported)('records the real IPv6 capability probe used by urllib3 as allowed', () => {
+    const result = runGuard(`import socket
+try:
+    with socket.socket(socket.AF_INET6) as probe:
+        probe.bind(("::1", 0))
+except OSError:
+    pass
+`);
+    expect(result.status).toBe(0);
+    expect(denied(result.records)).toEqual([]);
+    expect(result.records).toContainEqual({ kind: 'allow', event: 'socket.bind', detail: { address: '::1', port: 0 } });
+  });
+
   it('denies new processes', () => {
     const result = runGuard(`import subprocess, os\ntry:\n    subprocess.run(["true"])\nexcept PermissionError:\n    pass\ntry:\n    os.system("true")\nexcept PermissionError:\n    pass\n`);
     expect(denied(result.records)).toEqual(expect.arrayContaining(['subprocess.Popen', 'os.system']));
@@ -93,6 +159,167 @@ describe.runIf(python !== undefined)('guard.py (needs Python 3.12)', () => {
     expect(denied(result.records)).toEqual(['open', 'os.remove', 'os.rename', 'open']);
     expect(existsSync(join(result.root, 'outside.txt'))).toBe(false);
     expect(existsSync(join(result.root, 'output'))).toBe(true);
+  });
+
+  it('protects a checkout file from writes, renames, and directory-relative deletion', () => {
+    const result = runGuard(
+      `import os
+with open("pinned.py") as pinned:
+    assert pinned.read() == "VALUE = 1\\n"
+checkout_fd = os.open(os.getcwd(), os.O_RDONLY | os.O_DIRECTORY)
+try:
+    for action in (
+        lambda: open("pinned.py", "w"),
+        lambda: os.rename("pinned.py", os.path.join(os.environ["ROOT"], "output", "moved.py")),
+        lambda: os.unlink("pinned.py", dir_fd=checkout_fd),
+    ):
+        try:
+            action()
+        except PermissionError:
+            pass
+finally:
+    os.close(checkout_fd)
+`,
+      [],
+      ['-I', '-B'],
+      { kind: 'see-through', files: { 'st/pinned.py': 'VALUE = 1\n' } }
+    );
+    expect(denied(result.records)).toEqual(['open', 'os.rename', 'os.remove']);
+    expect(result.status).toBe(3);
+    expect(readFileSync(join(result.root, 'st', 'pinned.py'), 'utf8')).toBe('VALUE = 1\n');
+    expect(existsSync(join(result.root, 'output', 'moved.py'))).toBe(false);
+  });
+
+  it.runIf(process.platform === 'linux')('allows directory-relative removal during temporary directory cleanup', () => {
+    const result = runGuard(`import atexit, os, tempfile
+runtime = os.path.join(os.environ["ROOT"], "output")
+tmp = tempfile.TemporaryDirectory(dir=runtime)
+atexit.register(tmp.cleanup)
+with open(os.path.join(tmp.name, "_remote_module_non_scriptable.py"), "w") as template:
+    template.write("VALUE = 1\\n")
+`);
+    expect(result.status).toBe(0);
+    expect(denied(result.records)).toEqual([]);
+    const removal = result.records.find((record) => record.kind === 'allow' && record.event === 'os.remove');
+    const path: unknown = Array.isArray(removal?.detail) && removal.detail[0];
+    expect(path).toMatch(/\/output\/[^/]+\/_remote_module_non_scriptable\.py$/);
+    expect(existsSync(join(result.root, 'st', '_remote_module_non_scriptable.py'))).toBe(false);
+    expect(readdirSync(join(result.root, 'output'))).toEqual([]);
+  });
+
+  it.runIf(process.platform === 'linux')('denies closed, non-directory, and removed directory descriptors', () => {
+    const result = runGuard(
+      `import os
+runtime = os.path.join(os.environ["ROOT"], "output")
+os.chdir(runtime)
+closed = os.open(runtime, os.O_RDONLY | os.O_DIRECTORY)
+os.close(closed)
+try:
+    os.unlink("kept", dir_fd=closed)
+except PermissionError:
+    pass
+with open(os.path.join(runtime, "kept")) as file:
+    try:
+        os.unlink("kept", dir_fd=file.fileno())
+    except PermissionError:
+        pass
+os.mkdir("gone")
+gone = os.open("gone", os.O_RDONLY | os.O_DIRECTORY)
+os.rmdir("gone")
+try:
+    os.unlink("kept", dir_fd=gone)
+except PermissionError:
+    pass
+finally:
+    os.close(gone)
+`,
+      [],
+      ['-I', '-B'],
+      { kind: 'see-through', files: { 'output/kept': 'keep' } }
+    );
+    expect(result.status).toBe(3);
+    expect(denied(result.records)).toEqual(['os.remove', 'os.remove', 'os.remove']);
+    expect(readFileSync(join(result.root, 'output', 'kept'), 'utf8')).toBe('keep');
+  });
+
+  it.runIf(process.platform === 'linux')('checks the real filesystem targets of directory-relative changes from a writable cwd', () => {
+    const result = runGuard(
+      `import os, shutil
+root = os.environ["ROOT"]
+os.chdir(os.path.join(root, "output"))
+checkout = os.open(os.path.join(root, "st"), os.O_RDONLY | os.O_DIRECTORY)
+runtime = os.open(os.getcwd(), os.O_RDONLY | os.O_DIRECTORY)
+try:
+    for action in (
+        lambda: os.unlink("pinned", dir_fd=checkout),
+        lambda: os.rmdir("empty", dir_fd=checkout),
+        lambda: os.mkdir("created", dir_fd=checkout),
+        lambda: os.chmod("pinned", 0o600, dir_fd=checkout),
+        lambda: os.chown("pinned", -1, -1, dir_fd=checkout),
+        lambda: os.utime("pinned", dir_fd=checkout),
+        lambda: os.rename("pinned", "moved", src_dir_fd=checkout, dst_dir_fd=runtime),
+        lambda: os.rename("local", "moved", src_dir_fd=runtime, dst_dir_fd=checkout),
+        lambda: os.link("pinned", "linked", src_dir_fd=checkout, dst_dir_fd=runtime),
+        lambda: os.symlink(os.path.join(os.getcwd(), "local"), "linked", dir_fd=checkout),
+        lambda: shutil.rmtree("tree", dir_fd=checkout),
+        lambda: os.close(os.open("pinned", os.O_WRONLY, dir_fd=checkout)),
+    ):
+        try:
+            action()
+        except PermissionError:
+            pass
+finally:
+    os.close(runtime)
+    os.close(checkout)
+`,
+      [],
+      ['-I', '-B'],
+      {
+        kind: 'see-through',
+        files: { 'st/pinned': 'pinned', 'st/empty/.keep': '', 'st/tree/child': 'keep', 'output/local': 'local' }
+      }
+    );
+    expect(result.status).toBe(3);
+    expect(denied(result.records)).toEqual(['os.remove', 'os.rmdir', 'os.mkdir', 'os.chmod', 'os.chown', 'os.utime', 'os.rename', 'os.rename', 'os.link', 'os.symlink', 'shutil.rmtree', 'open']);
+    expect(readFileSync(join(result.root, 'st', 'pinned'), 'utf8')).toBe('pinned');
+    expect(readFileSync(join(result.root, 'output', 'local'), 'utf8')).toBe('local');
+    expect(existsSync(join(result.root, 'st', 'linked'))).toBe(false);
+    expect(readFileSync(join(result.root, 'st', 'tree', 'child'), 'utf8')).toBe('keep');
+  });
+
+  it('protects symlink entries and their targets and refuses hard links', () => {
+    const result = runGuard(
+      `import os
+root = os.environ["ROOT"]
+runtime = os.path.join(root, "output")
+for action in (
+    lambda: os.unlink(os.path.join(root, "st", "alias")),
+    lambda: open(os.path.join(runtime, "symlink"), "w"),
+    lambda: open(os.path.join(runtime, "hardlink"), "w"),
+    lambda: os.link(os.path.join(runtime, "local"), os.path.join(runtime, "new-link")),
+):
+    try:
+        action()
+    except PermissionError:
+        pass
+`,
+      [],
+      ['-I', '-B'],
+      {
+        kind: 'see-through',
+        files: { 'st/pinned': 'protected', 'output/local': 'local' },
+        addLinks: (root) => {
+          symlinkSync(join(root, 'output', 'local'), join(root, 'st', 'alias'));
+          symlinkSync(join(root, 'st', 'pinned'), join(root, 'output', 'symlink'));
+          linkSync(join(root, 'st', 'pinned'), join(root, 'output', 'hardlink'));
+        }
+      }
+    );
+    expect(result.status).toBe(3);
+    expect(denied(result.records)).toEqual(['os.remove', 'open', 'open', 'os.link']);
+    expect(readFileSync(join(result.root, 'st', 'pinned'), 'utf8')).toBe('protected');
+    expect(readFileSync(join(result.root, 'st', 'alias'), 'utf8')).toBe('local');
+    expect(existsSync(join(result.root, 'output', 'new-link'))).toBe(false);
   });
 
   it('records reads below the model cache', () => {

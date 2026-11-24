@@ -3,7 +3,7 @@
 Why Python: the controls below must act inside the See-through Python process. Node.js cannot do that.
 The guard adds a PEP 578 audit hook before any See-through module is imported, then runs inference_psd.py with runpy.
 The hook stops (PermissionError) and records:
-- network calls (socket connect, bind, sendto, name lookup, urllib requests),
+- network calls (socket connect, bind, sendto, name lookup, urllib requests), except the exact IPv6 loopback capability probe,
 - new processes (subprocess, os.system, exec, spawn, fork),
 - pickle class lookups (pickle-based model files),
 - file writes, renames, deletions, links and mode changes outside the allowed write roots.
@@ -22,7 +22,14 @@ guard log, so the log is evidence of what the guard saw, not proof of what the p
 import json
 import os
 import runpy
+import stat
 import sys
+from socket import AF_INET6, IPPROTO_TCP, SOCK_STREAM, SOL_SOCKET, SO_TYPE, socket
+
+if sys.platform == "linux":
+    from socket import SO_PROTOCOL
+else:
+    SO_PROTOCOL = None
 
 FORMAT = "aigg.l0-seethrough-guard/0.2"
 KINDS = ("see-through", "qualify")
@@ -49,21 +56,16 @@ PROCESS_EVENTS = {
     "os.startfile",
     "pty.spawn",
 }
-PATH_CHANGE_EVENTS = {
-    "os.remove",
-    "os.rmdir",
-    "os.mkdir",
-    "os.chmod",
-    "os.chown",
-    "os.symlink",
-    "os.link",
-    "os.truncate",
-    "os.utime",
-    "shutil.rmtree",
-    "shutil.copyfile",
-    "shutil.move",
+# CPython 3.12 uses -1 for the default directory in os events and None in shutil.rmtree.
+DIR_FD_INDEX = {
+    "os.remove": 1,
+    "os.rmdir": 1,
+    "os.mkdir": 2,
+    "os.chmod": 2,
+    "os.chown": 3,
+    "os.utime": 3,
+    "shutil.rmtree": 1,
 }
-TWO_PATH_EVENTS = {"os.rename"}
 WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
 
 
@@ -136,15 +138,94 @@ def main():
         record("deny", event, detail)
         raise PermissionError("L0-1 guard: " + event + " is not allowed")
 
-    def check_write(event, value):
-        path = as_path(value)
-        if path is None:
-            return
-        if path == "/dev/null" or inside(path, write_roots):
-            return
-        deny(event, path)
+    def descriptor_path(fd, directory=False):
+        opened = os.fstat(fd)
+        if directory and not stat.S_ISDIR(opened.st_mode):
+            raise ValueError("dir_fd is not a directory")
+        path = os.readlink(f"/proc/self/fd/{fd}")
+        if not os.path.isabs(path) or path.endswith(" (deleted)"):
+            raise ValueError("descriptor has no live absolute path")
+        path = real(path, strict=True)
+        if not os.path.samestat(opened, os.stat(path)):
+            raise ValueError("descriptor path does not identify the open object")
+        return path
+
+    def check_write(event, value, dir_fd=None):
+        resolved_fd = False
+        try:
+            if type(value) is int:
+                path = descriptor_path(value)
+                resolved_fd = True
+            else:
+                path = os.fsdecode(os.fspath(value))
+                if not path:
+                    raise ValueError("empty path")
+                if not os.path.isabs(path):
+                    if event == "open":
+                        raise ValueError("relative write open has no audited dir_fd")
+                    if dir_fd not in (None, -1):
+                        base = descriptor_path(dir_fd, directory=True)
+                        if not inside(base, write_roots):
+                            raise ValueError("dir_fd is outside write roots")
+                        path = os.path.join(base, path)
+                        resolved_fd = True
+                    else:
+                        path = os.path.join(os.getcwd(), path)
+            # Resolve the entry and its target. A symlink in a protected parent is itself protected.
+            parent, name = os.path.split(path.rstrip(os.sep))
+            entry = os.path.join(real(parent), name)
+            target = real(path)
+        except (OSError, OverflowError, TypeError, ValueError) as error:
+            deny(event, str(error))
+        if event == "open" and entry == target == "/dev/null":
+            return target, resolved_fd
+        if not inside(entry, write_roots) or not inside(target, write_roots):
+            deny(event, entry)
+        # realpath does not expose hard links. Reject mutations of multiply linked files.
+        for candidate in {entry, target}:
+            try:
+                info = os.lstat(candidate)
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                deny(event, str(error))
+            if not stat.S_ISDIR(info.st_mode) and info.st_nlink > 1:
+                deny(event, "hard-linked path: " + candidate)
+        return target, resolved_fd
+
+    def record_descriptor_access(event, checked):
+        if any(resolved_fd for _, resolved_fd in checked):
+            record("allow", event, [path for path, _ in checked])
+
+    def ipv6_probe(args):
+        sock, address = args
+        matches = (
+            type(sock) is socket
+            and sock.family == AF_INET6
+            and sock.type == SOCK_STREAM
+            and sock.proto in (0, IPPROTO_TCP)
+            and type(address) is tuple
+            and len(address) == 2
+            and type(address[0]) is str
+            and type(address[1]) is int
+            and address == ("::1", 0)
+        )
+        if not matches:
+            return False
+        try:
+            # Inspect the kernel socket as well as the Python wrapper's metadata.
+            return (
+                sock.getsockopt(SOL_SOCKET, SO_TYPE) == SOCK_STREAM
+                and len(sock.getsockname()) == 4
+                and (SO_PROTOCOL is None or sock.getsockopt(SOL_SOCKET, SO_PROTOCOL) == IPPROTO_TCP)
+            )
+        except OSError:
+            return False
 
     def hook(event, args):
+        if event == "socket.bind" and len(args) == 2 and ipv6_probe(args):
+            record("allow", event, {"address": "::1", "port": 0})
+            return
         if event in NETWORK_EVENTS:
             deny(event, repr(args)[:200])
         if event in PROCESS_EVENTS:
@@ -155,17 +236,35 @@ def main():
             path, mode, flags = args
             writing = (isinstance(mode, str) and any(c in mode for c in "wax+")) or (isinstance(flags, int) and flags & WRITE_FLAGS)
             if writing:
-                check_write(event, path)
+                record_descriptor_access(event, [check_write(event, path)])
                 return
             target = as_path(path)
             if target is not None and inside(target, (hf_cache,)):
                 record("read", event, target)
             return
-        if event in PATH_CHANGE_EVENTS and args:
-            check_write(event, args[0])
-            if event in ("shutil.copyfile", "shutil.move") and len(args) > 1:
-                check_write(event, args[1])
-        if event in TWO_PATH_EVENTS and len(args) > 1:
+        if event in DIR_FD_INDEX:
+            index = DIR_FD_INDEX[event]
+            if len(args) != index + 1:
+                deny(event, "invalid filesystem event arguments")
+            record_descriptor_access(event, [check_write(event, args[0], args[index])])
+        elif event in ("os.rename", "os.link"):
+            if len(args) != 4:
+                deny(event, "invalid filesystem event arguments")
+            source, target, source_fd, target_fd = args
+            checked = [check_write(event, source, source_fd), check_write(event, target, target_fd)]
+            if event == "os.link":
+                deny(event, "hard links are not allowed")
+            record_descriptor_access(event, checked)
+        elif event == "os.symlink":
+            if len(args) != 3:
+                deny(event, "invalid filesystem event arguments")
+            source, target, fd = args
+            link = check_write(event, target, fd)
+            referent = check_write(event, os.path.join(os.path.dirname(link[0]), os.fsdecode(source)))
+            record_descriptor_access(event, [referent, link])
+        elif event == "os.truncate":
+            record_descriptor_access(event, [check_write(event, args[0])])
+        elif event in ("shutil.copyfile", "shutil.move"):
             check_write(event, args[0])
             check_write(event, args[1])
 
