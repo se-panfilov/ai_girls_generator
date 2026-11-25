@@ -87,14 +87,14 @@ The results are component results. Pipeline v1 **did not** reach production pipe
 
 ### Character B: Jun (licensed test asset, MVP-E)
 
-| Step                       | Result                                                                                                                                                      |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Input                      | An idle sprite frame, about 224 × 337 px, upscaled ×4. No high-resolution full-body image exists in the asset.                                              |
-| See-through run            | Done once with bundle 0.3.2. Layer evaluation: proceed with limitations.                                                                                    |
-| Landmarks and alignment    | Agent proposal, approved by the owner without change. `align-study` PASS (mean 3.08 %, max 5.20 % of body height).                                          |
-| Assembly                   | `assemble-body` 12 of 12 offline checks PASS, `JSON_GENERATED`. Two general code fixes were necessary (optional face feature layers, generated PNG limits). |
-| Spine CLI and web playback | Not run. Owner steps.                                                                                                                                       |
-| MVP-E status               | `PASS_WITH_LIMITATIONS` is recommended. The owner has not closed MVP-E.                                                                                     |
+| Step                       | Result                                                                                                                                                                                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Input                      | An idle sprite frame, about 224 × 337 px, upscaled ×4. No high-resolution full-body image exists in the asset.                                                                                                                                |
+| See-through run            | Done once with bundle 0.3.3 (successful G4 run, bundle `SHA256SUMS` digest `517f33438a6092e13c2b60ed99e18b20d75b14125f8fcd0648e6d0d5de256160`). The earlier failed attempts are not the evidence. Layer evaluation: proceed with limitations. |
+| Landmarks and alignment    | Agent proposal, approved by the owner without change. `align-study` PASS (mean 3.08 %, max 5.20 % of body height).                                                                                                                            |
+| Assembly                   | `assemble-body` 12 of 12 offline checks PASS, `JSON_GENERATED`. Two general code fixes were necessary (optional face feature layers, generated PNG limits).                                                                                   |
+| Spine CLI and web playback | Not run. Owner steps.                                                                                                                                                                                                                         |
+| MVP-E status               | `PASS_WITH_LIMITATIONS` is recommended. The owner has not closed MVP-E.                                                                                                                                                                       |
 
 The MVP-E closeout report and the evidence are in the project files (`research/mvp-e/closeout/`), outside Git, because they contain derivatives of a licensed asset.
 
