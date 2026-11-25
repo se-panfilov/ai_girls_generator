@@ -237,11 +237,17 @@ export function measureLandmarks(layers: ReadonlyMap<string, Raster>, image: Ras
         : unknown('chin', null, 'no rows', ['face'], 'No data.')
     );
   }
+  // Face features are optional layers: See-through can omit a tag (for example the nose of a head in profile). A missing layer gives an unknown landmark.
   for (const [id, tag] of [
     ['nose', 'nose'],
     ['mouth', 'mouth']
   ] as const) {
-    const point = centroid(alphaMask(get(tag), 1), width);
+    const raster = layers.get(tag);
+    if (!raster) {
+      result.push(unknown(id, null, 'layer missing', [tag], `See-through gave no ${tag} layer.`));
+      continue;
+    }
+    const point = centroid(alphaMask(raster, 1), width);
     result.push(
       point
         ? landmark(id, {
@@ -256,7 +262,8 @@ export function measureLandmarks(layers: ReadonlyMap<string, Raster>, image: Ras
         : unknown(id, null, 'layer empty', [tag], 'No data.')
     );
   }
-  const irides = labelComponents(alphaMask(get('irides'), 1), width, get('irides').height);
+  const iridesLayer = layers.get('irides');
+  const irides = iridesLayer ? labelComponents(alphaMask(iridesLayer, 1), width, iridesLayer.height) : { components: [] };
   const eyes = [...irides.components]
     .sort((a, b) => b.area - a.area)
     .slice(0, 2)
@@ -274,7 +281,7 @@ export function measureLandmarks(layers: ReadonlyMap<string, Raster>, image: Ras
             sourceLayers: ['irides'],
             note: 'Directly drawn feature (glasses do not hide the iris).'
           })
-        : unknown(`eye_${side}`, null, 'two irides components not found', ['irides'], 'No data.')
+        : unknown(`eye_${side}`, null, iridesLayer ? 'two irides components not found' : 'layer missing', ['irides'], iridesLayer ? 'No data.' : 'See-through gave no irides layer.')
     );
   });
 
@@ -924,7 +931,8 @@ export type AlignStudyOptions = {
   readonly toolVersion: string;
 };
 
-const studyLayers = ['face', 'front hair', 'nose', 'mouth', 'irides', 'neck', 'topwear', 'handwear', 'legwear', 'footwear', 'bottomwear'] as const;
+/** Layers that the study needs. The face feature layers (nose, mouth, irides) are optional: a missing one gives unknown landmarks. */
+const studyLayers = ['face', 'front hair', 'neck', 'topwear', 'handwear', 'legwear', 'footwear', 'bottomwear'] as const;
 
 /** `align-study`: tasks A to F of experiment L0-1c. */
 export function alignStudyCommand(options: AlignStudyOptions): CommandResult {

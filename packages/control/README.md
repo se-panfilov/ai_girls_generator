@@ -141,6 +141,7 @@ node packages/control/dist/src/cli.js align-study --contract packages/control/te
   --image <run>/output/concept-mirrored/src_img.png --out ./l0-1c-output [--landmarks manual.json]
 ```
 
+- Required layers: `face`, `front hair`, `neck`, `topwear`, `handwear`, `legwear`, `footwear`, `bottomwear`. The face feature layers `nose`, `mouth`, and `irides` are optional: See-through can omit a tag (for example the nose of a head in profile). A missing feature layer gives unknown landmarks (method `layer missing`).
 - `--image` is the See-through input at the layer frame size. The tool compares each layer pixel with it: a pixel that does not match is a See-through completion under another part, not drawn evidence.
 - Landmarks have image side names (`_image_left`, `_image_right`), a visibility (`visible`, `occluded`, `inferred`, `unknown`), a confidence, the method, the source layers, and a note. An `unknown` landmark has no point, only a range. The color and shape rules are data-specific assumptions and are listed in `landmarks.json`.
 - Fits: uniform scale, similarity, and affine, with residuals in percent of the template body height, for two hypotheses (`near_is_image_left`, `near_is_image_right`) and two landmark sets (confidence medium or more, low or more). Also per segment length ratios and angle differences, triangle maps (anisotropy, reflection), near and far cues, and cut-line candidates.
