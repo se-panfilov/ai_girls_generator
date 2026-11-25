@@ -245,10 +245,10 @@ export function parseSheetDescriptor(value: unknown): SheetDescriptor {
   };
 }
 
-type ContractSlotRule = { readonly id: string; readonly bone: string; readonly required: boolean; readonly childBones: readonly string[] };
+export type ContractSlotRule = { readonly id: string; readonly bone: string; readonly required: boolean; readonly childBones: readonly string[] };
 
 /** Reads the slot rules (required flag, overlap child bones) from the contract bytes. The control contract parser does not keep them. */
-function contractSlotRules(contractBytes: Buffer): { rigId: string; contractVersion: string; slots: ContractSlotRule[] } {
+export function contractSlotRules(contractBytes: Buffer): { rigId: string; contractVersion: string; slots: ContractSlotRule[] } {
   let raw: unknown;
   try {
     raw = JSON.parse(contractBytes.toString('utf8'));

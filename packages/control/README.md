@@ -31,8 +31,9 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`                      |
 | `sheet-fixture`     | The C0.5 candidate `rig.contract.json`                                                                                    | V2-1 prototype: the synthetic modular sheet, its layout descriptor, and its check (see below)                                                             |
 | `sheet-check`       | A rig contract, a modular sheet PNG, its layout descriptor                                                                | V2-1 prototype: `sheet-check.json` with the descriptor and pixel checks (see below)                                                                       |
+| `sheet-extract`     | A rig contract, a modular sheet PNG, its layout descriptor                                                                | V2-2 prototype: `parts/<slot>.png`, `extraction.json`, `extraction-report.json`, `SUMMARY.md`, `SHA256SUMS` (see below)                                   |
 
-Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
+Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run`. All commands except `sheet-extract` and `spine-validate` accept `--force`.
 
 Example (the L1 test rig, the 832 x 1216 SDXL bucket):
 
@@ -289,6 +290,20 @@ node packages/control/dist/src/cli.js sheet-check --contract packages/control/te
 - `sheet-fixture` writes `synthetic-sheet.png` (the 18 required T1a mock parts on shelves and a 256 x 384 reference preview), `synthetic-sheet.json` (the layout descriptor), and `synthetic-sheet.check.json`. Flat colors, no art, no model.
 - `sheet-check` validates the descriptor against [the schema](schemas/modular-sheet.schema.json) rules and the target contract (slot ids, required and absent slots, joints), then checks the PNG: file SHA-256, size, alpha channel, non-empty parts, and no foreground (alpha >= 16) outside the region boxes. It reports the bounds, the pixel counts, and the component count of each region.
 - It cannot check semantic rules: that the art in a region is the named slot, the near and far side, the view, hidden geometry, and joint overlap. A human checks them.
+
+## Modular sheet extraction (V2-2)
+
+**Prototype.** Pipeline v2 step V2-2. Details: [V2-2 sheet extraction](../../docs/proposals/V2_2_SHEET_EXTRACTION.md).
+
+```sh
+node packages/control/dist/src/cli.js sheet-extract --contract packages/control/test/fixtures/c05-candidate/rig.contract.json \
+  --descriptor ./v2-sheet/synthetic-sheet.json --sheet ./v2-sheet/synthetic-sheet.png --out ./v2-parts
+```
+
+- It runs the `sheet-check` rules first. A descriptor error (exit 2) or a sheet check FAIL (exit 1) writes nothing.
+- For each part region it copies the RGBA bytes of the box, without a change, to `parts/<slot>.png`. The slot comes from the descriptor. The file name comes from the contract slot id. Reference and ignore regions are not extracted. Weak alpha is kept and counted.
+- `extraction.json` is the manifest: source and descriptor SHA-256, rig id and contract version, tool version, and for each part the slot, the source box, the output size, the file and pixel SHA-256, the alpha counts, and the joints in sheet and part coordinates. Absent optional slots are listed as `absent_by_design`.
+- The output directory must be new or empty. The result is written to a temporary directory and renamed, so it is complete or absent. `--force` is refused.
 
 ## Exit status
 
