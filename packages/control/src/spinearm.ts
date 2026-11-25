@@ -5,7 +5,7 @@ import { buildVariant, regionsOf, variantSpecs } from '@control/jointgeometry';
 import { checker } from '@control/layersplit';
 import { compose, crop, cross, evaluateRotations, type LimbStudyOptions, prepareLimb, rotationAbout, rotationTests, scaled, titled, transformPart } from '@control/limbstudy';
 import type { PlannedFile } from '@control/output';
-import { decodePng, encodePng, pixelHash, sha256 } from '@control/png';
+import { decodePng, encodePng, pixelHash, type PngLimits, sha256 } from '@control/png';
 import { type Color, Raster } from '@control/raster';
 import {
   buildArmSkeleton,
@@ -395,13 +395,20 @@ export function assembleArmPackage(input: ArmPackageInput): { files: PlannedFile
   return { files, checks, geometry, skeleton, status };
 }
 
+/**
+ * Decode limits for the PNG files that this package itself made, such as preview sheets.
+ * A preview sheet of large slot images can be wider than the input limit of 4096 pixels.
+ * The limits stay finite so that a defect cannot cause unbounded memory use.
+ */
+export const generatedPngLimits: PngLimits = { maxBytes: 256 * 1024 * 1024, maxWidth: 16384, maxHeight: 16384, maxPixels: 8192 * 8192 };
+
 /** SHA-256 of the bytes and of the decoded pixels (for PNG files; the project storage can re-encode PNG files). */
 export function manifests(files: readonly PlannedFile[]): PlannedFile[] {
   const sorted = [...files].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const bytes = sorted.map((file) => `${sha256(file.bytes)}  ${file.name}`).join('\n');
   const pixels = sorted
     .filter((file) => file.name.endsWith('.png'))
-    .map((file) => `${pixelHash(decodePng(file.bytes).raster)}  ${file.name}`)
+    .map((file) => `${pixelHash(decodePng(file.bytes, generatedPngLimits).raster)}  ${file.name}`)
     .join('\n');
   return [
     { name: 'SHA256SUMS', bytes: Buffer.from(`${bytes}\n`, 'utf8') },
