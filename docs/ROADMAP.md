@@ -16,7 +16,7 @@ Deprecated. Retained for reproducibility and reference. No new features by defau
 ### Pipeline v2 — MVP core
 
 **Current priority.** The MVP-first rules of D33 apply to this sequence: a complete vertical slice first, then improvements.
-The MVP starts with a modular character sheet that already exists. Details and the minimum evidence of each step: [the Pipeline v2 ADR, section 8](proposals/PIPELINE_V2_ADR.md#8-pipeline-v2-mvp-implementation-sequence).
+The MVP starts with a modular character sheet that already exists. Details and the minimum evidence of each step: [the Pipeline v2 ADR, section 8](proposals/PIPELINE_V2_ADR.md#8-pipeline-v2-mvp-implementation-sequence). Step 1 (proposed, not approved): [Modular Sheet Contract v0.1](PIPELINE_V2_MODULAR_SHEET.md).
 
 | Step | Content                                                      | Result                                                                              |
 | ---- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------- |

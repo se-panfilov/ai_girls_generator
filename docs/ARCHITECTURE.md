@@ -7,7 +7,7 @@
 **Pipeline generations (D35, accepted).** Pipeline v1 (concept decomposition) is deprecated and retained. Pipeline v2 (direct modular generation) is the primary workflow. The stage table below is the earlier plan. It is kept as a reference. The table [Stages by pipeline generation](#stages-by-pipeline-generation) shows how its stages relate to the two generations.
 
 - Pipeline v1: [description, evidence, and deprecation policy](PIPELINE_V1.md).
-- Pipeline v2: [the Pipeline v2 ADR](proposals/PIPELINE_V2_ADR.md) (proposed architecture).
+- Pipeline v2: [the Pipeline v2 ADR](proposals/PIPELINE_V2_ADR.md) (proposed architecture) and [the Modular Sheet Contract v0.1](PIPELINE_V2_MODULAR_SHEET.md) (proposed).
 - Components: [the component inventory](COMPONENT_INVENTORY.md).
 
 ## Goal
