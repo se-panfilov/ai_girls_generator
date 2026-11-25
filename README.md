@@ -3,7 +3,9 @@
 A reproducible asset factory for layered cutout anime-girl characters.
 Each character is a package of PNG parts and a JSON sidecar. All characters fit one shared Spine skeleton and one shared animation set.
 
-**Status: draft.** The repository contains agent rules, draft design documents, and the npm workspaces setup with shared tool configuration. Two experimental packages exist (`@aigg/control` and `@aigg/rig-runtime`). No production pipeline exists yet.
+**Status: draft.** The repository contains agent rules, draft design documents, the npm workspaces setup with shared tool configuration, and experimental packages for the MVP vertical slice (see [Workspaces](docs/WORKSPACES.md#existing-packages)). No production pipeline exists yet.
+
+**Pipeline generations (D35).** Pipeline v1 (concept decomposition) is deprecated and retained for reproducibility. Pipeline v2 (direct modular generation from a modular character sheet) is the primary workflow. It is not implemented yet. See [the Pipeline v2 ADR](docs/proposals/PIPELINE_V2_ADR.md).
 
 ## Documents
 
@@ -15,6 +17,9 @@ Each character is a package of PNG parts and a JSON sidecar. All characters fit 
 | [Decision log](docs/DECISIONS.md)                            | Owner requirements and open decisions.                          |
 | [Model license registry](docs/MODEL_LICENSES.md)             | Candidate models and tools with their licenses.                 |
 | [Roadmap](docs/ROADMAP.md)                                   | Phases, gates, and experiments.                                 |
+| [Pipeline v2 ADR](docs/proposals/PIPELINE_V2_ADR.md)         | Pipeline generations decision and the proposed v2 architecture. |
+| [Pipeline v1](docs/PIPELINE_V1.md)                           | Deprecated workflow, evidence, and compatibility policy.        |
+| [Component inventory](docs/COMPONENT_INVENTORY.md)           | Reuse classification and the deferred cleanup plan.             |
 | [Workspaces](docs/WORKSPACES.md)                             | npm workspaces layout and planned packages.                     |
 | [Engineering requirements](docs/ENGINEERING_REQUIREMENTS.md) | Languages, runtime, portability, and security for tooling.      |
 | [Enforced rules](docs/ENFORCED_RULES.md)                     | ESLint rules, configuration check, Git hooks, and PR rules.     |

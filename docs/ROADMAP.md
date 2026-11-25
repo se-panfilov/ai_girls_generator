@@ -2,21 +2,71 @@
 
 **Draft.** The durations are estimates, not commitments.
 
-## Near-term priority: MVP vertical slice
+**Current development priority: [Pipeline v2 — MVP core](#pipeline-v2--mvp-core) (steps 1 to 5).** The MVP-A to MVP-F sequence in [the historical section](#historical-pipeline-v1-mvp-vertical-slice-mvp-a-to-mvp-f) is completed or superseded Pipeline v1 work. It is not the current priority.
 
-**Owner-accepted prioritization (D33).** The near-term priority is one end-to-end MVP vertical slice: the smallest complete path from character input to an animated, exportable character package. The rules are in [MVP-first development](../AGENTS.md#mvp-first-development).
-This is a prioritization change. It does not remove the version 1 requirements, the phase gates below, or the long-term goal of one shared rig and one shared animation set.
+## Pipeline generations (D35)
 
-### Sequence
+**Accepted by the owner (D35):** Pipeline v1 (concept decomposition) is deprecated and retained. Pipeline v2 (direct modular generation) is the primary workflow. See [the Pipeline v2 ADR](proposals/PIPELINE_V2_ADR.md).
+The step lists below are **proposed**. The owner approves the start of each step that needs a decision or spends money.
 
-| Step  | Content                                                                                                                          | Result                                                                                                  |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| MVP-A | Assemble one complete test character from the existing W, L, and M artifacts (L0-1, M0-F0a, T1a, C0.5) with pragmatic fallbacks. | A full-body package on a candidate rig. Manual steps and defects are listed.                            |
-| MVP-B | Validate its Spine CLI import and export.                                                                                        | A `spine-validate` report from a real Spine run.                                                        |
-| MVP-C | Verify animation playback in a minimal runtime test harness.                                                                     | Playback evidence of the demonstration animations.                                                      |
-| MVP-D | Connect the existing steps through a resumable, observable Node.js orchestration flow.                                           | One command flow with logs, restart points, and explicit human steps.                                   |
-| MVP-E | Test the same process on another character.                                                                                      | The second character goes through the same flow without changes to shared files, or the gaps are known. |
-| MVP-F | Improve automation, artistic quality, generality, and production readiness.                                                      | Follow-up work, ordered by the recorded defects.                                                        |
+### Existing Pipeline v1
+
+Deprecated. Retained for reproducibility and reference. No new features by default. See [Pipeline v1](PIPELINE_V1.md) and [the deprecation policy](PIPELINE_V1.md#deprecation-and-compatibility-policy).
+
+### Pipeline v2 — MVP core
+
+**Current priority.** The MVP-first rules of D33 apply to this sequence: a complete vertical slice first, then improvements.
+The MVP starts with a modular character sheet that already exists. Details and the minimum evidence of each step: [the Pipeline v2 ADR, section 8](proposals/PIPELINE_V2_ADR.md#8-pipeline-v2-mvp-implementation-sequence).
+
+| Step | Content                                                      | Result                                                                              |
+| ---- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| 1    | Modular Sheet Contract v0.1                                  | Document, draft layout descriptor schema, synthetic test sheet.                     |
+| 2    | Extract the separated assets                                 | One image for each region, exact pixel partition, region report.                    |
+| 3    | Map the parts to the existing canonical package and skeleton | Slot mapping, joint points, geometry checks, optional manual correction file.       |
+| 4    | Produce an animatable Spine package                          | Offline checks PASS, then an owner Spine CLI import and export without differences. |
+| 5    | Validate web playback                                        | The demonstration animations play in `@aigg/viewer` without critical defects.       |
+
+### Pipeline v2 — generation extension
+
+| Step | Content                                                  | Result                                                                     |
+| ---- | -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 6    | Text-to-modular-sheet generation                         | A sheet that passes steps 2 to 5. Needs approved models and GPU decisions. |
+| 7    | Optional skeleton-aware image guidance                   | Uses the experiment C control tools. Measured against the contract.        |
+| 8    | Sheet quality validation and bounded correction or retry | A fixed retry limit, recorded rejections, no unbounded loops.              |
+
+### Later work
+
+- Quality improvements.
+- Automation of the remaining manual steps.
+- Support for arbitrary concept images, with Pipeline v1 techniques where useful.
+- Production readiness and scalability.
+
+### Relation to the earlier plan
+
+The historical Pipeline v1 MVP vertical slice (MVP-A to MVP-F), the phases, and the experiments below stay in this document as a record. They are not removed. The [Pipeline v2 ADR, section 9](proposals/PIPELINE_V2_ADR.md#9-earlier-proposals-superseded-and-still-relevant) lists which earlier proposals are superseded by the new priority and which stay relevant.
+The three acceptance levels below apply to Pipeline v2 too. The phase gates 7 and 8 are still the gates for production pipeline acceptance and the version 1 contract freeze.
+
+<a id="near-term-priority-mvp-vertical-slice"></a>
+
+## Historical: Pipeline v1 MVP vertical slice (MVP-A to MVP-F)
+
+**Historical record. Not the current priority.** The current priority is [Pipeline v2 — MVP core](#pipeline-v2--mvp-core). This section keeps the D33 sequence, its limits, and its results. The MVP-first rules (D33) and the acceptance levels below still apply, now to Pipeline v2.
+
+**Owner-accepted prioritization (D33), as decided before D35.** The near-term priority was one end-to-end MVP vertical slice: the smallest complete path from character input to an animated, exportable character package. The rules are in [MVP-first development](../AGENTS.md#mvp-first-development).
+This was a prioritization change. It does not remove the version 1 requirements, the phase gates below, or the long-term goal of one shared rig and one shared animation set.
+
+**Status after D35.** MVP-A to MVP-E used Pipeline v1. Their results stay valid as Pipeline v1 component results. They are not end-to-end production acceptance. The status of each step is in the table below. Details: [Pipeline v1](PIPELINE_V1.md#experiments-and-results).
+
+### Sequence (Pipeline v1, historical)
+
+| Step  | Content                                                                                                                          | Result                                                                                                  | Status after D35                                                                                                                                                                                   |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MVP-A | Assemble one complete test character from the existing W, L, and M artifacts (L0-1, M0-F0a, T1a, C0.5) with pragmatic fallbacks. | A full-body package on a candidate rig. Manual steps and defects are listed.                            | Done. 13 offline checks PASS (`JSON_GENERATED`). See [MVP-A](proposals/MVP_A_FULL_BODY_ASSEMBLY.md).                                                                                               |
+| MVP-B | Validate its Spine CLI import and export.                                                                                        | A `spine-validate` report from a real Spine run.                                                        | Done once by the owner on the MVP-A package. See [MVP-D](proposals/MVP_D_PIPELINE_ORCHESTRATION.md#three-run-status-d33).                                                                          |
+| MVP-C | Verify animation playback in a minimal runtime test harness.                                                                     | Playback evidence of the demonstration animations.                                                      | Agent PASS on a synthetic export. Owner playback of the real export not recorded. See [MVP-C](proposals/MVP_C_BROWSER_PLAYBACK.md).                                                                |
+| MVP-D | Connect the existing steps through a resumable, observable Node.js orchestration flow.                                           | One command flow with logs, restart points, and explicit human steps.                                   | Agent part PASS. A complete owner run not recorded. See [MVP-D](proposals/MVP_D_PIPELINE_ORCHESTRATION.md).                                                                                        |
+| MVP-E | Test the same process on another character.                                                                                      | The second character goes through the same flow without changes to shared files, or the gaps are known. | Jun package `JSON_GENERATED`, 12 of 12 offline checks PASS. `PASS_WITH_LIMITATIONS` recommended, owner decision open. See [Pipeline v1](PIPELINE_V1.md#character-b-jun-licensed-test-asset-mvp-e). |
+| MVP-F | Improve automation, artistic quality, generality, and production readiness.                                                      | Follow-up work, ordered by the recorded defects.                                                        | Superseded as the next priority by the Pipeline v2 MVP core (D35). Not started.                                                                                                                    |
 
 The step names are labels for planning. Only the owner approves the start of a step that needs a decision from [the decision log](DECISIONS.md) or spends money.
 
@@ -31,6 +81,8 @@ The step names are labels for planning. Only the owner approves the start of a s
 
 ### Acceptance levels
 
+These levels apply to the current Pipeline v2 MVP core in the same way.
+
 | Level                           | Meaning                                                                                                                                     | Evidence                                                                                                                                                                                                                                             |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | MVP vertical-slice acceptance   | One test character goes from input to an animated, exportable package. Known noncritical defects and manual steps are permitted and listed. | Proposed, the owner agrees the exact criteria at the start of MVP-A: a real Spine CLI import and export without differences, playback of the demonstration animations in the harness without critical defects, the list of manual steps and defects. |
@@ -43,17 +95,17 @@ The MVP vertical-slice acceptance does not pass a phase gate and does not approv
 
 The phases are the plan for production pipeline acceptance and the version 1 freeze. Each phase gate must pass before its acceptance level, except phases marked as parallel. The MVP vertical slice can use partial results of several phases before their gates pass. It does not skip or remove a gate.
 
-| Phase | Content                                                                                                 | Gate                                                                                                                            |
-| ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                                                                             |
-| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                                                                            |
-| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime.                                                       |
-| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                                                                             |
-| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.                                                            |
-| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                                                                          |
-| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                                                                                 |
-| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.                                                          |
-| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). The animated parts spike passes (D23, D26). |
+| Phase | Content                                                                                                 | Gate                                                                                                                            | Relation to pipeline generations (proposed)           |
+| ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                                                                             | Both generations.                                     |
+| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                                                                            | Both generations (runtime).                           |
+| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime.                                                       | Both generations (master rig, D32).                   |
+| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                                                                             | Both generations.                                     |
+| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.                                                            | Both generations.                                     |
+| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                                                                          | Pipeline v2 generation extension (steps 6 and 7).     |
+| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                                                                                 | Pipeline v1 research. Deprioritized.                  |
+| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.                                                          | Pipeline v2 with the generation extension (proposed). |
+| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). The animated parts spike passes (D23, D26). | Both generations.                                     |
 
 Automate a step only after it was done the same way by hand at least three times. This rule is a production-readiness criterion.
 
@@ -121,6 +173,8 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 
 ### B. Layer decomposition
 
+**Pipeline v1 research (D35).** Deprioritized. Not on the Pipeline v2 path.
+
 | Field      | Content                                                                                                                               |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Hypothesis | Base body plus decomposition only for hair, headwear, ears, tail, and weapon needs less cleanup than decomposition of the full image. |
@@ -130,6 +184,8 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 | Fail       | Both methods need more than 120 minutes of cleanup.                                                                                   |
 
 ### C. Rig-guided generation
+
+**Relation to D35.** Relevant to the Pipeline v2 generation extension (skeleton-aware guidance). Not on the Pipeline v2 MVP core path.
 
 | Field      | Content                                                                                                                                                                 |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
