@@ -186,6 +186,23 @@ describe('measureLandmarks', () => {
   it('is deterministic', () => {
     expect(JSON.stringify(measureLandmarks(layers, image))).toBe(JSON.stringify(measured));
   });
+
+  it('gives unknown face feature landmarks when See-through gave no nose, mouth, or irides layer', () => {
+    const without = new Map([...layers].filter(([tag]) => !['nose', 'mouth', 'irides'].includes(tag)));
+    const partial = measureLandmarks(without, image);
+    for (const id of ['nose', 'mouth', 'eye_image_left', 'eye_image_right']) {
+      expect(byId(partial.landmarks, id)).toMatchObject({ visibility: 'unknown', point: null, confidence: 'none' });
+      expect(byId(partial.landmarks, id).method).toBe('layer missing');
+    }
+    // The other landmarks do not change.
+    const others = (items: readonly Landmark[]): string => JSON.stringify(items.filter((item) => !['nose', 'mouth', 'eye_image_left', 'eye_image_right'].includes(item.id)));
+    expect(others(partial.landmarks)).toBe(others(measured.landmarks));
+  });
+
+  it('still needs the body layers', () => {
+    const without = new Map([...layers].filter(([tag]) => tag !== 'face'));
+    expect(codeOf(() => measureLandmarks(without, image))).toBe('E_LAYER');
+  });
 });
 
 describe('completedMask', () => {
@@ -273,6 +290,25 @@ describe('alignStudyCommand', () => {
     if (!found) throw new Error(`missing ${hypothesis} ${name}`);
     return found;
   };
+
+  it('runs when the See-through metadata has no nose tag (a head in profile)', () => {
+    const metadata = JSON.parse(metadataBytes().toString('utf8')) as { parts: Record<string, unknown> };
+    delete metadata.parts.nose;
+    const files = layerFiles();
+    files.delete('nose');
+    const result = alignStudyCommand({
+      contractBytes,
+      metadataBytes: Buffer.from(JSON.stringify(metadata)),
+      metadataName: 'synthetic.psd.json',
+      imageBytes: encodePng(image),
+      imageName: 'src.png',
+      layerFiles: files,
+      toolVersion: '0.0.0-test'
+    });
+    const landmarks = JSON.parse(read(result, 'landmarks.json').toString('utf8')) as { landmarks: { id: string; visibility: string }[] };
+    expect(landmarks.landmarks.find((item) => item.id === 'nose')?.visibility).toBe('unknown');
+    expect(result.files.some((item) => item.name === 'correspondence.json')).toBe(true);
+  });
 
   it('writes the planned files at the frame size, deterministically', () => {
     const first = run();
