@@ -29,6 +29,8 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `assemble-body`     | The same inputs as `limb-study`                                                                                           | MVP-A prototype: the full-body test character on the C0.5 bones and slots, Spine 4.3 JSON, region PNGs, `idle` and `wave`, evidence, previews (see below) |
 | `spine-validate`    | The licensed Spine executable, a `spine-arm` or `assemble-body` output directory                                          | Spine CLI import and export of each skeleton, comparison with the intended skeleton, `cli-validation.json`, and logs (see below)                          |
 | `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`                      |
+| `sheet-fixture`     | The C0.5 candidate `rig.contract.json`                                                                                    | V2-1 prototype: the synthetic modular sheet, its layout descriptor, and its check (see below)                                                             |
+| `sheet-check`       | A rig contract, a modular sheet PNG, its layout descriptor                                                                | V2-1 prototype: `sheet-check.json` with the descriptor and pixel checks (see below)                                                                       |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run` and `--force`.
 
@@ -273,6 +275,20 @@ node packages/control/dist/src/cli.js assemble-body --contract <C0.5 rig.contrac
 - Offline checks (`evidence/validation.json`): Essential subset, hierarchy, joints, slots and draw order, regions, animations, image files, required parts, pixel conservation, setup pose render, and the share of pixels that differ from the source composite. The result is `JSON_GENERATED` only; the overall status is `WAITING_FOR_SPINE_CLI_VALIDATION`.
 - Files: `spine/skeleton.json`, `spine/images/<slot>.png`, `character.json`, `evidence/assembly.json`, `evidence/validation.json`, `evidence/provenance.json`, `previews/*.png`, `README.md`, `SHA256SUMS`, `PIXEL-SHA256SUMS`. The PNG files are derivatives of the input art. Do not commit them.
 - `spine-validate` finds this layout by `spine/skeleton.json` and runs one import and one export (`<out>/body/`). The atlas must have a region for each attachment of the skeleton.
+
+## Modular sheet (V2-1)
+
+**Prototype.** Pipeline v2 step V2-1. `sheet-fixture` and `sheet-check` implement the proposed [Modular Sheet Contract v0.1](../../docs/PIPELINE_V2_MODULAR_SHEET.md). They do not extract parts and do not write a character package.
+
+```sh
+node packages/control/dist/src/cli.js sheet-fixture --contract packages/control/test/fixtures/c05-candidate/rig.contract.json --out ./v2-sheet
+node packages/control/dist/src/cli.js sheet-check --contract packages/control/test/fixtures/c05-candidate/rig.contract.json \
+  --descriptor ./v2-sheet/synthetic-sheet.json --sheet ./v2-sheet/synthetic-sheet.png --out ./v2-sheet-check
+```
+
+- `sheet-fixture` writes `synthetic-sheet.png` (the 18 required T1a mock parts on shelves and a 256 x 384 reference preview), `synthetic-sheet.json` (the layout descriptor), and `synthetic-sheet.check.json`. Flat colors, no art, no model.
+- `sheet-check` validates the descriptor against [the schema](schemas/modular-sheet.schema.json) rules and the target contract (slot ids, required and absent slots, joints), then checks the PNG: file SHA-256, size, alpha channel, non-empty parts, and no foreground (alpha >= 16) outside the region boxes. It reports the bounds, the pixel counts, and the component count of each region.
+- It cannot check semantic rules: that the art in a region is the named slot, the near and far side, the view, hidden geometry, and joint overlap. A human checks them.
 
 ## Exit status
 

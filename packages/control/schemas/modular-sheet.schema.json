@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aigg.invalid/schemas/modular-sheet-0.1.json",
+  "title": "AIGG modular sheet layout descriptor (Pipeline v2, draft 0.1)",
+  "description": "Draft. Proposed in docs/PIPELINE_V2_MODULAR_SHEET.md. It tells which rectangle of one modular sheet PNG holds which rig slot. Coordinates are sheet pixels, origin at the top-left corner, Y down. The run-time check is parseSheetDescriptor and parseModularSheet in @aigg/control. They also check rules that this schema cannot express: unique region ids, boxes inside the canvas, no box overlap, and the slot rules of the rig contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "sheet", "rig", "regions", "absentSlots"],
+  "properties": {
+    "format": {
+      "const": "aigg.modular-sheet/0.1"
+    },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "sha256", "width", "height"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}\\.png$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 8192
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 8192
+        }
+      }
+    },
+    "rig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rigId", "contractVersion"],
+      "properties": {
+        "rigId": {
+          "$ref": "#/$defs/id"
+        },
+        "contractVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+        }
+      }
+    },
+    "scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheetPxPerContractPx"],
+      "properties": {
+        "sheetPxPerContractPx": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 20
+        }
+      }
+    },
+    "regions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/region"
+      }
+    },
+    "absentSlots": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "box": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8191
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8191
+        },
+        "w": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        },
+        "h": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8192
+        }
+      }
+    },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8192
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8192
+        }
+      }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "box"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "role": {
+          "enum": ["part", "reference", "ignore"]
+        },
+        "box": {
+          "$ref": "#/$defs/box"
+        },
+        "slot": {
+          "$ref": "#/$defs/id"
+        },
+        "joints": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 8,
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/point"
+          }
+        },
+        "origin": {
+          "enum": ["manual", "tool"]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "if": {
+        "properties": {
+          "role": {
+            "const": "part"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "slot": true
+        },
+        "required": ["slot"]
+      },
+      "else": {
+        "properties": {
+          "slot": false,
+          "joints": false
+        }
+      }
+    }
+  }
+}

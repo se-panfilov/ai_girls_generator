@@ -18,6 +18,7 @@ Each character is a package of PNG parts and a JSON sidecar. All characters fit 
 | [Model license registry](docs/MODEL_LICENSES.md)             | Candidate models and tools with their licenses.                 |
 | [Roadmap](docs/ROADMAP.md)                                   | Phases, gates, and experiments.                                 |
 | [Pipeline v2 ADR](docs/proposals/PIPELINE_V2_ADR.md)         | Pipeline generations decision and the proposed v2 architecture. |
+| [Modular Sheet Contract](docs/PIPELINE_V2_MODULAR_SHEET.md)  | Proposed Pipeline v2 sheet contract and layout descriptor.      |
 | [Pipeline v1](docs/PIPELINE_V1.md)                           | Deprecated workflow, evidence, and compatibility policy.        |
 | [Component inventory](docs/COMPONENT_INVENTORY.md)           | Reuse classification and the deferred cleanup plan.             |
 | [Workspaces](docs/WORKSPACES.md)                             | npm workspaces layout and planned packages.                     |

@@ -1,0 +1,387 @@
+{
+  "format": "aigg.modular-sheet/0.1",
+  "sheet": {
+    "file": "synthetic-sheet.png",
+    "sha256": "cd99e82af557e1f5bf29de83a925d6f0836f5f1089079fc8cc0a7e470ff73669",
+    "width": 1600,
+    "height": 1717
+  },
+  "rig": {
+    "rigId": "humanoid_girl_v1_c05_candidate",
+    "contractVersion": "0.3.0"
+  },
+  "scale": {
+    "sheetPxPerContractPx": 1
+  },
+  "regions": [
+    {
+      "id": "part_hair_back",
+      "role": "part",
+      "box": {
+        "x": 32,
+        "y": 32,
+        "w": 369,
+        "h": 436
+      },
+      "slot": "hair_back",
+      "joints": {
+        "head": {
+          "x": 200,
+          "y": 308
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_hand_far",
+      "role": "part",
+      "box": {
+        "x": 433,
+        "y": 32,
+        "w": 78,
+        "h": 175
+      },
+      "slot": "hand_far",
+      "joints": {
+        "hand_far": {
+          "x": 472,
+          "y": 71
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_forearm_far",
+      "role": "part",
+      "box": {
+        "x": 543,
+        "y": 32,
+        "w": 119,
+        "h": 252
+      },
+      "slot": "forearm_far",
+      "joints": {
+        "forearm_far": {
+          "x": 576,
+          "y": 65
+        },
+        "hand_far": {
+          "x": 629,
+          "y": 251
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_upper_arm_far",
+      "role": "part",
+      "box": {
+        "x": 694,
+        "y": 32,
+        "w": 129,
+        "h": 290
+      },
+      "slot": "upper_arm_far",
+      "joints": {
+        "upper_arm_far": {
+          "x": 733,
+          "y": 71
+        },
+        "forearm_far": {
+          "x": 784,
+          "y": 283
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_foot_far",
+      "role": "part",
+      "box": {
+        "x": 855,
+        "y": 32,
+        "w": 162,
+        "h": 118
+      },
+      "slot": "foot_far",
+      "joints": {
+        "foot_far": {
+          "x": 892,
+          "y": 69
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_shin_far",
+      "role": "part",
+      "box": {
+        "x": 1049,
+        "y": 32,
+        "w": 90,
+        "h": 381
+      },
+      "slot": "shin_far",
+      "joints": {
+        "shin_far": {
+          "x": 1095,
+          "y": 76
+        },
+        "foot_far": {
+          "x": 1093,
+          "y": 369
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_thigh_far",
+      "role": "part",
+      "box": {
+        "x": 1171,
+        "y": 32,
+        "w": 130,
+        "h": 416
+      },
+      "slot": "thigh_far",
+      "joints": {
+        "thigh_far": {
+          "x": 1233,
+          "y": 94
+        },
+        "shin_far": {
+          "x": 1239,
+          "y": 386
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_torso",
+      "role": "part",
+      "box": {
+        "x": 32,
+        "y": 500,
+        "w": 330,
+        "h": 347
+      },
+      "slot": "torso",
+      "joints": {
+        "chest": {
+          "x": 197,
+          "y": 687
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_hips",
+      "role": "part",
+      "box": {
+        "x": 394,
+        "y": 500,
+        "w": 354,
+        "h": 303
+      },
+      "slot": "hips",
+      "joints": {
+        "hips": {
+          "x": 571,
+          "y": 652
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_foot_near",
+      "role": "part",
+      "box": {
+        "x": 780,
+        "y": 500,
+        "w": 157,
+        "h": 118
+      },
+      "slot": "foot_near",
+      "joints": {
+        "foot_near": {
+          "x": 817,
+          "y": 537
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_shin_near",
+      "role": "part",
+      "box": {
+        "x": 969,
+        "y": 500,
+        "w": 98,
+        "h": 381
+      },
+      "slot": "shin_near",
+      "joints": {
+        "shin_near": {
+          "x": 1023,
+          "y": 544
+        },
+        "foot_near": {
+          "x": 1013,
+          "y": 837
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_thigh_near",
+      "role": "part",
+      "box": {
+        "x": 1099,
+        "y": 500,
+        "w": 130,
+        "h": 416
+      },
+      "slot": "thigh_near",
+      "joints": {
+        "thigh_near": {
+          "x": 1161,
+          "y": 562
+        },
+        "shin_near": {
+          "x": 1167,
+          "y": 854
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_neck",
+      "role": "part",
+      "box": {
+        "x": 1261,
+        "y": 500,
+        "w": 114,
+        "h": 159
+      },
+      "slot": "neck",
+      "joints": {
+        "neck": {
+          "x": 1314,
+          "y": 606
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_head",
+      "role": "part",
+      "box": {
+        "x": 32,
+        "y": 948,
+        "w": 247,
+        "h": 267
+      },
+      "slot": "head",
+      "joints": {
+        "head": {
+          "x": 132,
+          "y": 1170
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_hair_front",
+      "role": "part",
+      "box": {
+        "x": 311,
+        "y": 948,
+        "w": 301,
+        "h": 321
+      },
+      "slot": "hair_front",
+      "joints": {
+        "head": {
+          "x": 438,
+          "y": 1197
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_upper_arm_near",
+      "role": "part",
+      "box": {
+        "x": 644,
+        "y": 948,
+        "w": 135,
+        "h": 290
+      },
+      "slot": "upper_arm_near",
+      "joints": {
+        "upper_arm_near": {
+          "x": 740,
+          "y": 987
+        },
+        "forearm_near": {
+          "x": 683,
+          "y": 1199
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_forearm_near",
+      "role": "part",
+      "box": {
+        "x": 811,
+        "y": 948,
+        "w": 81,
+        "h": 252
+      },
+      "slot": "forearm_near",
+      "joints": {
+        "forearm_near": {
+          "x": 859,
+          "y": 981
+        },
+        "hand_near": {
+          "x": 844,
+          "y": 1167
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "part_hand_near",
+      "role": "part",
+      "box": {
+        "x": 924,
+        "y": 948,
+        "w": 78,
+        "h": 175
+      },
+      "slot": "hand_near",
+      "joints": {
+        "hand_near": {
+          "x": 963,
+          "y": 987
+        }
+      },
+      "origin": "tool"
+    },
+    {
+      "id": "reference_preview",
+      "role": "reference",
+      "box": {
+        "x": 32,
+        "y": 1301,
+        "w": 256,
+        "h": 384
+      },
+      "origin": "tool",
+      "note": "Assembled preview of the mock parts at contract positions, scale 1/4. Never imported."
+    }
+  ],
+  "absentSlots": ["tail", "ear_far", "skirt_back", "skirt_front", "ear_near", "hair_tail", "acc_head", "weapon", "hand_near_front"]
+}

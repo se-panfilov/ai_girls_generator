@@ -1,0 +1,223 @@
+{
+  "note": "Expected results of the V2-1 synthetic sheet (T1a mock parts of the C0.5 candidate contract). The PNG is made at test time and is not committed. The file SHA-256 depends on the zlib version, so tests compare the pixel hash.",
+  "width": 1600,
+  "height": 1717,
+  "pixelSha256": "424e678b9e98e345f96c6090e70c978c6324c2af811a16b27841bd7a8c5f1aba",
+  "counts": {
+    "regions": 19,
+    "parts": 18,
+    "reference": 1,
+    "absentSlots": 9
+  },
+  "regions": [
+    {
+      "id": "part_hair_back",
+      "foregroundPixels": 24306,
+      "bounds": {
+        "x": 32,
+        "y": 32,
+        "w": 369,
+        "h": 436
+      },
+      "components": 1
+    },
+    {
+      "id": "part_hand_far",
+      "foregroundPixels": 5410,
+      "bounds": {
+        "x": 444,
+        "y": 53,
+        "w": 57,
+        "h": 135
+      },
+      "components": 1
+    },
+    {
+      "id": "part_forearm_far",
+      "foregroundPixels": 9262,
+      "bounds": {
+        "x": 557,
+        "y": 75,
+        "w": 97,
+        "h": 201
+      },
+      "components": 1
+    },
+    {
+      "id": "part_upper_arm_far",
+      "foregroundPixels": 13811,
+      "bounds": {
+        "x": 706,
+        "y": 41,
+        "w": 108,
+        "h": 273
+      },
+      "components": 1
+    },
+    {
+      "id": "part_foot_far",
+      "foregroundPixels": 3642,
+      "bounds": {
+        "x": 905,
+        "y": 55,
+        "w": 102,
+        "h": 58
+      },
+      "components": 1
+    },
+    {
+      "id": "part_shin_far",
+      "foregroundPixels": 19200,
+      "bounds": {
+        "x": 1058,
+        "y": 116,
+        "w": 72,
+        "h": 288
+      },
+      "components": 1
+    },
+    {
+      "id": "part_thigh_far",
+      "foregroundPixels": 29336,
+      "bounds": {
+        "x": 1181,
+        "y": 108,
+        "w": 111,
+        "h": 332
+      },
+      "components": 1
+    },
+    {
+      "id": "part_torso",
+      "foregroundPixels": 53256,
+      "bounds": {
+        "x": 78,
+        "y": 538,
+        "w": 239,
+        "h": 264
+      },
+      "components": 1
+    },
+    {
+      "id": "part_hips",
+      "foregroundPixels": 30240,
+      "bounds": {
+        "x": 447,
+        "y": 554,
+        "w": 248,
+        "h": 195
+      },
+      "components": 1
+    },
+    {
+      "id": "part_foot_near",
+      "foregroundPixels": 3395,
+      "bounds": {
+        "x": 828,
+        "y": 524,
+        "w": 98,
+        "h": 57
+      },
+      "components": 1
+    },
+    {
+      "id": "part_shin_near",
+      "foregroundPixels": 19231,
+      "bounds": {
+        "x": 977,
+        "y": 583,
+        "w": 80,
+        "h": 289
+      },
+      "components": 1
+    },
+    {
+      "id": "part_thigh_near",
+      "foregroundPixels": 39942,
+      "bounds": {
+        "x": 1108,
+        "y": 509,
+        "w": 112,
+        "h": 399
+      },
+      "components": 1
+    },
+    {
+      "id": "part_neck",
+      "foregroundPixels": 3113,
+      "bounds": {
+        "x": 1289,
+        "y": 547,
+        "w": 60,
+        "h": 59
+      },
+      "components": 1
+    },
+    {
+      "id": "part_head",
+      "foregroundPixels": 21975,
+      "bounds": {
+        "x": 53,
+        "y": 993,
+        "w": 158,
+        "h": 177
+      },
+      "components": 1
+    },
+    {
+      "id": "part_hair_front",
+      "foregroundPixels": 15309,
+      "bounds": {
+        "x": 311,
+        "y": 948,
+        "w": 301,
+        "h": 321
+      },
+      "components": 1
+    },
+    {
+      "id": "part_upper_arm_near",
+      "foregroundPixels": 15654,
+      "bounds": {
+        "x": 653,
+        "y": 957,
+        "w": 117,
+        "h": 266
+      },
+      "components": 1
+    },
+    {
+      "id": "part_forearm_near",
+      "foregroundPixels": 10817,
+      "bounds": {
+        "x": 820,
+        "y": 957,
+        "w": 63,
+        "h": 234
+      },
+      "components": 3
+    },
+    {
+      "id": "part_hand_near",
+      "foregroundPixels": 7479,
+      "bounds": {
+        "x": 935,
+        "y": 959,
+        "w": 56,
+        "h": 145
+      },
+      "components": 1
+    },
+    {
+      "id": "reference_preview",
+      "foregroundPixels": 19673,
+      "bounds": {
+        "x": 106,
+        "y": 1339,
+        "w": 116,
+        "h": 335
+      },
+      "components": 1
+    }
+  ]
+}

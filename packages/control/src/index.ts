@@ -8,6 +8,26 @@ export { compareLandmarksCommand, type CompareOptions, parseRun } from '@control
 export { analyzedLayers, drawOrder, parseSeeThroughMetadata, type SeeThroughMetadata, splitLayersCommand, type SplitLayersOptions, splitTargets } from '@control/layersplit';
 export { cutArm, limbFormat, limbStudyCommand, type LimbStudyOptions, rotationAbout, rotationTests, transformPart } from '@control/limbstudy';
 export { marksFormat, measure, type Measurement, parseMarks, type PoseMarks, scoredKeypoints } from '@control/measure';
+export {
+  checkSheetImage,
+  foregroundAlpha,
+  maxDescriptorBytes,
+  minPartPixels,
+  parseModularSheet,
+  parseSheetDescriptor,
+  type RegionMeasure,
+  type RegionRole,
+  type SheetBox,
+  sheetCheckCommand,
+  sheetCheckFormat,
+  type SheetDescriptor,
+  sheetFormat,
+  type SheetImageReport,
+  sheetLimits,
+  type SheetRegion,
+  syntheticSheet,
+  syntheticSheetCommand
+} from '@control/modularsheet';
 export { decodePng, defaultPngLimits, encodePng, pixelHash, type PngLimits } from '@control/png';
 export {
   faceTemplate,

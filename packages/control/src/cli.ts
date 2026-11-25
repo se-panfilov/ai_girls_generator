@@ -13,6 +13,7 @@ import { geometryStudyCommand } from '@control/jointgeometry';
 import { compareLandmarksCommand } from '@control/landmarkcompare';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
 import { limbStudyCommand, maxStudyBytes } from '@control/limbstudy';
+import { maxDescriptorBytes, sheetCheckCommand, sheetLimits, syntheticSheetCommand } from '@control/modularsheet';
 import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
@@ -55,6 +56,15 @@ Commands:
       Write the T1a static template of the C0.5 prototype: template.json, contour-lineart.png, region-map.png,
       masks/<slot>.visible.png, overlay-sheet.png, review.md, and mock-package/ (flat parts and character.json).
       Prototype only: it does not show that the parts animate correctly. The default size is the contract generation resolution.
+
+  sheet-fixture --contract <C0.5 candidate rig.contract.json> --out <dir>
+      Pipeline v2, V2-1 (prototype): write the synthetic modular sheet from the T1a mock parts (synthetic-sheet.png),
+      its layout descriptor (synthetic-sheet.json), and the sheet check (synthetic-sheet.check.json). Flat colors, no art, no model.
+
+  sheet-check --contract <rig.contract.json> --descriptor <sheet.json> --sheet <sheet.png> --out <dir>
+      Pipeline v2, V2-1 (prototype): validate a modular sheet layout descriptor against the rig contract, and check the sheet
+      PNG against it (file hash, size, alpha, empty parts, content outside the regions). Writes sheet-check.json. It does not
+      extract parts and does not check semantic rules (which art is which slot).
 
   split-layers --layers <dir> --metadata <stem.psd.json> --out <dir>
       Experiment L0-1b (prototype): analyze the See-through layers handwear, legwear, footwear, topwear and bottomwear,
@@ -156,6 +166,8 @@ const options = {
   spine: { type: 'string' },
   package: { type: 'string' },
   'spine-version': { type: 'string' },
+  descriptor: { type: 'string' },
+  sheet: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -170,6 +182,8 @@ const allowed: Record<string, readonly string[]> = {
   depth: ['contract', 'out', 'size'],
   bundle: ['contract', 'out', 'experiment'],
   template: ['contract', 'out', 'size'],
+  'sheet-fixture': ['contract', 'out'],
+  'sheet-check': ['contract', 'descriptor', 'sheet', 'out'],
   'split-layers': ['layers', 'metadata', 'out'],
   'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
   'annotate-page': ['image', 'landmarks', 'manual', 'out'],
@@ -283,6 +297,16 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
   if (command === 'template') {
     const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
     return { result: templateCommand({ contractBytes, toolVersion: packageVersion(), ...(values.size === undefined ? {} : { size: values.size }) }), dryRun, out, force };
+  }
+  if (command === 'sheet-fixture') {
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    return { result: syntheticSheetCommand({ contractBytes, toolVersion: packageVersion() }), dryRun, out, force };
+  }
+  if (command === 'sheet-check') {
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    const descriptorBytes = readInput(required(values.descriptor, 'descriptor'), maxDescriptorBytes, 'The descriptor');
+    const sheetBytes = readInput(required(values.sheet, 'sheet'), sheetLimits.maxBytes, 'The sheet image');
+    return { result: sheetCheckCommand({ contractBytes, descriptorBytes, sheetBytes }), dryRun, out, force };
   }
   if (command === 'compare-landmarks') {
     const read = (name: 'before-landmarks' | 'before-study' | 'after-landmarks' | 'after-study'): Buffer => readInput(required(values[name], name), 1024 * 1024, `The --${name} file`);
