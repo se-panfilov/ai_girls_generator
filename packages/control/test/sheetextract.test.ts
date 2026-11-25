@@ -104,7 +104,10 @@ describe('sheet-extract on the synthetic V2-1 sheet', () => {
     for (const part of manifest.parts) {
       const raster = decodePng(fileIn(result, part.file)).raster;
       for (let y = 0; y < raster.height; y += 1) {
-        for (let x = 0; x < raster.width; x += 1) if ((raster.pixel(x, y)[3] ?? 0) > 0) owner[(part.sourceBox.y + y) * sheet.width + part.sourceBox.x + x] += 1;
+        for (let x = 0; x < raster.width; x += 1) {
+          const index = (part.sourceBox.y + y) * sheet.width + part.sourceBox.x + x;
+          if ((raster.pixel(x, y)[3] ?? 0) > 0) owner[index] = (owner[index] ?? 0) + 1;
+        }
       }
     }
     const reference = descriptor().regions.find((region) => region.role === 'reference') as Region;
