@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { PlannedFile } from '@control/output';
-import { decodePng, sha256 } from '@control/png';
+import { decodePng, encodePng, pixelHash, sha256 } from '@control/png';
 import { ControlError } from '@control/problems';
 import { Raster } from '@control/raster';
-import { alphaBounds, cropBox, keyPoses, paddedUnion, spineArmCommand, uncrop } from '@control/spinearm';
+import { alphaBounds, cropBox, generatedPngLimits, keyPoses, manifests, paddedUnion, spineArmCommand, uncrop } from '@control/spinearm';
 import { atlasRegions, compareCurves, compareExport, compareSkeletons, spineValidateCommand, tolerance } from '@control/spinecli';
 import { type ArmRigInput, buildArmSkeleton, checkArmSkeleton, regionCorners, skeletonBytes, spineDegrees, toImage, toSpine, worldBones } from '@control/spineskeleton';
 import * as spine from '@esotericsoftware/spine-core';
@@ -172,6 +172,20 @@ describe('crops', () => {
     expect(poses[0]).toMatchObject({ elbow: 0, wrist: 0 });
     expect(new Set(poses.map((pose) => `${pose.elbow}/${pose.wrist}`)).size).toBe(poses.length);
     expect(poses.length).toBe(9);
+  });
+});
+
+describe('manifests', () => {
+  it('hashes a generated preview wider than the 4096 input limit, and keeps a finite limit', () => {
+    const wide = new Raster(4930, 2);
+    wide.blend(4929, 1, [1, 2, 3, 255]);
+    const file: PlannedFile = { name: 'previews/parts.png', bytes: encodePng(wide) };
+    expect(() => decodePng(file.bytes)).toThrow(ControlError);
+    const [bytes, pixels] = manifests([file]);
+    expect(bytes?.bytes.toString('utf8')).toBe(`${sha256(file.bytes)}  previews/parts.png\n`);
+    expect(pixels?.bytes.toString('utf8')).toBe(`${pixelHash(wide)}  previews/parts.png\n`);
+    const tooWide = { name: 'previews/too-wide.png', bytes: encodePng(new Raster(generatedPngLimits.maxWidth + 1, 1)) };
+    expect(() => manifests([tooWide])).toThrow(ControlError);
   });
 });
 
