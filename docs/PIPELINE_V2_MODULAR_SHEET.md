@@ -214,9 +214,9 @@ Results (Node.js 22 in the agent container, @aigg/control 0.15.0):
 
 ## 8. Real AI-generated sheet: compatibility assessment
 
-**Status: not done.** The owner described a real AI-generated sheet (a silver-haired anime chibi fantasy adventurer, about 3.5 heads tall, with a small assembled preview). The original image and its prompt were not accessible to the agent during V2-1: they were not in the project files or in the task. The agent did not substitute another image.
+**Status: done for one sheet.** The owner supplied one real AI-generated sheet (a silver-haired anime chibi fantasy adventurer, about 3.5 heads tall, with a small assembled preview) and its prompt. The result is in [the real sheet assessment](proposals/V2_1_REAL_SHEET_ASSESSMENT.md). In summary: transparency and separation are correctable by a recorded alpha step. The fused feet, the separate face features, and the chibi proportions block this sheet for the C0.5 contract. This sample does not change the requirements of this contract.
 
-The assessment needs the original PNG bytes and the prompt. It uses this table. Each problem gets one class: **Contract-compatible**, **Correctable by simple preprocessing**, **Requires human metadata**, **Requires regeneration**, or **Cannot be determined from one sheet**.
+The assessment uses this table. Each problem gets one class: **Contract-compatible**, **Correctable by simple preprocessing**, **Requires human metadata**, **Requires regeneration**, or **Cannot be determined from one sheet**.
 
 | #   | Point                                     | How to assess                                                                                                                |
 | --- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -265,4 +265,4 @@ These are open. Only the owner closes them.
 - **Trust.** The descriptor and the sheet are untrusted input. The parser rejects unknown fields, bounds every number, limits the number of regions to 256 and the file to 1 MiB, and checks the PNG header before it inflates the pixels. A large valid sheet (32 Mpx) still needs about 128 MiB of memory for the raster plus one byte for each pixel for the region map.
 - **Not checked.** The semantic rules in [section 6](#6-pixel-checks-and-semantic-checks). A descriptor can name a wrong slot and still pass.
 - **Prototype geometry.** The target is the C0.5 candidate contract. It is not production geometry. Animations are not declared compatible until verified on the real Spine runtime.
-- **No real sheet.** The compatibility of real AI sheets is not known (section 8).
+- **One real sheet.** Only one real AI sheet is assessed (section 8). The compatibility of AI sheets in general is not known.
