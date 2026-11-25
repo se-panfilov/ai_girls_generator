@@ -67,6 +67,7 @@ An `absent_by_design` part has no PNG file and no atlas region (decision D22, ac
 - Seeds, prompts, negative prompts, sampler settings, and resolutions.
 - Tool names and versions, for example the decomposition tool commit.
 - A log of each human step: who approved, and what changed.
+- Proposed (not in a schema yet): the pipeline generation that made the package. See [the Pipeline v2 ADR, section 7.2](proposals/PIPELINE_V2_ADR.md#72-pipeline-provenance-proposal). A missing value means "not recorded".
 
 Diffusion output can differ between GPUs. Reproducibility means the same parameters, the same files, and a log with hashes of the saved results. It does not mean the same pixels (decision D14).
 

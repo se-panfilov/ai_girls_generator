@@ -2,10 +2,53 @@
 
 **Draft.** The durations are estimates, not commitments.
 
+## Pipeline generations (D35)
+
+**Accepted by the owner (D35):** Pipeline v1 (concept decomposition) is deprecated and retained. Pipeline v2 (direct modular generation) is the primary workflow. See [the Pipeline v2 ADR](proposals/PIPELINE_V2_ADR.md).
+The step lists below are **proposed**. The owner approves the start of each step that needs a decision or spends money.
+
+### Existing Pipeline v1
+
+Deprecated. Retained for reproducibility and reference. No new features by default. See [Pipeline v1](PIPELINE_V1.md) and [the deprecation policy](PIPELINE_V1.md#deprecation-and-compatibility-policy).
+
+### Pipeline v2 — MVP core
+
+The MVP starts with a modular character sheet that already exists. Details and the minimum evidence of each step: [the Pipeline v2 ADR, section 8](proposals/PIPELINE_V2_ADR.md#8-pipeline-v2-mvp-implementation-sequence).
+
+| Step | Content                                                      | Result                                                                              |
+| ---- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| 1    | Modular Sheet Contract v0.1                                  | Document, draft layout descriptor schema, synthetic test sheet.                     |
+| 2    | Extract the separated assets                                 | One image for each region, exact pixel partition, region report.                    |
+| 3    | Map the parts to the existing canonical package and skeleton | Slot mapping, joint points, geometry checks, optional manual correction file.       |
+| 4    | Produce an animatable Spine package                          | Offline checks PASS, then an owner Spine CLI import and export without differences. |
+| 5    | Validate web playback                                        | The demonstration animations play in `@aigg/viewer` without critical defects.       |
+
+### Pipeline v2 — generation extension
+
+| Step | Content                                                  | Result                                                                     |
+| ---- | -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 6    | Text-to-modular-sheet generation                         | A sheet that passes steps 2 to 5. Needs approved models and GPU decisions. |
+| 7    | Optional skeleton-aware image guidance                   | Uses the experiment C control tools. Measured against the contract.        |
+| 8    | Sheet quality validation and bounded correction or retry | A fixed retry limit, recorded rejections, no unbounded loops.              |
+
+### Later work
+
+- Quality improvements.
+- Automation of the remaining manual steps.
+- Support for arbitrary concept images, with Pipeline v1 techniques where useful.
+- Production readiness and scalability.
+
+### Relation to the earlier plan
+
+The MVP vertical slice (MVP-A to MVP-F), the phases, and the experiments below stay in this document. They are not removed. The [Pipeline v2 ADR, section 9](proposals/PIPELINE_V2_ADR.md#9-earlier-proposals-superseded-and-still-relevant) lists which earlier proposals are superseded by the new priority and which stay relevant.
+The three acceptance levels below apply to Pipeline v2 too. The phase gates 7 and 8 are still the gates for production pipeline acceptance and the version 1 contract freeze.
+
 ## Near-term priority: MVP vertical slice
 
 **Owner-accepted prioritization (D33).** The near-term priority is one end-to-end MVP vertical slice: the smallest complete path from character input to an animated, exportable character package. The rules are in [MVP-first development](../AGENTS.md#mvp-first-development).
 This is a prioritization change. It does not remove the version 1 requirements, the phase gates below, or the long-term goal of one shared rig and one shared animation set.
+
+**Status after D35.** MVP-A to MVP-E used Pipeline v1. MVP-A to MVP-D are done, with owner steps that are not all recorded. MVP-E waits for the owner decision on `PASS_WITH_LIMITATIONS`. MVP-F, as an improvement of the Pipeline v1 slice, is superseded as the next priority by the Pipeline v2 MVP core. Details: [Pipeline v1](PIPELINE_V1.md#experiments-and-results).
 
 ### Sequence
 
@@ -43,17 +86,17 @@ The MVP vertical-slice acceptance does not pass a phase gate and does not approv
 
 The phases are the plan for production pipeline acceptance and the version 1 freeze. Each phase gate must pass before its acceptance level, except phases marked as parallel. The MVP vertical slice can use partial results of several phases before their gates pass. It does not skip or remove a gate.
 
-| Phase | Content                                                                                                 | Gate                                                                                                                            |
-| ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                                                                             |
-| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                                                                            |
-| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime.                                                       |
-| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                                                                             |
-| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.                                                            |
-| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                                                                          |
-| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                                                                                 |
-| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.                                                          |
-| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). The animated parts spike passes (D23, D26). |
+| Phase | Content                                                                                                 | Gate                                                                                                                            | Relation to pipeline generations (proposed)           |
+| ----- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 0     | The owner closes the decisions in [the decision log](DECISIONS.md).                                     | Decisions recorded.                                                                                                             | Both generations.                                     |
+| 1     | Runtime: experiment A on a real GPU and in Electron.                                                    | Experiment A passes.                                                                                                            | Both generations (runtime).                           |
+| 2     | Reference: mannequin, base body, reference pose, one character by hand, master rig with all animations. | The character plays all animations in both directions in the web runtime.                                                       | Both generations (master rig, D32).                   |
+| 3     | Contract 0.2 (parallel with phase 2): contract file, JSON Schemas, check against the Spine export.      | Schemas and checks pass on the reference character.                                                                             | Both generations.                                     |
+| 4     | Interchange: experiment D.                                                                              | Experiment D passes. A third character does not change shared files.                                                            | Both generations.                                     |
+| 5     | Generation: experiment C.                                                                               | Experiment C passes, or a fallback method is selected.                                                                          | Pipeline v2 generation extension (steps 6 and 7).     |
+| 6     | Decomposition: experiment B.                                                                            | A method is selected. Cleanup time is measured.                                                                                 | Pipeline v1 research. Deprioritized.                  |
+| 7     | MVP pipeline: text to approved package.                                                                 | Three characters pass the pipeline. The time of each step is measured.                                                          | Pipeline v2 with the generation extension (proposed). |
+| 8     | Freeze version 1: contract 1.0 and documentation.                                                       | A new character needs no contract change. Equipment extensibility is checked (D25). The animated parts spike passes (D23, D26). | Both generations.                                     |
 
 Automate a step only after it was done the same way by hand at least three times. This rule is a production-readiness criterion.
 
@@ -121,6 +164,8 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 
 ### B. Layer decomposition
 
+**Pipeline v1 research (D35).** Deprioritized. Not on the Pipeline v2 path.
+
 | Field      | Content                                                                                                                               |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Hypothesis | Base body plus decomposition only for hair, headwear, ears, tail, and weapon needs less cleanup than decomposition of the full image. |
@@ -130,6 +175,8 @@ Status: a first spike ran on an isolated test fixture. See [the D26 spike report
 | Fail       | Both methods need more than 120 minutes of cleanup.                                                                                   |
 
 ### C. Rig-guided generation
+
+**Relation to D35.** Relevant to the Pipeline v2 generation extension (skeleton-aware guidance). Not on the Pipeline v2 MVP core path.
 
 | Field      | Content                                                                                                                                                                 |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -4,6 +4,12 @@
 
 **Proposed change.** The owner approved a three-phase product strategy: Phase 1 Art Generation MVP (whole-image concept W, layered character L, modular character M), Phase 2 Spine Automation, Phase 3 Production Readiness. Stages S4–S6, principle 3 and the candidate tool table below describe the earlier prompt-first pipeline. See [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md) for the proposed stages. This document is updated after the owner decides D27.
 
+**Pipeline generations (D35, accepted).** Pipeline v1 (concept decomposition) is deprecated and retained. Pipeline v2 (direct modular generation) is the primary workflow. The stage table below is the earlier plan. It is kept as a reference. The table [Stages by pipeline generation](#stages-by-pipeline-generation) shows how its stages relate to the two generations.
+
+- Pipeline v1: [description, evidence, and deprecation policy](PIPELINE_V1.md).
+- Pipeline v2: [the Pipeline v2 ADR](proposals/PIPELINE_V2_ADR.md) (proposed architecture).
+- Components: [the component inventory](COMPONENT_INVENTORY.md).
+
 ## Goal
 
 The factory turns a text description into one character package.
@@ -52,6 +58,22 @@ A web preview exists only to check packages.
 | S12 | Final approval      | Preview, validation report       | Package accepted, or returned to S8                          | **Human**               |
 
 Stages S4 and S7 are the most important. If S4 gives an image in the reference pose, S7 becomes alignment to the mannequin.
+
+### Stages by pipeline generation
+
+**Proposed mapping.** Pipeline v2 step numbers are from [the Pipeline v2 ADR, section 3](proposals/PIPELINE_V2_ADR.md#3-pipeline-v2-architecture).
+
+| Stage                         | Pipeline v1 (deprecated)               | Pipeline v2 (primary)                                               |
+| ----------------------------- | -------------------------------------- | ------------------------------------------------------------------- |
+| S0 Rig contract               | C0.5 candidate contract                | The same contract                                                   |
+| S1–S3 Specification, concepts | Licensed concept image, human approval | MVP: prepared modular sheet. Later: generation extension (step 1)   |
+| S4 Production art             | Not used (the concept is the input)    | Not used. The sheet is the production art.                          |
+| S5–S6 Decomposition, fill     | See-through on an owner-run GPU host   | Extraction and classification (steps 2 and 3). No hidden-area fill. |
+| S7 Assembly                   | Manual landmarks, `assemble-body`      | Geometry, pivots, skeleton attachment (steps 4 and 5)               |
+| S8 Cleanup                    | Not done in the MVP                    | Manual pivot correction file (proposed)                             |
+| S9–S10 Validation, packing    | Offline checks, `spine-validate`       | The same tools (step 6)                                             |
+| S11 Preview                   | `aigg-viewer`                          | The same tool (step 7)                                              |
+| S12 Final approval            | Factory `FINAL_APPROVAL`               | The same checkpoint                                                 |
 
 ## Data flow
 

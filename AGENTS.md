@@ -7,10 +7,11 @@ Keep package-specific requirements in package documentation and common rules her
 
 ## Project status
 
-The repository is at the draft stage. Two experimental packages exist (`@aigg/control` and `@aigg/rig-runtime`). No production pipeline exists yet.
+The repository is at the draft stage. Experimental packages for the MVP vertical slice exist (see [the workspace layout](docs/WORKSPACES.md#existing-packages)). No production pipeline exists yet.
 The documents in `docs/` are drafts. Many design choices are still open in [the decision log](docs/DECISIONS.md).
 Do not implement an open decision as if it were accepted. Ask, or implement the part that does not depend on it.
 The near-term priority is the MVP vertical slice. See [MVP-first development](#mvp-first-development) and [the roadmap](docs/ROADMAP.md#near-term-priority-mvp-vertical-slice).
+Pipeline v2 (direct modular generation) is the primary workflow. Pipeline v1 (concept decomposition) is deprecated and retained (decision D35). Follow [the Pipeline v1 policy](docs/PIPELINE_V1.md#deprecation-and-compatibility-policy). Check [the component inventory](docs/COMPONENT_INVENTORY.md) before a change to a shared component.
 
 ## Enforced rules
 

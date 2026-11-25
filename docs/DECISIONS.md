@@ -24,6 +24,7 @@ These items come from the owner. They are not open.
 | Full GPU and performance tests wait until realistic game assets and mass-render scenarios exist. They are not a gate for D22 or for the design of D23. The performance question of D24 stays open.                                    |
 | Future intent for version 2 or later: an Equipment System that is independent of the character appearance. See [Future Equipment System](ROADMAP.md#future-equipment-system-v2) and D25. The implementation details are not approved. |
 | Development priority: MVP-first. The near-term priority is one end-to-end MVP vertical slice. See D33 and [MVP-first development](../AGENTS.md#mvp-first-development).                                                                |
+| Pipeline generations: Pipeline v1 (concept decomposition) is deprecated and retained. Pipeline v2 (direct modular generation) is the primary workflow. See D35.                                                                       |
 
 ## Open decisions
 
@@ -111,6 +112,21 @@ The recorded prompts of experiment C (`@aigg/control`) ask for an adult characte
 
 Changed documents: [AGENTS.md](../AGENTS.md) (content rules), [the asset-factory skill](../.agents/skills/asset-factory/SKILL.md) (content check), [the roadmap](ROADMAP.md) (test assets), the T0 proposal and its schemas (`adult` is data, `sexualizedMinors: false` is a constant), the See-through bundle manifest, the M0-F0a report, and the `W_APPROVAL` check text of `@aigg/factory`.
 
+### D35: pipeline generations
+
+Accepted owner decision. The project distinguishes two pipeline generations:
+
+- **Pipeline v1 — concept decomposition (deprecated).** Concept image → See-through decomposition → layered assets → manual landmarks → modular assembly → Spine → web. It is deprecated for future development. It stays intact and reproducible. Its removal is not authorized.
+- **Pipeline v2 — direct modular generation (primary).** Modular character sheet → extraction and validation → skeleton attachment → Spine export → web playback. The immediate MVP starts with a modular character sheet that already exists. A later extension generates the sheet from a text description.
+
+Reason: in the Pipeline v1 experiments, most defects came from the reconstruction of hidden body parts (merged thighs, joint gaps, hidden shoulders, completed hair). A modular sheet supplies the parts directly.
+
+Also accepted: the deprecation and compatibility policy in [Pipeline v1](PIPELINE_V1.md#deprecation-and-compatibility-policy). "Pipeline v1" and "Pipeline v2" name workflow generations only, not the product version, the rig contract version, the package schema version, the Spine version, or the npm package versions.
+
+Not changed by D35: the rig contract, the shared skeleton, the animation set, the package format, the security rules, the model license registry, the content rules, and the phase gates. D35 closes no other entry. The v2 architecture details, the Modular Sheet Contract, the pipeline provenance field, and the cleanup plan are proposals.
+
+Changed documents: [the Pipeline v2 ADR](proposals/PIPELINE_V2_ADR.md) (new), [Pipeline v1](PIPELINE_V1.md) (new), [the component inventory](COMPONENT_INVENTORY.md) (new), [the roadmap](ROADMAP.md#pipeline-generations-d35), [the architecture](ARCHITECTURE.md), [the glossary](GLOSSARY.md), [AGENTS.md](../AGENTS.md) (project status), and the README.
+
 ## Open decision notes
 
 ### D27: production-art strategy
@@ -118,6 +134,7 @@ Changed documents: [AGENTS.md](../AGENTS.md) (content rules), [the asset-factory
 Accepted by the owner (strategic intent, not part of this open decision): the main direction is template-first generation (D) bound to the shared Spine rig. A style reference (A) is the main candidate for art consistency. A style LoRA (B) is a later pluggable strategy. Models and art profiles are switched by data, without source changes. Characters share one style and differ in identity. Later, variants of one character are necessary. Different models at different stages are permitted. The shared skeleton, the animation set, PNG parts plus `character.json`, and the existing packages stay. C0.5 is not a production rig.
 Open: the records and their formats, the layer authoring path (D31), the style strategy (D28), outfit variants (D29), the model registry format (D30), and the master rig version (D32).
 Details and the critical review: [the T0 ADR](proposals/T0_TEMPLATE_FIRST_ARCHITECTURE.md).
+Relation to D35 (proposed reading, D27 stays open): the L step through decomposition is now Pipeline v1. The W step and the M representation stay relevant. The owner decides if D27 changes. See [the Pipeline v2 ADR, section 9](proposals/PIPELINE_V2_ADR.md#9-earlier-proposals-superseded-and-still-relevant).
 
 ### D25: Equipment System implementation details (v2+)
 

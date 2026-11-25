@@ -41,6 +41,8 @@ The shared configuration comes from the Toolchain repository with the same tool 
 
 ## Existing packages
 
+The classification of each component by pipeline generation (D35) is in [the component inventory](COMPONENT_INVENTORY.md).
+
 | Directory           | Kind          | Stage          | Purpose                                                                                                                                                                                                                                                                                                                                        |
 | ------------------- | ------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `control`           | library + cli | S4, S7         | Pose control images, proportion references, ComfyUI workflow files, and rig overlays for experiment C0. Layer split prototype for L0-1b. Alignment study prototype for L0-1c, manual landmark page for L0-1d, near arm cut study for L0-1e, joint underlay study for L0-1f, and joint geometry study for L0-1g. No model runs. See its README. |
