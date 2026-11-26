@@ -18,6 +18,7 @@ import { checkOutputDirectory, publishDirectory, readInput, writeFiles } from '@
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
 import { ControlError, fail, isRecord } from '@control/problems';
+import { maxManifestBytes, parseExtraction, sheetAssembleCommand } from '@control/sheetassembly';
 import { sheetExtractCommand } from '@control/sheetextract';
 import { spineArmCommand } from '@control/spinearm';
 import { spineValidateCommand } from '@control/spinecli';
@@ -71,6 +72,11 @@ Commands:
       Pipeline v2, V2-2 (prototype): run the sheet-check rules, then copy the RGBA pixels of each part region without a change
       to parts/<slot>.png. Writes extraction.json (manifest), extraction-report.json, SUMMARY.md, and SHA256SUMS.
       The slot of each part comes from the descriptor only. No --force: the result is published as one new directory.
+
+  sheet-assemble --contract <C0.5 candidate rig.contract.json> --extraction <sheet-extract output dir> --out <dir>
+      Pipeline v2, V2-3 spike (prototype): put the extracted parts on the contract skeleton (contract joints; a descriptor joint
+      places its part). Writes spine/skeleton.json (Spine 4.3, MVP-A idle and wave), spine/images/<slot>.png (unchanged bytes),
+      character.json, evidence/assembly.json, previews (local renderer, not Spine), SHA256SUMS, and PIXEL-SHA256SUMS.
 
   split-layers --layers <dir> --metadata <stem.psd.json> --out <dir>
       Experiment L0-1b (prototype): analyze the See-through layers handwear, legwear, footwear, topwear and bottomwear,
@@ -174,6 +180,7 @@ const options = {
   'spine-version': { type: 'string' },
   descriptor: { type: 'string' },
   sheet: { type: 'string' },
+  extraction: { type: 'string' },
   'dry-run': { type: 'boolean' },
   force: { type: 'boolean' },
   help: { type: 'boolean' }
@@ -191,6 +198,7 @@ const allowed: Record<string, readonly string[]> = {
   'sheet-fixture': ['contract', 'out'],
   'sheet-check': ['contract', 'descriptor', 'sheet', 'out'],
   'sheet-extract': ['contract', 'descriptor', 'sheet', 'out'],
+  'sheet-assemble': ['contract', 'extraction', 'out'],
   'split-layers': ['layers', 'metadata', 'out'],
   'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
   'annotate-page': ['image', 'landmarks', 'manual', 'out'],
@@ -325,6 +333,18 @@ function run(argv: readonly string[]): RunResult {
     const descriptorBytes = readInput(required(values.descriptor, 'descriptor'), maxDescriptorBytes, 'The descriptor');
     const sheetBytes = readInput(required(values.sheet, 'sheet'), sheetLimits.maxBytes, 'The sheet image');
     return { result: sheetExtractCommand({ contractBytes, descriptorBytes, sheetBytes, toolVersion: packageVersion() }), dryRun, out, force, atomic: true };
+  }
+  if (command === 'sheet-assemble') {
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    const directory = required(values.extraction, 'extraction');
+    const manifestBytes = readInput(join(directory, 'extraction.json'), maxManifestBytes, 'extraction.json');
+    // File names come from the validated slot ids, not from the manifest text.
+    const partFiles = new Map<string, Buffer>();
+    for (const part of parseExtraction(manifestBytes).parts) {
+      const path = join(directory, 'parts', `${part.slot}.png`);
+      if (existsSync(path)) partFiles.set(part.slot, readInput(path, sheetLimits.maxBytes, `The part ${part.slot}.png`));
+    }
+    return { result: sheetAssembleCommand({ contractBytes, manifestBytes, partFiles, toolVersion: packageVersion() }), dryRun, out, force };
   }
   if (command === 'compare-landmarks') {
     const read = (name: 'before-landmarks' | 'before-study' | 'after-landmarks' | 'after-study'): Buffer => readInput(required(values[name], name), 1024 * 1024, `The --${name} file`);

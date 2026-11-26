@@ -31,6 +31,7 @@ Build first: `npm run build --workspace @aigg/control`. Then run `node packages/
 | `template`          | The C0.5 candidate `rig.contract.json`                                                                                    | The T1a static template (prototype): `template.json`, line art, region map, masks, `overlay-sheet.png`, `review.md`, `mock-package/`                      |
 | `sheet-fixture`     | The C0.5 candidate `rig.contract.json`                                                                                    | V2-1 prototype: the synthetic modular sheet, its layout descriptor, and its check (see below)                                                             |
 | `sheet-check`       | A rig contract, a modular sheet PNG, its layout descriptor                                                                | V2-1 prototype: `sheet-check.json` with the descriptor and pixel checks (see below)                                                                       |
+| `sheet-assemble`    | A rig contract, a `sheet-extract` output directory                                                                        | V2-3 spike: `spine/skeleton.json`, `spine/images/`, `character.json`, `evidence/assembly.json`, previews (see below)                                      |
 | `sheet-extract`     | A rig contract, a modular sheet PNG, its layout descriptor                                                                | V2-2 prototype: `parts/<slot>.png`, `extraction.json`, `extraction-report.json`, `SUMMARY.md`, `SHA256SUMS` (see below)                                   |
 
 Each command prints one JSON report. Exit status: 0 PASS, 1 FAIL, 2 usage or input error, 3 INCOMPLETE. All commands accept `--dry-run`. All commands except `sheet-extract` and `spine-validate` accept `--force`.
@@ -304,6 +305,19 @@ node packages/control/dist/src/cli.js sheet-extract --contract packages/control/
 - For each part region it copies the RGBA bytes of the box, without a change, to `parts/<slot>.png`. The slot comes from the descriptor. The file name comes from the contract slot id. Reference and ignore regions are not extracted. Weak alpha is kept and counted.
 - `extraction.json` is the manifest: source and descriptor SHA-256, rig id and contract version, tool version, and for each part the slot, the source box, the output size, the file and pixel SHA-256, the alpha counts, and the joints in sheet and part coordinates. Absent optional slots are listed as `absent_by_design`.
 - The output directory must be new or empty. The result is written to a temporary directory and renamed, so it is complete or absent. `--force` is refused.
+
+## Skeleton assembly spike (V2-3)
+
+**Prototype (HACK-FIRST spike).** Details: [V2-3 spike](../../docs/proposals/V2_3_SKELETON_ASSEMBLY_SPIKE.md).
+
+```sh
+node packages/control/dist/src/cli.js sheet-assemble --contract packages/control/test/fixtures/c05-candidate/rig.contract.json \
+  --extraction ./v2-parts --out ./v2-assembly
+```
+
+- The skeleton is the contract skeleton: 28 bones at the contract joints, 27 slots in contract draw order, the MVP-A `idle` and `wave`.
+- A descriptor joint of the slot bone places a part on the contract joint. Without it, the part goes to its attachment rectangle. Offsets, rounding, joint residuals, and scale are recorded in `evidence/assembly.json`. No pixel is changed or resampled.
+- The layout is the MVP-A layout, so `spine-validate` can import and export it. The status is `JSON_GENERATED` until then.
 
 ## Exit status
 
