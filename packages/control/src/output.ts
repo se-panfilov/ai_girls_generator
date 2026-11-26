@@ -107,3 +107,22 @@ export function writeFiles(path: string, files: readonly PlannedFile[], create: 
     }
   }
 }
+
+/**
+ * Publishes a complete result as one directory. The files are written to a new temporary directory next to the target and the directory
+ * is renamed. Thus the target holds all files or none. The target must not exist, or must be an empty real directory. Never replaces files.
+ */
+export function publishDirectory(path: string, files: readonly PlannedFile[]): void {
+  const full = resolve(path);
+  checkOutputDirectory(full, false);
+  const temporary = join(dirname(full), `.${basename(full)}.${randomUUID()}.tmp`);
+  try {
+    writeFiles(temporary, files, true);
+    renameSync(temporary, full);
+  } catch (error) {
+    rmSync(temporary, { recursive: true, force: true });
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOTEMPTY' || code === 'EEXIST' || code === 'ENOTDIR' || code === 'EISDIR') fail('E_OUTPUT_EXISTS', 'The output directory changed during the run. Nothing is published.');
+    throw error;
+  }
+}

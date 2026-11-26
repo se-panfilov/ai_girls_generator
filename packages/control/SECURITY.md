@@ -29,6 +29,13 @@ A file name can have subdirectories (`template` writes `masks/` and `mock-packag
 Except for the experiment C runner and `spine-validate` (below): no network access, no subprocess, no shell, and no environment variables. The `workflow` command writes ComfyUI API JSON files. It does not send them to a server and does not load or download a model.
 The prompts in the workflows ask for an explicitly adult character with a safe rating. The negative prompt excludes explicit content and minors.
 
+## Modular sheet extraction (`sheet-extract`)
+
+- Inputs: the rig contract (1 MiB), the descriptor (1 MiB), and the sheet PNG (128 MiB, at most 8192 px each side and 32 Mpx, checked from IHDR before inflation). All are untrusted. The descriptor and the sheet are validated completely (V2-1 parser and checks P1 to P5) before an output file is planned.
+- Output names: `parts/<slot>.png`, where the slot id is a contract slot that matches `^[a-z][a-z0-9_]{0,63}$`. Region ids, notes, and `sheet.file` never become paths. Notes are not copied to `SUMMARY.md`.
+- Writes: one new hidden temporary directory next to the target, then one rename. The target must not exist or must be an empty real directory. `--force` is refused, so a result is never replaced. On an error the temporary directory is removed.
+- Pixels: copied without a change. No resampling, alpha change, or color change.
+
 ## Depth image (`depth`)
 
 The `depth` command reads only the contract. It renders fixed volumes of the C0.5 reference body with deterministic math (no random values, no model, no subprocess).

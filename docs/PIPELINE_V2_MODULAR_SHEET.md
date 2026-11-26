@@ -2,7 +2,7 @@
 
 **Status: proposed (draft).** Step V2-1 of [the Pipeline v2 MVP core](ROADMAP.md#pipeline-v2--mvp-core). The owner has not approved this contract. It does not change [the rig contract](RIG_CONTRACT.md), the master skeleton, the animation set, [the character package](CHARACTER_PACKAGE.md), or the factory stage list. The decision for the pipeline generations is D35 ([the ADR](proposals/PIPELINE_V2_ADR.md)). This document does not reopen it.
 
-The contract tells which prepared character sheet the pipeline can convert into separate part images for the existing skeleton. It does not define the extraction (V2-2), the mapping and geometry checks (V2-3), the skeleton attachment, the Spine export, or the web playback.
+The contract tells which prepared character sheet the pipeline can convert into separate part images for the existing skeleton. The extraction (V2-2) is in [V2-2 sheet extraction](proposals/V2_2_SHEET_EXTRACTION.md). This contract does not define the mapping and geometry checks (V2-3), the skeleton attachment, the Spine export, or the web playback.
 
 ## Contents
 
@@ -235,7 +235,7 @@ The image and its derivatives are owner test data. They are not repository fixtu
 
 ## 9. Recommended V2-2 approach
 
-**Proposed.** The fastest credible path to Modular Sheet → Spine → web:
+**Implemented as a prototype** by `aigg-control sheet-extract`. See [V2-2 sheet extraction](proposals/V2_2_SHEET_EXTRACTION.md). The approach below was the proposal:
 
 1. Input: one sheet PNG and one descriptor that passes `sheet-check`. No descriptor, no extraction.
 2. For each part region, copy the pixels inside the box to a new PNG of the box size. Copy only, no resampling, no color change. A pixel belongs to the unique box that contains it (boxes do not overlap). Weak alpha stays as it is in v0.1 (open decision D-S3).

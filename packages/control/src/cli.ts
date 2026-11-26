@@ -14,10 +14,11 @@ import { compareLandmarksCommand } from '@control/landmarkcompare';
 import { layerPngLimits, maxMetadataBytes, parseSeeThroughMetadata, splitLayersCommand } from '@control/layersplit';
 import { limbStudyCommand, maxStudyBytes } from '@control/limbstudy';
 import { maxDescriptorBytes, sheetCheckCommand, sheetLimits, syntheticSheetCommand } from '@control/modularsheet';
-import { checkOutputDirectory, readInput, writeFiles } from '@control/output';
+import { checkOutputDirectory, publishDirectory, readInput, writeFiles } from '@control/output';
 import { defaultPngLimits } from '@control/png';
 import { type SideMapping, sideMappings } from '@control/pose';
 import { ControlError, fail, isRecord } from '@control/problems';
+import { sheetExtractCommand } from '@control/sheetextract';
 import { spineArmCommand } from '@control/spinearm';
 import { spineValidateCommand } from '@control/spinecli';
 import { templateCommand } from '@control/template';
@@ -65,6 +66,11 @@ Commands:
       Pipeline v2, V2-1 (prototype): validate a modular sheet layout descriptor against the rig contract, and check the sheet
       PNG against it (file hash, size, alpha, empty parts, content outside the regions). Writes sheet-check.json. It does not
       extract parts and does not check semantic rules (which art is which slot).
+
+  sheet-extract --contract <rig.contract.json> --descriptor <sheet.json> --sheet <sheet.png> --out <new dir>
+      Pipeline v2, V2-2 (prototype): run the sheet-check rules, then copy the RGBA pixels of each part region without a change
+      to parts/<slot>.png. Writes extraction.json (manifest), extraction-report.json, SUMMARY.md, and SHA256SUMS.
+      The slot of each part comes from the descriptor only. No --force: the result is published as one new directory.
 
   split-layers --layers <dir> --metadata <stem.psd.json> --out <dir>
       Experiment L0-1b (prototype): analyze the See-through layers handwear, legwear, footwear, topwear and bottomwear,
@@ -184,6 +190,7 @@ const allowed: Record<string, readonly string[]> = {
   template: ['contract', 'out', 'size'],
   'sheet-fixture': ['contract', 'out'],
   'sheet-check': ['contract', 'descriptor', 'sheet', 'out'],
+  'sheet-extract': ['contract', 'descriptor', 'sheet', 'out'],
   'split-layers': ['layers', 'metadata', 'out'],
   'align-study': ['contract', 'layers', 'metadata', 'image', 'landmarks', 'out'],
   'annotate-page': ['image', 'landmarks', 'manual', 'out'],
@@ -219,7 +226,9 @@ function packageVersion(): string {
   return packageJson.version;
 }
 
-function run(argv: readonly string[]): { result: CommandResult | null; dryRun: boolean; out: string | null; force: boolean; prepared?: boolean } {
+type RunResult = { result: CommandResult | null; dryRun: boolean; out: string | null; force: boolean; prepared?: boolean; atomic?: boolean };
+
+function run(argv: readonly string[]): RunResult {
   let parsed;
   try {
     parsed = parseArgs({ args: [...argv], options, allowPositionals: true, strict: true });
@@ -307,6 +316,15 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
     const descriptorBytes = readInput(required(values.descriptor, 'descriptor'), maxDescriptorBytes, 'The descriptor');
     const sheetBytes = readInput(required(values.sheet, 'sheet'), sheetLimits.maxBytes, 'The sheet image');
     return { result: sheetCheckCommand({ contractBytes, descriptorBytes, sheetBytes }), dryRun, out, force };
+  }
+  if (command === 'sheet-extract') {
+    // The result is published as one new directory, so an earlier result is never replaced or mixed with new files.
+    if (force) fail('E_USAGE', 'sheet-extract does not accept --force. Give a new output directory.');
+    checkOutputDirectory(out, false);
+    const contractBytes = readInput(required(values.contract, 'contract'), maxContractBytes, 'The contract file');
+    const descriptorBytes = readInput(required(values.descriptor, 'descriptor'), maxDescriptorBytes, 'The descriptor');
+    const sheetBytes = readInput(required(values.sheet, 'sheet'), sheetLimits.maxBytes, 'The sheet image');
+    return { result: sheetExtractCommand({ contractBytes, descriptorBytes, sheetBytes, toolVersion: packageVersion() }), dryRun, out, force, atomic: true };
   }
   if (command === 'compare-landmarks') {
     const read = (name: 'before-landmarks' | 'before-study' | 'after-landmarks' | 'after-study'): Buffer => readInput(required(values[name], name), 1024 * 1024, `The --${name} file`);
@@ -423,11 +441,21 @@ function run(argv: readonly string[]): { result: CommandResult | null; dryRun: b
 
 function main(): number {
   try {
-    const { result, dryRun, out, force, prepared } = run(process.argv.slice(2));
+    const { result, dryRun, out, force, prepared, atomic } = run(process.argv.slice(2));
     if (!result || out === null) return 0;
-    const create = prepared === true ? false : checkOutputDirectory(out, force);
-    if (!dryRun) writeFiles(out, result.files, create);
-    process.stdout.write(`${JSON.stringify({ ...result.report, dryRun, written: !dryRun }, null, 2)}\n`);
+    let written = false;
+    if (atomic === true) {
+      // Publish only a PASS result, as one directory. A FAIL result has no files and writes nothing.
+      if (!dryRun && result.report.status === 'PASS' && result.files.length > 0) {
+        publishDirectory(out, result.files);
+        written = true;
+      }
+    } else {
+      const create = prepared === true ? false : checkOutputDirectory(out, force);
+      if (!dryRun) writeFiles(out, result.files, create);
+      written = !dryRun;
+    }
+    process.stdout.write(`${JSON.stringify({ ...result.report, dryRun, written }, null, 2)}\n`);
     const status = result.report.status;
     return status === 'PASS' ? 0 : status === 'INCOMPLETE' ? 3 : 1;
   } catch (error) {
