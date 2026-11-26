@@ -36,6 +36,11 @@ The prompts in the workflows ask for an explicitly adult character with a safe r
 - Writes: one new hidden temporary directory next to the target, then one rename. The target must not exist or must be an empty real directory. `--force` is refused, so a result is never replaced. On an error the temporary directory is removed.
 - Pixels: copied without a change. No resampling, alpha change, or color change.
 
+## Skeleton assembly spike (`sheet-assemble`)
+
+- Inputs: the contract and one `sheet-extract` directory. `extraction.json` (4 MiB) is untrusted; each used field is checked. The manifest must name the same contract SHA-256. Each part file is read as `parts/<slot>.png` with a snake_case slot id and must have the manifest file and pixel SHA-256.
+- Writes: the standard output rules (new or empty directory, or `--force`). File names come from contract slot ids.
+
 ## Depth image (`depth`)
 
 The `depth` command reads only the contract. It renders fixed volumes of the C0.5 reference body with deterministic math (no random values, no model, no subprocess).

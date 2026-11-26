@@ -51,6 +51,7 @@ export {
 export { ControlError, type Problem } from '@control/problems';
 export { ellipsePolygon, Raster } from '@control/raster';
 export { referenceSvg, renderReference } from '@control/reference';
+export { contractBoneSpecs, parseExtraction, type Placement, placePart, sheetAssembleCommand, sheetAssemblyFormat } from '@control/sheetassembly';
 export { cropRaster, type ExtractedPart, extractFormat, extractReportFormat, localJoint, sheetExtractCommand, type SheetExtractOptions } from '@control/sheetextract';
 export { alphaBounds, assembleArmPackage, packageFormat, spineArmCommand } from '@control/spinearm';
 export { atlasRegions, cliFormat, compareCurves, compareExport, compareSkeletons, curveKind, spineValidateCommand } from '@control/spinecli';

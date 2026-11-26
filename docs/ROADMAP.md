@@ -18,13 +18,13 @@ Deprecated. Retained for reproducibility and reference. No new features by defau
 **Current priority.** The MVP-first rules of D33 apply to this sequence: a complete vertical slice first, then improvements.
 The MVP starts with a modular character sheet that already exists. Details and the minimum evidence of each step: [the Pipeline v2 ADR, section 8](proposals/PIPELINE_V2_ADR.md#8-pipeline-v2-mvp-implementation-sequence). Step 1 (proposed, not approved): [Modular Sheet Contract v0.1](PIPELINE_V2_MODULAR_SHEET.md).
 
-| Step | Content                                                      | Result                                                                                                                                        |
-| ---- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Modular Sheet Contract v0.1                                  | Document, draft layout descriptor schema, synthetic test sheet.                                                                               |
-| 2    | Extract the separated assets                                 | One image for each region, exact pixel partition, region report. Prototype: [V2-2](proposals/V2_2_SHEET_EXTRACTION.md), synthetic sheet only. |
-| 3    | Map the parts to the existing canonical package and skeleton | Slot mapping, joint points, geometry checks, optional manual correction file.                                                                 |
-| 4    | Produce an animatable Spine package                          | Offline checks PASS, then an owner Spine CLI import and export without differences.                                                           |
-| 5    | Validate web playback                                        | The demonstration animations play in `@aigg/viewer` without critical defects.                                                                 |
+| Step | Content                                                      | Result                                                                                                                                                        |
+| ---- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Modular Sheet Contract v0.1                                  | Document, draft layout descriptor schema, synthetic test sheet.                                                                                               |
+| 2    | Extract the separated assets                                 | One image for each region, exact pixel partition, region report. Prototype: [V2-2](proposals/V2_2_SHEET_EXTRACTION.md), synthetic sheet only.                 |
+| 3    | Map the parts to the existing canonical package and skeleton | Slot mapping, joint points, geometry checks, optional manual correction file. Spike: [V2-3](proposals/V2_3_SKELETON_ASSEMBLY_SPIKE.md), synthetic sheet only. |
+| 4    | Produce an animatable Spine package                          | Offline checks PASS, then an owner Spine CLI import and export without differences.                                                                           |
+| 5    | Validate web playback                                        | The demonstration animations play in `@aigg/viewer` without critical defects.                                                                                 |
 
 ### Pipeline v2 — generation extension
 
