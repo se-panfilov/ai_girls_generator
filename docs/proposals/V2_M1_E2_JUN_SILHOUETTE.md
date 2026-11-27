@@ -1,6 +1,6 @@
-# V2-M1 experiment E2: Jun-derived silhouette geometry template (Gate 1)
+# V2-M1 experiment E2: Jun-derived silhouette geometry template (Gates 1 and 2)
 
-**Draft. Proposed.** Gate 1 is inspection and design only.
+**Draft. Proposed.** Gate 1 is inspection and design. Gate 2 (see [Gate 2 result](#gate-2-result)) built a prototype map in the private project files.
 This document creates no template, no image generation, no GPU use, and no change to the C0.5 candidate contract or to Pipeline v2.
 The E1 plan (prompt v3.1 and conditions A and B) is in PR #58. E2 does not change it.
 
@@ -279,3 +279,96 @@ A silhouette does not guarantee correct joints or correct animations.
 - `e2-gate1-measurements.json`: hashes, layer boxes, Spine-to-PSD fit, joints, limb measurements.
 - `e2-gate1-landmarks.png`: source silhouettes with joints and proposed cut lines. Derivative of licensed art: private, never commit.
 - `scripts/`: the measurement scripts.
+
+## Gate 2 result
+
+**Draft.** Prototype for owner visual approval. Not approved. No image generation. No change to C0.5 or to Pipeline v2.
+
+### Owner decisions for Gate 2
+
+The owner approved D1–D5 with limitations:
+
+| Id  | Decision                                                                                                                                             |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Jun `Sliced PSD` and the Spine 3.7.92 skeleton are the experimental source. Jun is not an anatomical standard. C0.5 stays authoritative              |
+| D2  | `hand_far` and `foot_near` are deterministic substitutes from other Jun parts, marked `estimated`                                                    |
+| D3  | Neutral, smoothed hair envelopes replace the Jun hairstyle outlines                                                                                  |
+| D4  | Both shins are normalized to the C0.5 knee-to-ankle length by a recorded mid-shaft excision. No nonuniform stretch                                   |
+| D5  | Upload of the final silhouette reference to ChatGPT for E2 only. The vendor terms do not address AI services: an unresolved third-party license risk |
+
+### Method
+
+One research script (`research/v2-m1-e2/gate2/scripts/make-template.mjs` in the project files, Node.js, uses `@aigg/control` PNG and raster code, no new dependency) builds **one normalized geometry dataset**.
+Each slot has one mask and one set of landmarks. Every image is rendered from this dataset with integer translations only.
+
+Order of operations:
+
+1. Verify the SHA-256 of the PSD, the Spine JSON, and the C0.5 contract.
+2. Read the alpha channel of the default-pose PSD layers.
+3. Compute the artist joints: Spine setup-pose FK, least-squares fit to the PSD layer boxes (maximum residual 7.6 px).
+4. Mirror (`x' = 8000 − x`).
+5. One global scale: mean artist thigh / 292 = 4.0207 source px per contract px.
+6. Per part: band split or trim, D4 excision, rigid rotation to the C0.5 rest direction.
+7. Silhouette: 4 × 4 supersampling of source alpha ≥ 128, largest component, hole fill.
+8. D3 hair envelopes and D2 substitutes. Tight crop. Canonical mask and landmarks.
+9. Placements: assembled (anchor landmark on the C0.5 joint) and inventories, translation only.
+
+Rigid rotations (degrees, output to source): `torso` −14.6, `hips` +9.8, `neck` −0.3, limbs −8.4 to +8.5, hands to the forearm direction, feet +18.7 (sole level).
+The torso, hips, and neck rotations align their landmark axes with the C0.5 spine. The Jun torso leans about 15° in the source.
+
+### D2–D4 handling
+
+| Item         | Operation                                                                                                                                             |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hand_far`   | Near-hand (fist) silhouette, rotated to the far forearm direction. `estimated`. A fist is not neutral hand geometry                                   |
+| `foot_near`  | Far-foot silhouette, identical mask. `estimated`                                                                                                      |
+| `hair_back`  | Convex hull, then morphological opening (radius 24 px). The haircut outline is removed                                                                |
+| `hair_front` | Closing (radius 10) and opening (radius 14). A hull would cover the face. Rounded lobes of the side locks remain                                      |
+| Shins        | Excision of a straight shaft band: 409.5 source px (near) and 331.9 source px (far), at the position with the smallest width step (0 and 3 source px) |
+
+### Classification and normalized geometry
+
+Classes: `direct` 8 (`head`, upper arms, `forearm_near`, `hand_near`, thighs, `foot_far`), `transformed` 8 (`hair_back`, `hair_front`, `neck`, `torso`, `hips`, `forearm_far`, shins), `estimated` 2 (`hand_far`, `foot_near`).
+
+| Measurement                 | Normalized (px) | C0.5 (px)     | Ratio         |
+| --------------------------- | --------------- | ------------- | ------------- |
+| Thigh near / far            | 302.2 / 281.8   | 292.1         | 1.035 / 0.965 |
+| Shin near / far             | 293.2 / 293.0   | 293.2 / 293.0 | 1.000 / 1.000 |
+| Upper arm near / far        | 194.8 / 215.4   | 219.5 / 218.0 | 0.887 / 0.988 |
+| Forearm near / far          | 194.8 / 204.4   | 186.6 / 193.4 | 1.044 / 1.057 |
+| Head, mask top to chin      | 204.1           | 177           | 1.153         |
+| Neck, base to head joint    | 63.4            | 53.6          | 1.184         |
+| Torso, waist to neck base   | 235.2           | 257           | 0.915         |
+| Shoulder joint distance     | 155.1           | 231           | 0.671         |
+| Pelvis, waist to hip joints | 151.2           | 124           | 1.220         |
+| Hip joint distance          | 114.6           | 122           | 0.939         |
+
+All 8 limb rest angles equal the C0.5 bone angles (rigid rotation).
+
+### Validation
+
+- **`ONE_SHARED_SCALE: PASS`.** For all 18 slots, the assembled view and the four inventory placements use the same mask (same SHA-256),
+  the same size, and the same landmark distances. All placements are integer translations. The mask pixels decoded from
+  `inventory-clean.png` and `generation-reference.png` equal the canonical masks.
+- Inventory: 18 slots, no box overlap, no clipping, each box = silhouette bounds + 4 px.
+- `sheet-check` on `inventory-clean.png` with its descriptor: **PASS** (P1–P5). Hair joints are left out of the descriptor because the head joint is outside the hair art.
+- Assembled: C0.5 draw order, anchor residual 0 px, all 17 joint pairs overlap (no disconnected part).
+- The script is deterministic: two runs gave the same image hashes.
+
+### Known defects (not hidden)
+
+- Art-joint gaps in the assembled figure: far shoulder 56.7 px, near shoulder 27.0 px, waist 27.2 px, neck base 21.8 px, near elbow 24.7 px, others ≤ 12.2 px.
+  The cause is Jun's narrower, more turned torso (shoulders 0.67) and the shorter near upper arm. The parts still overlap.
+- The head is a near-profile view (front-visible 3/4 in C0.5). The head is 1.15 × the C0.5 head.
+- Straight cut edges at the neck, waist, and far wrist. The torso cut is slanted after the torso rotation.
+- The front hair envelope still covers the upper face, as the source bangs do.
+- The shins keep the bunched trouser hem at the ankle.
+
+### Outputs (project files, private, never commit)
+
+`research/v2-m1-e2/gate2/`: `assembled-reference.png`, `assembled-clean.png`, `parts-inventory.png`, `anatomy-map.png`,
+`generation-reference.png` (1563 × 1536, clean assembled silhouette and inventory with plain grey boxes, no text, no markers, display scale 1),
+`inventory-clean.png` and `inventory-clean.sheet.json` (sheet-check input), `anatomy-map.provenance.json`, `anatomy-map.validation.json`,
+`sheet-check/`, `SHA256SUMS`, and `e2-gate2-outputs.tar.gz` (exact bytes: the project file store can add metadata chunks to loose PNG files).
+
+E2 generation needs a separate owner approval of the reference image. Use the file SHA-256 of the exact file that is uploaded.
