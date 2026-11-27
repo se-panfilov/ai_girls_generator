@@ -87,7 +87,7 @@ The first interactive tool. The exact MVP scope is a separate design and impleme
 - Show an assembled character with the skeleton bones, the joints, and the attachment boundaries.
 - Play the existing animations.
 - Select art landmarks, bones, or attachments.
-- Change attachment transforms (and, where the data contract allows it, the related values). See below for the joint rule.
+- Change attachment transforms: offset, rotation, and optional uniform scale (see below). See below for the joint rule.
 - Show the result immediately.
 - Undo and reset (to the proposal or to zero).
 - Save a calibration draft. Validate the saved data against its JSON Schema.
@@ -95,7 +95,9 @@ The first interactive tool. The exact MVP scope is a separate design and impleme
 
 Consistency with the calibration proposal (**Proposed**, sections 4 and 5):
 
-- That proposal defines the data (`calibration.json`, `aigg.part-calibration/0.1`) and the first page behavior (milestone V2-M4). D36 does not change it. D36 only says that this page is the Rig Calibration page of AIGG Studio.
+- That proposal defines the data (`calibration.json`) and the first page behavior (milestone V2-M4). D36 does not change it. D36 only says that this page is the Rig Calibration page of AIGG Studio, not a part of the `@aigg/viewer` page.
+- Owner decisions in the review of the calibration proposal: `calibration.json` is a separate file, bound to the exact source descriptor and the rig contract version. An optional uniform scale for each part is allowed; no nonuniform scale in the initial scope; scale limits are experimental. The page must show both values: the original source geometry and the calibrated visual alignment. A calibrated scale never turns a source geometry failure into a PASS.
+- The page never makes art landmarks to hide a placement error. A placement error is corrected with an attachment transform.
 - Skeleton joints come from the rig contract and are never changed for one character (owner decision D-S5, see [V2-3](V2_3_SKELETON_ASSEMBLY_SPIKE.md), and [the pipeline rules](../../AGENTS.md#pipeline-rules)). A user correction changes an attachment transform, not the shared skeleton.
 
 ### 4.2 Sheet Review (future)
@@ -126,11 +128,11 @@ Studio calls or reads these results. It does not contain the only implementation
 **D. Shared character and artifact context.** All pages use the same character and job identities and the same versioned files. Do not make a page-specific representation of a character that is incompatible with the package format or with another page.
 Keep three concepts separate in data and in the UI (as in the calibration proposal):
 
-| Concept               | Source                         | Can a user change it?                                         |
-| --------------------- | ------------------------------ | ------------------------------------------------------------- |
-| Art landmarks         | Points on the artwork          | Only as an annotation of the artwork. Never to fix placement. |
-| Skeleton joints       | Rig contract (shared skeleton) | No, not for one character.                                    |
-| Attachment transforms | Calibration of one character   | Yes, as draft values, then approval.                          |
+| Concept               | Source                         | Can a user change it?                                                           |
+| --------------------- | ------------------------------ | ------------------------------------------------------------------------------- |
+| Art landmarks         | Points on the artwork          | Only as an annotation of the artwork. Never to fix placement.                   |
+| Skeleton joints       | Rig contract (shared skeleton) | No, not for one character.                                                      |
+| Attachment transforms | Calibration of one character   | Yes (offset, rotation, optional uniform scale), as draft values, then approval. |
 
 **E. Human review is an explicit gate.** Proposed, draft, and approved values stay distinct (section 3). The UI never records an approval that the user did not give. Undo and reset are basic requirements. Saved data is validated.
 
@@ -157,7 +159,7 @@ These choices are **open**. Each needs a decision in the implementation task tha
 | How Studio reuses viewer rendering       | Section 6. Decided by the first implementation task.                                                                                                                                                |
 | How saved data reaches the disk          | Browser download and load of a file (no write API), or a local write endpoint on `127.0.0.1`. A write endpoint needs a security design (paths, symbolic links, overwrite rules, approved packages). |
 | Character and job identity model         | Relation to the `@aigg/factory` job model and to the generation job proposal (D27).                                                                                                                 |
-| Calibration data contract                | `calibration.json` format and its storage (open questions 1 and 2 of the calibration proposal).                                                                                                     |
+| Calibration data contract                | Defined by the calibration proposal (separate `calibration.json`, optional uniform scale). Its schema and implementation are a separate task.                                                       |
 | Rig Calibration MVP scope                | Separate design task (calibration proposal, section 5).                                                                                                                                             |
 | UI, component, or state library          | None until an actual requirement exists.                                                                                                                                                            |
 | Component and browser test approach      | Vitest is the repository test tool. A browser test approach for pages is not decided.                                                                                                               |
