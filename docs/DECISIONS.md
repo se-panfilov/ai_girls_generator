@@ -25,6 +25,7 @@ These items come from the owner. They are not open.
 | Future intent for version 2 or later: an Equipment System that is independent of the character appearance. See [Future Equipment System](ROADMAP.md#future-equipment-system-v2) and D25. The implementation details are not approved. |
 | Development priority: MVP-first. The near-term priority is one end-to-end MVP vertical slice. See D33 and [MVP-first development](../AGENTS.md#mvp-first-development).                                                                |
 | Pipeline generations: Pipeline v1 (concept decomposition) is deprecated and retained. Pipeline v2 (direct modular generation) is the primary workflow. See D35.                                                                       |
+| Interactive user tools are pages of one Vue 3 + TypeScript + Vite application, AIGG Studio. Implementation is not authorized. See D36.                                                                                                |
 
 ## Open decisions
 
@@ -126,6 +127,20 @@ Also accepted: the deprecation and compatibility policy in [Pipeline v1](PIPELIN
 Not changed by D35: the rig contract, the shared skeleton, the animation set, the package format, the security rules, the model license registry, the content rules, and the phase gates. D35 closes no other entry. The v2 architecture details, the Modular Sheet Contract, the pipeline provenance field, and the cleanup plan are proposals.
 
 Changed documents: [the Pipeline v2 ADR](proposals/PIPELINE_V2_ADR.md) (new), [Pipeline v1](PIPELINE_V1.md) (new), [the component inventory](COMPONENT_INVENTORY.md) (new), [the roadmap](ROADMAP.md#pipeline-generations-d35), [the architecture](ARCHITECTURE.md), [the glossary](GLOSSARY.md), [AGENTS.md](../AGENTS.md) (project status), and the README.
+
+### D36: AIGG Studio user tools application
+
+Accepted owner decision. Future interactive user-facing tools are pages of one application, working name **AIGG Studio**: Vue 3 (Composition API, Single File Components), TypeScript, and Vite, with Vue Router when more than one route exists. No UI framework, component library, or state management library is added until an actual requirement exists.
+
+Context: the owner accepted a human-in-the-loop direction for Pipeline v2 (automatic generation and joint proposals, interactive preview, optional user corrections, approval, assembly, Spine export, web playback). Full autonomy is not a requirement. The first planned page is Rig Calibration.
+
+Reason: more than one interactive tool is expected. One application gives one user experience and one character context, and it uses the same stack as the game that uses the packages.
+
+Also accepted (principles): one application with route-based pages, no microfrontends or plugin platform; keep `@aigg/viewer` and do not keep two independent rendering engines; pipeline logic (geometry, validation, extraction, assembly, Spine export, integrity checks) stays in the CLI and core modules; proposed, draft, and approved values stay distinct; no database, authentication, job scheduler, WebSocket server, or general backend for this decision.
+
+Not changed by D36: no implementation is authorized (no scaffold, package, dependency, endpoint, or viewer change). D36 closes no other entry. It does not decide D1 (runtime), D21 (package names), or D27. It does not change the rig contract or the calibration proposal (pull request #56).
+
+Changed documents: [the AIGG Studio ADR](proposals/AIGG_STUDIO_ADR.md) (new), [the roadmap](ROADMAP.md#aigg-studio-d36), [the architecture](ARCHITECTURE.md), [the glossary](GLOSSARY.md).
 
 ## Open decision notes
 

@@ -38,6 +38,18 @@ The MVP starts with a modular character sheet that already exists. Details and t
 
 **Draft. Desk research (Phase 1) done, no inference.** Input to step 6. The research compares template-guided open-weights workflows with the ChatGPT baseline (Prompt v2.5) for initial sheet generation and masked repair. Ranked for a possible Phase 2 run: Qwen-Image-Edit-2511, then FLUX.2 [klein] 4B, both Apache-2.0 in ComfyUI. Phase 2 needs owner approval for models, GPU, and images. See [G-Research-1](proposals/G_RESEARCH_1_MODULAR_GENERATORS.md).
 
+### AIGG Studio (D36)
+
+**Accepted direction, no implementation authorized.** Interactive user tools are pages of one Vue 3 + TypeScript + Vite application. See [the AIGG Studio ADR](proposals/AIGG_STUDIO_ADR.md).
+
+| Page               | Status                                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Rig Calibration    | First planned page. Scope and data come from the calibration proposal (pull request #56, milestone V2-M4). |
+| Sheet Review       | Future example.                                                                                            |
+| Build & Validation | Future example.                                                                                            |
+
+Each page starts only with a separate design and implementation task.
+
 ### Later work
 
 - Quality improvements.

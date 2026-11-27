@@ -116,6 +116,7 @@ The research found these tools unsuitable for a commercial product without a leg
 The repository holds the Node.js side of the pipeline: schemas, validation, assembly, PSD exchange, packing, preview, and orchestration of external tools.
 Python tools and GPU services stay outside the repository. Packages call them through narrow adapters.
 See [the workspace layout](WORKSPACES.md) for the planned packages.
+Interactive user tools (calibration, review, approval) are planned as pages of one Vue 3 application, AIGG Studio (D36). It is a user interface over the CLI and core modules. The pipeline logic stays usable without it. See [the AIGG Studio ADR](proposals/AIGG_STUDIO_ADR.md). Not implemented.
 
 ## Related documents
 
@@ -124,3 +125,4 @@ See [the workspace layout](WORKSPACES.md) for the planned packages.
 - [Decision log](DECISIONS.md)
 - [Model license registry](MODEL_LICENSES.md)
 - [Roadmap and experiments](ROADMAP.md)
+- [AIGG Studio ADR](proposals/AIGG_STUDIO_ADR.md)
