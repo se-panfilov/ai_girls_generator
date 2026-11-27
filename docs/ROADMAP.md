@@ -34,6 +34,10 @@ The MVP starts with a modular character sheet that already exists. Details and t
 | 7    | Optional skeleton-aware image guidance                   | Uses the experiment C control tools. Measured against the contract.        |
 | 8    | Sheet quality validation and bounded correction or retry | A fixed retry limit, recorded rejections, no unbounded loops.              |
 
+#### G-Research-1: alternative modular sheet generators
+
+**Draft. Desk research (Phase 1) done, no inference.** Input to step 6. The research compares template-guided open-weights workflows with the ChatGPT baseline (Prompt v2.5) for initial sheet generation and masked repair. Ranked for a possible Phase 2 run: Qwen-Image-Edit-2511, then FLUX.2 [klein] 4B, both Apache-2.0 in ComfyUI. Phase 2 needs owner approval for models, GPU, and images. See [G-Research-1](proposals/G_RESEARCH_1_MODULAR_GENERATORS.md).
+
 ### Later work
 
 - Quality improvements.
