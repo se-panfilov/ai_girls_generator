@@ -43,19 +43,24 @@ The synthetic `sheet-fixture` output, re-packed into the v3.1 row layout. No new
    exactly to a 1024 × 1536 canvas in the v3.1 rows, near item first; drops the fixture's assembled preview region.
 3. `sheet-check` on the result with the written descriptor: PASS (P1–P5).
 
-| Item          | Value                                                                       |
-| ------------- | --------------------------------------------------------------------------- |
-| File          | `e1-geometry-reference.png` (exact bytes in `e1-geometry-reference.png.gz`) |
-| File SHA-256  | `15bcd269b70068128afa4ee83be73941761333d03b33c7c5d5ed57623676beaf`          |
-| Pixel SHA-256 | `58d1189945d15957af79697f8737e82d1da3371f2d564d08fa5e1bb8eaded0fb`          |
-| Contract      | `humanoid_girl_v1_c05_candidate` 0.3.0, file SHA-256 `2e5868b5…5d6f`        |
-| Scale         | 1 px = 1 contract px; vertical gap 17 px                                    |
+| Item                | Value                                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| E1 reference file   | `e1-geometry-reference.png` as stored in the project files and attached in the owner conversation. **Use this file.**                            |
+| File SHA-256        | `67ccf2797ec0736d785c45ac961e13aa0020d847c0567126e493b45f1c5ca096`                                                                               |
+| Raw RGBA SHA-256    | `708e96878fba92a339e8b25e42d875311e21b72d0504628128f6d1ff8b43cc71` (SHA-256 of the decoded 8-bit RGBA bytes only)                                |
+| Tool pixel hash     | `58d1189945d15957af79697f8737e82d1da3371f2d564d08fa5e1bb8eaded0fb` (`pixelHash` of `@aigg/control`: SHA-256 of `1024x1536:rgba8\n` + RGBA bytes) |
+| Script output bytes | `e1-geometry-reference.png.gz`, file SHA-256 after gunzip `15bcd269b70068128afa4ee83be73941761333d03b33c7c5d5ed57623676beaf`                     |
+| Contract            | `humanoid_girl_v1_c05_candidate` 0.3.0, file SHA-256 `2e5868b5…5d6f`                                                                             |
+| Scale               | 1 px = 1 contract px; vertical gap 17 px                                                                                                         |
 
 Verification against the current C0.5 contract (script report): all 18 box sizes equal the attachment rectangles, and all
-joints equal the contract joints relative to the rectangle origin. The parts are flat-color shapes drawn by code. The reference has no
+joints equal the contract joints relative to the rectangle origin. The parts are flat-color shapes drawn by code. The script output has no
 artwork, no text, no metadata chunks, and no secrets.
-The project-file store adds a C2PA content-credential chunk to the stored PNG copy (generic Anthropic metadata, no project data).
-The pixels do not change. Use the gzip copy for exact bytes.
+Hash check: the script wrote `15bcd269…beaf`. The project-file store then added one C2PA content-credential chunk
+(`caBX`, generic Anthropic metadata, no project data) to the stored copy, which gives file SHA-256 `67ccf279…a096`.
+Both files decode to the same 1024 × 1536 RGBA pixels: raw RGBA SHA-256 `708e9687…cc71` for both, tool pixel hash `58d11899…d0fb` for both.
+The two pixel values differ only because the tool hash adds a size prefix. It is the same image; no other image was supplied.
+For E1, use the stored file `67ccf279…a096`. Record its file SHA-256 and raw RGBA SHA-256 with each condition B sheet.
 
 Known limits of the reference:
 
@@ -139,6 +144,11 @@ The owner reviews each sheet against SECTION B and the R4 sheet. Score each item
 | Artistic consistency | One style, line weight, and light across all 18 parts                              | Small differences between parts     | Parts look like different images or styles |
 
 A sheet passes the review when no item is 0 and the total is 4 or more.
+
+For each condition B sheet, the review also records, per part, whether the generated art reproduces a reference artifact:
+hatched hair rectangles (or a hatch pattern), concave end notches, flat placeholder colors, or the plain placeholder shapes.
+Record yes or no for each artifact type and name the parts. A reproduced artifact counts as a visual construction defect in step 6.
+For condition A sheets, record the same items as a control (expected: no).
 
 ## Success and decision rules
 
