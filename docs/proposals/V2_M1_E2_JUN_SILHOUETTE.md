@@ -1,6 +1,7 @@
 # V2-M1 experiment E2: Jun-derived silhouette geometry template (Gates 1 and 2)
 
 **Draft. Proposed.** Gate 1 is inspection and design. Gate 2 (see [Gate 2 result](#gate-2-result)) built a prototype map in the private project files.
+The owner then supplied a manual anatomy map. It replaces the Gate 2 map as the primary geometry reference (see [Owner map](#owner-map-primary-geometry-reference)).
 This document creates no template, no image generation, no GPU use, and no change to the C0.5 candidate contract or to Pipeline v2.
 The E1 plan (prompt v3.1 and conditions A and B) is in PR #58. E2 does not change it.
 
@@ -372,3 +373,53 @@ All 8 limb rest angles equal the C0.5 bone angles (rigid rotation).
 `sheet-check/`, `SHA256SUMS`, and `e2-gate2-outputs.tar.gz` (exact bytes: the project file store can add metadata chunks to loose PNG files).
 
 E2 generation needs a separate owner approval of the reference image. Use the file SHA-256 of the exact file that is uploaded.
+
+## Owner map (primary geometry reference)
+
+The owner made a manual anatomy and parts map of Jun from the Sliced PSD layers. The owner decided:
+
+| Item                       | Decision                                                                                                                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary geometry reference | The owner map. The Gate 2 map is a comparison artifact only.                                                                                         |
+| Master source              | The owner PSD (10000 × 10000, SHA-256 `00e7f8fd…9190`). The owner PNG (8000 × 8000, the PSD at 0.8, SHA-256 `9815e11f…a5ef`) is the human reference. |
+| Orientation for E2         | The mirrored set (`x' = W - x`), which faces image-right as C0.5. The source set (faces screen-left) stays private as provenance.                    |
+| Model input for E2         | Only the clean mirrored `generation-reference.png` (2000 × 2050, SHA-256 `ef3c483b…8168`).                                                           |
+| QA only, not model input   | `assembled-reference.png`, `parts-inventory.png`, `generation-reference-boxes.png`.                                                                  |
+| Neck                       | Stays inside the torso part. This is a known limitation. The contract does not change. It does not block E2.                                         |
+
+### What the owner map contains
+
+- Each part is a Jun Sliced PSD layer at 1:1. 14 of 18 part masks are identical to the Jun layers.
+  The owner removed the rapier from the far hand, split the torso into a top part (with the neck) and a bottom part, and trimmed the shins and feet a little.
+- The assembled figure is the Jun setup pose, moved by (+1910, +192). There is no scale and no mirror.
+- The inventory uses the same masks, moved only. Thus one scale applies to all parts.
+- 16 landmarks (shoulders, elbows, wrists, hips, knees, ankles, waist, neck base, eyes, mouth) and the cranium top and chin lines.
+  `Right` is near and `Left` is far, as in C0.5. The owner put `Neck base` behind the ear.
+
+### Derived set
+
+A script (private, `research/v2-m1-e2/user-map/scripts/build.py`) makes all files from the PSD layers. It uses masks only (alpha 128 or more),
+translation, and an optional horizontal mirror. It does not scale or repaint a part. Each composite has one display downscale (1/5) for the full image.
+The canvas is 250 px taller at the bottom because `foot_near` touches the PSD edge. The face layer is merged into the head mask.
+The owner colour of `hair_back` is black (not visible on black), so the script uses a lilac colour.
+
+Proportions from the owner landmarks, as a ratio to C0.5 (T = mean thigh length, 1291 source px):
+
+| Part                       | Near | Far  |
+| -------------------------- | ---- | ---- |
+| Thigh                      | 1.06 | 0.94 |
+| Shin                       | 1.13 | 1.14 |
+| Upper arm                  | 0.77 | 0.81 |
+| Forearm                    | 1.01 | 1.03 |
+| Head (cranium top to chin) | 1.05 |      |
+
+Validation:
+
+- Same mask in the three PSD groups (inventory, coloured assembly, black assembly) for all 17 parts. Same part sizes in the assembled view and the inventory.
+- All 14 body landmarks are inside the mask of their own part. No box overlaps. Two runs give identical files.
+- `sheet-check` with the C0.5 candidate contract: ERROR, only `E_SHEET_REQUIRED_MISSING` for `neck` (expected).
+  A diagnostic run with a private copy of the contract where `neck` is optional: PASS. The C0.5 contract does not change.
+
+Outputs (project files, private, never commit): `research/v2-m1-e2/user-map/` (`source/`, `map.json`, `parts/`, `native/`, `mirrored/`, `scripts/`,
+`README.md`, `SHA256SUMS`) and `research/v2-m1-e2/user-map.tar.gz`.
+E2 generation needs a separate owner approval.
