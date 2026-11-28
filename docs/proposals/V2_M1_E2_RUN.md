@@ -49,7 +49,7 @@ It is not an output layout and not a character design:
 - Do not draw an assembled figure. The output contains only the 18 detached assets in the rows of Section A.2.
 - The reference has no separate neck; its neck is part of the torso. The output has an independent neck asset, and the torso has no neck, as Section A requires.
 - Where a silhouette differs from the proportions in Section A.3, follow Section A.3.
-- Do not copy the silhouette shapes, the hairstyle, the flat colors or the black background. The background stays fully transparent. The appearance of the character follows Section B only.
+- Use the reference silhouettes as guides for anatomical construction, relative dimensions, joint overlap and part boundaries. Adapt them to the proportions, orientation and clothing requirements in Section A and the character design in Section B. Do not reproduce Jun's distinctive hairstyle, costume-derived contours, exact artistic identity, flat colors or black background. The background stays fully transparent. The appearance of the character follows Section B only.
 ```
 
 The addendum adds no artistic requirement and does not relax a construction rule. Each line repeats a rule of Section A or Section B.
